@@ -4,7 +4,7 @@ plugins {
     id("org.jetbrains.intellij") version "1.16.1"
 }
 
-group = "com.varabyte.kobweb"
+group = "com.varabyte.kobweb.intellij"
 version = "1.0"
 
 repositories {

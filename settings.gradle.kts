@@ -5,4 +5,4 @@ pluginManagement {
     }
 }
 
-rootProject.name = "Kobweb-Intellij"
+rootProject.name = "kobweb-intellij-plugin"
