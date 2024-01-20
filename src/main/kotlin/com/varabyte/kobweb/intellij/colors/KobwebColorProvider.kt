@@ -16,6 +16,10 @@ import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
 import java.awt.Color
 
+// This prevents the color tracer from checking the codebase ridiculously deep,
+// which might cause lag or even worse a stackoverflow
+private const val MAX_SEARCH_DEPTH = 15
+
 private const val KOBWEB_COLOR_COMPANION_FQ_NAME = "com.varabyte.kobweb.compose.ui.graphics.Color.Companion"
 
 /**
@@ -39,7 +43,7 @@ class KobwebColorProvider : ElementColorProvider {
 /**
  * Tries resolving references as deep as possible and checks if a Kobweb color is being referred to
  */
-private fun traceColor(element: PsiElement): Color? {
+private fun traceColor(element: PsiElement, currentDepth: Int = 0): Color? {
     val nextElement = when (element) {
         is KtDotQualifiedExpression -> element.selectorExpression
 
@@ -71,7 +75,9 @@ private fun traceColor(element: PsiElement): Color? {
         else -> null
     }
 
-    return nextElement?.let { traceColor(it) }
+    return if (currentDepth <= MAX_SEARCH_DEPTH) {
+        nextElement?.let { traceColor(it, currentDepth + 1) }
+    } else null
 }
 
 /**
