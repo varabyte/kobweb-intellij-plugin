@@ -13,6 +13,9 @@ private val SUPPRESS_UNUSED_FOR = arrayOf(
     "com.varabyte.kobweb.silk.init.InitSilk"
 )
 
+/**
+ * Suppress the "Unused code" inspection, when we know that Kobweb will generate code that uses it.
+ */
 class UnusedInspectionSuppressor : InspectionSuppressor {
     override fun isSuppressedFor(element: PsiElement, toolId: String): Boolean {
         if (toolId != "unused") return false
