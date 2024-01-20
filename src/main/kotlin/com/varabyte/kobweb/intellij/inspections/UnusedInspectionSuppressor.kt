@@ -7,10 +7,13 @@ import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.annotations.annotationClassIds
 import org.jetbrains.kotlin.psi.KtNamedFunction
 
-private val SUPPRESS_UNUSED_FOR = arrayOf(
+private val SUPPRESS_UNUSED_WHEN_ANNOTATED_WITH = arrayOf(
+    "com.varabyte.kobweb.api.Api",
+    "com.varabyte.kobweb.api.init.InitApi",
     "com.varabyte.kobweb.core.App",
     "com.varabyte.kobweb.core.Page",
-    "com.varabyte.kobweb.silk.init.InitSilk"
+    "com.varabyte.kobweb.core.init.InitKobweb",
+    "com.varabyte.kobweb.silk.init.InitSilk",
 )
 
 /**
@@ -25,7 +28,7 @@ class UnusedInspectionSuppressor : InspectionSuppressor {
             val symbol = ktFunction.getSymbol()
 
             symbol.annotationClassIds.forEach {
-                if (it.asFqNameString() in SUPPRESS_UNUSED_FOR) return true
+                if (it.asFqNameString() in SUPPRESS_UNUSED_WHEN_ANNOTATED_WITH) return true
             }
         }
 

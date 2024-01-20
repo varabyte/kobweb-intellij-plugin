@@ -5,10 +5,9 @@ import com.intellij.codeInspection.SuppressQuickFix
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.annotations.annotationClassIds
-import org.jetbrains.kotlin.idea.base.psi.kotlinFqName
 import org.jetbrains.kotlin.psi.KtNamedFunction
 
-private val SUPPRESS_FUNCTION_NAME_FOR = arrayOf(
+private val SUPPRESS_FUNCTION_NAME_WHEN_ANNOTATED_WITH = arrayOf(
     "androidx.compose.runtime.Composable",
 )
 
@@ -24,7 +23,7 @@ class FunctionNameInspectionSuppressor : InspectionSuppressor {
             val symbol = ktFunction.getSymbol()
 
             symbol.annotationClassIds.forEach {
-                if (it.asFqNameString() in SUPPRESS_FUNCTION_NAME_FOR) return true
+                if (it.asFqNameString() in SUPPRESS_FUNCTION_NAME_WHEN_ANNOTATED_WITH) return true
             }
         }
 
