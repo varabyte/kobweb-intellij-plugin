@@ -73,7 +73,7 @@ private fun traceColor(element: PsiElement, currentDepth: Int = 0): Color? {
                 }
 
                 callee.isKobwebColorFunction("rgb(value: Int)") -> run {
-                    val args = element.valueArguments.run { evaluateArguments<Int>(1) } ?: return@run
+                    val args = element.valueArguments.evaluateArguments<Int>(1) ?: return@run
                     return safeRgbColor(args[0])
                 }
 
