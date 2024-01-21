@@ -1,3 +1,5 @@
+@file:Suppress("UseJBColor")
+
 package com.varabyte.kobweb.intellij.colors
 
 import com.intellij.ide.util.PsiNavigationSupport
@@ -69,6 +71,25 @@ private fun traceColor(element: PsiElement, currentDepth: Int = 0): Color? {
                     val args = element.valueArguments.evaluateArguments<Int>(3) ?: return@run
                     return safeRgbColor(args[0], args[1], args[2])
                 }
+
+                callee.isKobwebColorFunction("rgb(value: Int)") -> run {
+                    val args = element.valueArguments.run { evaluateArguments<Int>(1) } ?: return@run
+                    return safeRgbColor(args[0])
+                }
+
+                callee.isKobwebColorFunction("rgba(value: Int)", "rgba(value: Long)") -> run {
+                    val args = element.valueArguments.run {
+                        evaluateArguments<Int>(1) ?: evaluateArguments<Long, Int>(1) { it.toInt() }
+                    } ?: return@run
+                    return safeRgbColor(args[0] shr Byte.SIZE_BITS)
+                }
+
+                callee.isKobwebColorFunction("argb(value: Int)", "argb(value: Long)") -> run {
+                    val args = element.valueArguments.run {
+                        evaluateArguments<Int>(1) ?: evaluateArguments<Long, Int>(1) { it.toInt() }
+                    } ?: return@run
+                    return safeRgbColor(args[0] and 0x00_FF_FF_FF)
+                }
             }
         }
 
@@ -128,6 +149,8 @@ private fun KtNamedFunction.isKobwebColorFunction(vararg functionSignatures: Str
     }
 }
 
-@Suppress("UseJBColor")
 private fun safeRgbColor(r: Int, g: Int, b: Int) =
     runCatching { Color(r, g, b) }.getOrNull()
+
+private fun safeRgbColor(rgb: Int) =
+    runCatching { Color(rgb) }.getOrNull()
