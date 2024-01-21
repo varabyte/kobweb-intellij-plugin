@@ -98,18 +98,24 @@ private fun KtSimpleNameExpression.locateSource(): PsiElement? {
  * Uses the kotlin analysis api, as it can parse the constants much smarter.
  * It can parse decimal, hex and binary automatically for example.
  */
-private inline fun <reified T> Collection<KtValueArgument>.evaluateArguments(argCount: Int): Array<T>? {
+private inline fun <reified Evaluated, reified Mapped> Collection<KtValueArgument>.evaluateArguments(
+    argCount: Int,
+    evaluatedValueMapper: (Evaluated) -> Mapped
+): Array<Mapped>? {
     val constantExpressions = this.mapNotNull { it.getArgumentExpression() as? KtConstantExpression }
 
     val evaluatedArguments = constantExpressions.mapNotNull {
         analyze(it.containingKtFile) {
-            it.evaluate(KtConstantEvaluationMode.CONSTANT_LIKE_EXPRESSION_EVALUATION)?.value as? T
+            it.evaluate(KtConstantEvaluationMode.CONSTANT_LIKE_EXPRESSION_EVALUATION)?.value as? Evaluated
         }
     }
 
     return if (evaluatedArguments.size != this.size || evaluatedArguments.size != argCount) null
-    else evaluatedArguments.toTypedArray()
+    else evaluatedArguments.map(evaluatedValueMapper).toTypedArray()
 }
+
+private inline fun <reified Evaluated> Collection<KtValueArgument>.evaluateArguments(argCount: Int) =
+    evaluateArguments<Evaluated, Evaluated>(argCount) { it }
 
 private fun KtNamedFunction.isKobwebColorFunction(vararg functionSignatures: String): Boolean {
     val actualFqName = this.kotlinFqName?.asString() ?: return false
