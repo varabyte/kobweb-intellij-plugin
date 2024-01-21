@@ -66,7 +66,7 @@ private fun traceColor(element: PsiElement, currentDepth: Int = 0): Color? {
 
             when {
                 callee.isKobwebColorFunction("rgb(r: Int, g: Int, b: Int)") -> run {
-                    val args = element.valueArguments.evaluateArguments<Int>() ?: return@run
+                    val args = element.valueArguments.evaluateArguments<Int>(3) ?: return@run
                     return safeRgbColor(args[0], args[1], args[2])
                 }
             }
@@ -98,7 +98,7 @@ private fun KtSimpleNameExpression.locateSource(): PsiElement? {
  * Uses the kotlin analysis api, as it can parse the constants much smarter.
  * It can parse decimal, hex and binary automatically for example.
  */
-private inline fun <reified T> Collection<KtValueArgument>.evaluateArguments(): Array<T>? {
+private inline fun <reified T> Collection<KtValueArgument>.evaluateArguments(argCount: Int): Array<T>? {
     val constantExpressions = this.mapNotNull { it.getArgumentExpression() as? KtConstantExpression }
 
     val evaluatedArguments = constantExpressions.mapNotNull {
@@ -107,7 +107,7 @@ private inline fun <reified T> Collection<KtValueArgument>.evaluateArguments(): 
         }
     }
 
-    return if (evaluatedArguments.size != this.size) null
+    return if (evaluatedArguments.size != this.size || evaluatedArguments.size != argCount) null
     else evaluatedArguments.toTypedArray()
 }
 
