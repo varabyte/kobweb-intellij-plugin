@@ -111,14 +111,15 @@ private inline fun <reified T> Collection<KtValueArgument>.evaluateArguments(arg
     else evaluatedArguments.toTypedArray()
 }
 
-private fun KtNamedFunction.isKobwebColorFunction(functionSignature: String): Boolean {
+private fun KtNamedFunction.isKobwebColorFunction(vararg functionSignatures: String): Boolean {
     val actualFqName = this.kotlinFqName?.asString() ?: return false
     val actualParameters = this.valueParameterList?.text ?: return false
-
-    val expected = "$KOBWEB_COLOR_COMPANION_FQ_NAME.$functionSignature"
     val actual = actualFqName + actualParameters
 
-    return expected == actual
+    return functionSignatures.any { functionSignature ->
+        val expected = "$KOBWEB_COLOR_COMPANION_FQ_NAME.$functionSignature"
+        expected == actual
+    }
 }
 
 @Suppress("UseJBColor")
