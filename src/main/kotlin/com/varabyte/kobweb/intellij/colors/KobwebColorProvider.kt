@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.js.translate.declaration.hasCustomGetter
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
 import java.awt.Color
+import kotlin.math.abs
 
 // This prevents the color tracer from checking the codebase ridiculously deep,
 // which might cause lag or even worse a stackoverflow
@@ -90,6 +91,16 @@ private fun traceColor(element: PsiElement, currentDepth: Int = 0): Color? {
                     } ?: return@run
                     return safeRgbColor(args[0] and 0x00_FF_FF_FF)
                 }
+
+                callee.isKobwebColorFunction("hsl(h: Float, s: Float, l: Float)") -> run {
+                    val args = element.valueArguments.evaluateArguments<Float>(3) ?: return@run
+                    return safeHslColor(args[0], args[1], args[2])
+                }
+
+                callee.isKobwebColorFunction("hsla(h: Float, s: Float, l: Float, a: Float)") -> run {
+                    val args = element.valueArguments.evaluateArguments<Float>(4) ?: return@run
+                    return safeHslColor(args[0], args[1], args[2])
+                }
             }
         }
 
@@ -154,3 +165,58 @@ private fun safeRgbColor(r: Int, g: Int, b: Int) =
 
 private fun safeRgbColor(rgb: Int) =
     runCatching { Color(rgb) }.getOrNull()
+
+private fun safeHslColor(hue: Float, saturation: Float, lightness: Float): Color? {
+    // https://en.wikipedia.org/wiki/HSL_and_HSV#Color_conversion_formulae
+    val chroma = (1 - abs(2 * lightness - 1)) * saturation
+    val intermediateValue = chroma * (1 - abs(((hue / 60) % 2) - 1))
+    val hueSection = (hue.toInt() % 360) / 60
+    val r: Float
+    val g: Float
+    val b: Float
+    when (hueSection) {
+        0 -> {
+            r = chroma
+            g = intermediateValue
+            b = 0f
+        }
+
+        1 -> {
+            r = intermediateValue
+            g = chroma
+            b = 0f
+        }
+
+        2 -> {
+            r = 0f
+            g = chroma
+            b = intermediateValue
+        }
+
+        3 -> {
+            r = 0f
+            g = intermediateValue
+            b = chroma
+        }
+
+        4 -> {
+            r = intermediateValue
+            g = 0f
+            b = chroma
+        }
+
+        else -> {
+            check(hueSection == 5)
+            r = chroma
+            g = 0f
+            b = intermediateValue
+        }
+    }
+    val lightnessAdjustment = lightness - chroma / 2
+
+    return safeRgbColor(
+        ((r + lightnessAdjustment) * 255f).toInt(),
+        ((g + lightnessAdjustment) * 255f).toInt(),
+        ((b + lightnessAdjustment) * 255f).toInt()
+    )
+}
