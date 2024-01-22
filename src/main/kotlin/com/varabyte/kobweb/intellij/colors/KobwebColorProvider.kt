@@ -130,8 +130,12 @@ private fun traceColor(element: PsiElement, currentDepth: Int = 0): Color? {
 private fun KtSimpleNameExpression.findDeclaration(): PsiElement? = this.mainReference.resolve()?.navigationElement
 
 /**
- * Uses the kotlin analysis api, as it can parse the constants much smarter.
- * It can parse decimal, hex and binary automatically for example.
+ * Evaluates a collection of value arguments to the specified type.
+ *
+ * For example, if we have a collection of decimal, hex, and binary arguments,
+ * this method can parse them into regular integer values.
+ *
+ * @return the evaluated arguments if evaluation of **all** arguments succeeded, otherwise null
  */
 private inline fun <reified Evaluated, reified Mapped> Collection<KtValueArgument>.evaluateArguments(
     argCount: Int,
