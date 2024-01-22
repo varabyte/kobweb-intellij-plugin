@@ -2,16 +2,12 @@
 
 package com.varabyte.kobweb.intellij.colors
 
-import com.intellij.ide.util.PsiNavigationSupport
 import com.intellij.openapi.editor.ElementColorProvider
-import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
-import com.intellij.psi.util.PsiUtilBase
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.components.KtConstantEvaluationMode
 import org.jetbrains.kotlin.idea.base.psi.kotlinFqName
-import org.jetbrains.kotlin.idea.core.util.toPsiFile
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.js.translate.declaration.hasCustomGetter
 import org.jetbrains.kotlin.lexer.KtTokens
@@ -112,19 +108,9 @@ private fun traceColor(element: PsiElement, currentDepth: Int = 0): Color? {
     } else null
 }
 
-/**
- * Pretty much emulates what CTRL-clicking on a reference would do
- */
-private fun KtSimpleNameExpression.locateSource(): PsiElement? {
-    val resolvedMainReference = this.mainReference.resolve() ?: return null
-    val sourceDescriptor =
-        PsiNavigationSupport.getInstance().getDescriptor(resolvedMainReference) as? OpenFileDescriptor ?: return null
-    val sourcePsiFile = sourceDescriptor.file.toPsiFile(this.project) ?: return null
-    val sourceElementIdentifier = PsiUtilBase.getElementAtOffset(sourcePsiFile, sourceDescriptor.offset)
-    val sourceElement = sourceElementIdentifier.parent
-
-    return sourceElement
-}
+// navigationElement returns the element where a feature like "Go to declaration" would point:
+// The source declaration, if found, and not a compiled one, which would make further analyzing impossible.
+private fun KtSimpleNameExpression.locateSource(): PsiElement? = this.mainReference.resolve()?.navigationElement
 
 /**
  * Uses the kotlin analysis api, as it can parse the constants much smarter.
