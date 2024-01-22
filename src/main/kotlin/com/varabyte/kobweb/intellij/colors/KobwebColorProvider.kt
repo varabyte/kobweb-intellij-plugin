@@ -48,7 +48,7 @@ private fun traceColor(element: PsiElement, currentDepth: Int = 0): Color? {
 
         is KtNameReferenceExpression -> when {
             element.parent is KtCallExpression -> element.parent // Element is name of a function
-            else -> element.locateSource()
+            else -> element.findDeclaration()
         }
 
         is KtProperty -> when {
@@ -60,7 +60,7 @@ private fun traceColor(element: PsiElement, currentDepth: Int = 0): Color? {
         is KtPropertyAccessor -> element.bodyExpression
 
         is KtCallExpression -> (null).apply {
-            val callee = ((element.calleeExpression as? KtNameReferenceExpression)?.locateSource() as? KtNamedFunction)
+            val callee = ((element.calleeExpression as? KtNameReferenceExpression)?.findDeclaration() as? KtNamedFunction)
                 ?: return@apply
 
             when {
@@ -110,7 +110,7 @@ private fun traceColor(element: PsiElement, currentDepth: Int = 0): Color? {
 
 // navigationElement returns the element where a feature like "Go to declaration" would point:
 // The source declaration, if found, and not a compiled one, which would make further analyzing impossible.
-private fun KtSimpleNameExpression.locateSource(): PsiElement? = this.mainReference.resolve()?.navigationElement
+private fun KtSimpleNameExpression.findDeclaration(): PsiElement? = this.mainReference.resolve()?.navigationElement
 
 /**
  * Uses the kotlin analysis api, as it can parse the constants much smarter.
