@@ -136,7 +136,11 @@ private fun KtSimpleNameExpression.findDeclaration(): PsiElement? = this.mainRef
  * this method can parse them into regular integer values, so 123, 0x7B and 0b0111_1011
  * would all evaluate to 123.
  *
- * @return the evaluated arguments if evaluation of **all** arguments succeeded, otherwise null
+ * @param argCount The size the original and evaluated collections must have
+ * @param evaluatedValueMapper Convenience parameter to avoid having to type `.map { ... }.toTypedArray()`
+ *
+ * @return the evaluated arguments of length [argCount] if evaluation of **all** arguments succeeded,
+ * and [argCount] elements were passed for evaluation, otherwise null
  */
 private inline fun <reified Evaluated, reified Mapped> Collection<KtValueArgument>.evaluateArguments(
     argCount: Int,
