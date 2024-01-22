@@ -52,7 +52,12 @@ class KobwebColorProvider : ElementColorProvider {
 }
 
 /**
- * Tries resolving references as deep as possible and checks if a Kobweb color is being referred to
+ * Tries resolving references as deep as possible and checks if a Kobweb color is being referred to.
+ *
+ * @return the color being referenced, or null if the [element] ultimately doesn't resolve to
+ * a color at all (which is common) or if the amount of times we'd have to follow references to get to the color
+ * is too many, or it *was* a color but not one we could extract specific information
+ * about (e.g. a method that returns one of two colors based on a condition).
  */
 private fun traceColor(element: PsiElement, currentDepth: Int = 0): Color? {
     val nextElement = when (element) {
