@@ -1,3 +1,4 @@
+// ElementColorProvider interface uses standard AWT Color, as no darkened version is needed
 @file:Suppress("UseJBColor")
 
 package com.varabyte.kobweb.intellij.colors
