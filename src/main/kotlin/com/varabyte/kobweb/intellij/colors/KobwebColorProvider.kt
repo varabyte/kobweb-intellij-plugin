@@ -34,7 +34,7 @@ private const val MAX_SEARCH_DEPTH = 15
 private const val KOBWEB_COLOR_COMPANION_FQ_NAME = "com.varabyte.kobweb.compose.ui.graphics.Color.Companion"
 
 /**
- * Enables showing those small rectangular color previews next to the line number
+ * Enables showing small rectangular gutter icons that preview Kobweb colors
  */
 class KobwebColorProvider : ElementColorProvider {
 
