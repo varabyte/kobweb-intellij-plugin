@@ -142,6 +142,8 @@ private inline fun <reified Evaluated, reified Mapped> Collection<KtValueArgumen
     argCount: Int,
     evaluatedValueMapper: (Evaluated) -> Mapped
 ): Array<Mapped>? {
+    if (this.size != argCount) return null
+
     val constantExpressions = this.mapNotNull { it.getArgumentExpression() as? KtConstantExpression }
 
     val evaluatedArguments = constantExpressions.mapNotNull {
@@ -150,7 +152,7 @@ private inline fun <reified Evaluated, reified Mapped> Collection<KtValueArgumen
         }
     }
 
-    return if (evaluatedArguments.size != this.size || evaluatedArguments.size != argCount) null
+    return if (evaluatedArguments.size != argCount) null
     else evaluatedArguments.map(evaluatedValueMapper).toTypedArray()
 }
 
