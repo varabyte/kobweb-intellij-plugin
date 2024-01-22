@@ -133,7 +133,8 @@ private fun KtSimpleNameExpression.findDeclaration(): PsiElement? = this.mainRef
  * Evaluates a collection of value arguments to the specified type.
  *
  * For example, if we have a collection of decimal, hex, and binary arguments,
- * this method can parse them into regular integer values.
+ * this method can parse them into regular integer values, so 123, 0x7B and 0b0111_1011
+ * would all evaluate to 123.
  *
  * @return the evaluated arguments if evaluation of **all** arguments succeeded, otherwise null
  */
