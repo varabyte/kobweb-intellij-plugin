@@ -76,44 +76,12 @@ private fun traceColor(element: PsiElement, currentDepth: Int = 0): Color? {
 
         is KtPropertyAccessor -> element.bodyExpression
 
-        is KtCallExpression -> (null).apply {
-            val calleeExpression = element.calleeExpression as? KtNameReferenceExpression ?: return@apply
-            val callee = calleeExpression.findDeclaration() as? KtNamedFunction ?: return@apply
+        is KtCallExpression -> null.also {
+            val calleeExpression = element.calleeExpression as? KtNameReferenceExpression ?: return@also
+            val callee = calleeExpression.findDeclaration() as? KtNamedFunction ?: return@also
 
-            when {
-                callee.isKobwebColorFunction("rgb(r: Int, g: Int, b: Int)") -> run {
-                    val args = element.valueArguments.evaluateArguments<Int>(3) ?: return@run
-                    return safeRgbColor(args[0], args[1], args[2])
-                }
-
-                callee.isKobwebColorFunction("rgb(value: Int)") -> run {
-                    val args = element.valueArguments.evaluateArguments<Int>(1) ?: return@run
-                    return safeRgbColor(args[0])
-                }
-
-                callee.isKobwebColorFunction("rgba(value: Int)", "rgba(value: Long)") -> run {
-                    val args = element.valueArguments.run {
-                        evaluateArguments<Int>(1) ?: evaluateArguments<Long, Int>(1) { it.toInt() }
-                    } ?: return@run
-                    return safeRgbColor(args[0] shr Byte.SIZE_BITS)
-                }
-
-                callee.isKobwebColorFunction("argb(value: Int)", "argb(value: Long)") -> run {
-                    val args = element.valueArguments.run {
-                        evaluateArguments<Int>(1) ?: evaluateArguments<Long, Int>(1) { it.toInt() }
-                    } ?: return@run
-                    return safeRgbColor(args[0] and 0x00_FF_FF_FF)
-                }
-
-                callee.isKobwebColorFunction("hsl(h: Float, s: Float, l: Float)") -> run {
-                    val args = element.valueArguments.evaluateArguments<Float>(3) ?: return@run
-                    return safeHslColor(args[0], args[1], args[2])
-                }
-
-                callee.isKobwebColorFunction("hsla(h: Float, s: Float, l: Float, a: Float)") -> run {
-                    val args = element.valueArguments.evaluateArguments<Float>(4) ?: return@run
-                    return safeHslColor(args[0], args[1], args[2])
-                }
+            tryParseKobwebColorFunctionCall(callee, element.valueArguments)?.let { parsedColor ->
+                return parsedColor
             }
         }
 
@@ -124,6 +92,54 @@ private fun traceColor(element: PsiElement, currentDepth: Int = 0): Color? {
         nextElement?.let { traceColor(it, currentDepth + 1) }
     } else null
 }
+
+/**
+ * Checks if a called function is a Kobweb color function and if it is, tries extracting the color from the call.
+ *
+ * @param callee The function being called, that might be a Kobweb color function
+ * @param valueArguments The arguments the [callee] is called with
+ *
+ * @return The specified color, if it could be parsed and the callee is a Kobweb color function, otherwise null
+ */
+private fun tryParseKobwebColorFunctionCall(
+    callee: KtNamedFunction,
+    valueArguments: Collection<KtValueArgument>
+): Color? = with(valueArguments) {
+    when {
+        callee.isKobwebColorFunction("rgb(r: Int, g: Int, b: Int)") ->
+            evaluateArguments<Int>(3)?.let { args ->
+                safeRgbColor(args[0], args[1], args[2])
+            }
+
+        callee.isKobwebColorFunction("rgb(value: Int)") ->
+            evaluateArguments<Int>(1)?.let { args ->
+                safeRgbColor(args[0])
+            }
+
+        callee.isKobwebColorFunction("rgba(value: Int)", "rgba(value: Long)") ->
+            (evaluateArguments<Int>(1) ?: evaluateArguments<Long, Int>(1) { it.toInt() })?.let { args ->
+                safeRgbColor(args[0] shr Byte.SIZE_BITS)
+            }
+
+        callee.isKobwebColorFunction("argb(value: Int)", "argb(value: Long)") ->
+            (evaluateArguments<Int>(1) ?: evaluateArguments<Long, Int>(1) { it.toInt() })?.let { args ->
+                safeRgbColor(args[0] and 0x00_FF_FF_FF)
+            }
+
+        callee.isKobwebColorFunction("hsl(h: Float, s: Float, l: Float)") ->
+            evaluateArguments<Float>(3)?.let { args ->
+                safeHslColor(args[0], args[1], args[2])
+            }
+
+        callee.isKobwebColorFunction("hsla(h: Float, s: Float, l: Float, a: Float)") ->
+            evaluateArguments<Float>(4)?.let { args ->
+                safeHslColor(args[0], args[1], args[2])
+            }
+
+        else -> null
+    }
+}
+
 
 // navigationElement returns the element where a feature like "Go to declaration" would point:
 // The source declaration, if found, and not a compiled one, which would make further analyzing impossible.
