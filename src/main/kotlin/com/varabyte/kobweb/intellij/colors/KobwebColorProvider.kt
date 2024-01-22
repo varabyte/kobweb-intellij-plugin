@@ -108,32 +108,32 @@ private fun tryParseKobwebColorFunctionCall(
     when {
         callee.isKobwebColorFunction("rgb(r: Int, g: Int, b: Int)") ->
             evaluateArguments<Int>(3)?.let { args ->
-                safeRgbColor(args[0], args[1], args[2])
+                tryCreateRgbColor(args[0], args[1], args[2])
             }
 
         callee.isKobwebColorFunction("rgb(value: Int)") ->
             evaluateArguments<Int>(1)?.let { args ->
-                safeRgbColor(args[0])
+                tryCreateRgbColor(args[0])
             }
 
         callee.isKobwebColorFunction("rgba(value: Int)", "rgba(value: Long)") ->
             (evaluateArguments<Int>(1) ?: evaluateArguments<Long, Int>(1) { it.toInt() })?.let { args ->
-                safeRgbColor(args[0] shr Byte.SIZE_BITS)
+                tryCreateRgbColor(args[0] shr Byte.SIZE_BITS)
             }
 
         callee.isKobwebColorFunction("argb(value: Int)", "argb(value: Long)") ->
             (evaluateArguments<Int>(1) ?: evaluateArguments<Long, Int>(1) { it.toInt() })?.let { args ->
-                safeRgbColor(args[0] and 0x00_FF_FF_FF)
+                tryCreateRgbColor(args[0] and 0x00_FF_FF_FF)
             }
 
         callee.isKobwebColorFunction("hsl(h: Float, s: Float, l: Float)") ->
             evaluateArguments<Float>(3)?.let { args ->
-                safeHslColor(args[0], args[1], args[2])
+                tryCreateHslColor(args[0], args[1], args[2])
             }
 
         callee.isKobwebColorFunction("hsla(h: Float, s: Float, l: Float, a: Float)") ->
             evaluateArguments<Float>(4)?.let { args ->
-                safeHslColor(args[0], args[1], args[2])
+                tryCreateHslColor(args[0], args[1], args[2])
             }
 
         else -> null
@@ -190,13 +190,13 @@ private fun KtNamedFunction.isKobwebColorFunction(vararg functionSignatures: Str
     }
 }
 
-private fun safeRgbColor(r: Int, g: Int, b: Int) =
+private fun tryCreateRgbColor(r: Int, g: Int, b: Int) =
     runCatching { Color(r, g, b) }.getOrNull()
 
-private fun safeRgbColor(rgb: Int) =
+private fun tryCreateRgbColor(rgb: Int) =
     runCatching { Color(rgb) }.getOrNull()
 
-private fun safeHslColor(hue: Float, saturation: Float, lightness: Float): Color? {
+private fun tryCreateHslColor(hue: Float, saturation: Float, lightness: Float): Color? {
     // https://en.wikipedia.org/wiki/HSL_and_HSV#Color_conversion_formulae
     val chroma = (1 - abs(2 * lightness - 1)) * saturation
     val intermediateValue = chroma * (1 - abs(((hue / 60) % 2) - 1))
@@ -244,7 +244,7 @@ private fun safeHslColor(hue: Float, saturation: Float, lightness: Float): Color
     }
     val lightnessAdjustment = lightness - chroma / 2
 
-    return safeRgbColor(
+    return tryCreateRgbColor(
         ((r + lightnessAdjustment) * 255f).toInt(),
         ((g + lightnessAdjustment) * 255f).toInt(),
         ((b + lightnessAdjustment) * 255f).toInt()
