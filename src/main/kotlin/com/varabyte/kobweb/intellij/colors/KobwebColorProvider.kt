@@ -60,8 +60,8 @@ private fun traceColor(element: PsiElement, currentDepth: Int = 0): Color? {
         is KtPropertyAccessor -> element.bodyExpression
 
         is KtCallExpression -> (null).apply {
-            val callee = ((element.calleeExpression as? KtNameReferenceExpression)?.findDeclaration() as? KtNamedFunction)
-                ?: return@apply
+            val calleeExpression = element.calleeExpression as? KtNameReferenceExpression ?: return@apply
+            val callee = calleeExpression.findDeclaration() as? KtNamedFunction ?: return@apply
 
             when {
                 callee.isKobwebColorFunction("rgb(r: Int, g: Int, b: Int)") -> run {
