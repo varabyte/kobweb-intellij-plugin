@@ -1,14 +1,18 @@
 plugins {
-    id("java")
-    id("org.jetbrains.kotlin.jvm") version "1.9.21"
-    id("org.jetbrains.intellij") version "1.16.1"
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.intellij)
 }
 
 group = "com.varabyte.kobweb.intellij"
-version = "0.1.0"
+version = libs.versions.kobweb.ide.plugin.get()
 
 repositories {
     mavenCentral()
+}
+
+dependencies {
+    implementation(libs.kotlinx.coroutines)
+    testImplementation(libs.truthish)
 }
 
 // Configure Gradle IntelliJ Plugin
