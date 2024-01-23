@@ -152,7 +152,9 @@ private fun KtSimpleNameExpression.findDeclaration(): PsiElement? = this.mainRef
  * this method can parse them into regular integer values, so 123, 0x7B and 0b0111_1011
  * would all evaluate to 123.
  *
- * @param argCount The size the original and evaluated collections must have
+ * @param argCount The size the original and evaluated collections must have. If this value disagrees with the size of
+ *   the passed in collection, it will throw an exception; it's essentially treated like an assertion at that point.
+ *   Otherwise, it's used to avoid returning a final, evaluated array of unexpected size.
  * @param evaluatedValueMapper Convenience parameter to avoid having to type `.map { ... }.toTypedArray()`
  *
  * @return the evaluated arguments of length [argCount] if evaluation of **all** arguments succeeded,
@@ -162,7 +164,8 @@ private inline fun <reified Evaluated, reified Mapped> Collection<KtValueArgumen
     argCount: Int,
     evaluatedValueMapper: (Evaluated) -> Mapped
 ): Array<Mapped>? {
-    if (this.size != argCount) return null
+
+    check(this.size == argCount) { "evaluateArguments called on a collection expecting $argCount arguments, but it only had ${this.size}"}
 
     val constantExpressions = this.mapNotNull { it.getArgumentExpression() as? KtConstantExpression }
 
