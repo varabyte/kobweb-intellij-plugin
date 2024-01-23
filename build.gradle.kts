@@ -8,9 +8,15 @@ version = libs.versions.kobweb.ide.plugin.get()
 
 repositories {
     mavenCentral()
+    // For Gradle tooling API
+    maven("https://repo.gradle.org/gradle/libs-releases")
 }
 
 dependencies {
+    // For Gradle Tooling API (used for querying information from gradle projects))
+    implementation("org.gradle:gradle-tooling-api:${gradle.gradleVersion}")
+    runtimeOnly("org.slf4j:slf4j-nop:2.0.11") // Needed by gradle tooling
+
     testImplementation(libs.truthish)
 }
 
@@ -21,7 +27,8 @@ intellij {
     type.set("IC") // Target IDE Platform
 
     plugins.set(listOf(
-        "org.jetbrains.kotlin"
+        "org.jetbrains.kotlin",
+        "org.jetbrains.plugins.gradle",
     ))
 }
 
