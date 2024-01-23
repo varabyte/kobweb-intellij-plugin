@@ -19,8 +19,9 @@ First:
 * Read the [official documentation](https://plugins.jetbrains.com/docs/intellij/developing-plugins.html)
 * *(Optional)* Install the [DevKit Plugin](https://plugins.jetbrains.com/plugin/22851-plugin-devkit)
 
-The IntelliJ API surfaces an astounding number of extension hooks. To add your own custom logic, you find the right
-interface in their codebase, implement it, and then register your implementation in the `resources/META-INF/plugin.xml`
+The IntelliJ API surfaces an astounding number of extension hooks. To add your own custom logic, 
+search for your desired extension point [here](https://plugins.jetbrains.com/docs/intellij/extension-point-list.html),
+implement it, and then register your implementation in the `resources/META-INF/plugin.xml`
 file.
 
 The IntelliJ codebase is unfortunately not the most well documented, especially some of the older parts, so usually the
