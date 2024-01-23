@@ -9,6 +9,27 @@ The list of features includes but is not limited to:
 - Suppression of "Unused" warning for functions with annotations like `@Page`, `@App` and so on.
 - (WAY MORE TO COME SOON)
 
+## Developing
+
+So much of IntelliJ plugin development is outside the scope of anything we can hope to cover here. However, we'll share
+a few links, tips, and high level concepts.
+
+First:
+
+* Read the [official documentation](https://plugins.jetbrains.com/docs/intellij/developing-plugins.html)
+* *(Optional)* Install the [DevKit Plugin](https://plugins.jetbrains.com/plugin/22851-plugin-devkit)
+
+The IntelliJ API surfaces an astounding number of extension hooks. To add your own custom logic, you find the right
+interface in their codebase, implement it, and then register your implementation in the `resources/META-INF/plugin.xml`
+file.
+
+The IntelliJ codebase is unfortunately not the most well documented, especially some of the older parts, so usually the
+best advice is to search open source plugins for examples of how to do what you want.
+
+Consider referencing the [IntelliJ Community codebase](https://github.com/JetBrains/intellij-community) and
+the [Android Studio codebase](https://cs.android.com/android-studio). You might also try searching through GitHub or
+[grep.app](https://grep.app/) to see how other plugins are implemented.
+
 ## Running
 
 A `Run Plugin` run configuration is provided for testing during development.
