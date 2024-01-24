@@ -11,7 +11,6 @@ repositories {
 }
 
 dependencies {
-    implementation(libs.kotlinx.coroutines)
     testImplementation(libs.truthish)
 }
 
