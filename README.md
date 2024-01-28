@@ -6,7 +6,9 @@ useful refactoring actions, and more.
 
 The list of features includes but is not limited to:
 
-- Suppression of "Unused" warning for functions with annotations like `@Page`, `@App` and so on.
+- Suppression of irrelevant warnings that don't apply to Kobweb projects, like unused functions with annotations like
+  `@Page`, `@App` and so on.
+- Surfacing color badges in the gutter for Kobweb RGB and HSL colors.
 - (WAY MORE TO COME SOON)
 
 ## Developing
