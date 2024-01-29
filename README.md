@@ -20,10 +20,11 @@ First:
 
 * Read the [official documentation](https://plugins.jetbrains.com/docs/intellij/developing-plugins.html)
 * *(Optional)* Install the [DevKit Plugin](https://plugins.jetbrains.com/plugin/22851-plugin-devkit)
+* Plugin source is located under the `plugin` subdirectory.
 
 The IntelliJ API surfaces an astounding number of extension hooks. To add your own custom logic, 
 search for your desired extension point [here](https://plugins.jetbrains.com/docs/intellij/extension-point-list.html),
-implement it, and then register your implementation in the `resources/META-INF/plugin.xml`
+implement it, and then register your implementation in the plugin's `resources/META-INF/plugin.xml`
 file.
 
 The IntelliJ codebase is unfortunately not the most well documented, especially some of the older parts, so usually the
@@ -47,7 +48,7 @@ can use.
 
 To build the plugin, run the `Build Plugin` run configuration.
 
-The built plugin will be located in the [build/distributions]() directory.
+The built plugin will be located in the [plugin/build/distributions]() directory.
 
 ## Installing
 

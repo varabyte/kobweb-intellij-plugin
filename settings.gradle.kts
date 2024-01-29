@@ -6,3 +6,5 @@ pluginManagement {
 }
 
 rootProject.name = "kobweb-intellij-plugin"
+
+include(":plugin")
