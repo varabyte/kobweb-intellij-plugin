@@ -1,16 +1,36 @@
 package com.varabyte.kobweb.intellij.util.kobweb
 
 import com.intellij.psi.PsiElement
+import com.varabyte.kobweb.intellij.model.KobwebProjectType
 import com.varabyte.kobweb.intellij.project.KobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
 import org.jetbrains.kotlin.psi.KtFile
 
-private fun PsiElement.isInKobwebContext(test: (KobwebProject) -> Boolean): Boolean {
-    return findKobwebProject()?.let { return test(it) } ?: false
+/**
+ * A collection of useful sets of [KobwebProjectType]s.
+ *
+ * These can be useful to pass into the [isInKobwebReadContext] and [isInKobwebWriteContext] extension methods.
+ */
+object KobwebProjectTypes {
+    /**
+     * The set of all Kobweb project types.
+     */
+    val All = KobwebProjectType.entries.toSet()
+
+    /**
+     * The set of core Kobweb project types that affect the frontend DOM / backend API routes.
+     */
+    val Framework = setOf(KobwebProjectType.Application, KobwebProjectType.Library)
+
+    val WorkerOnly = setOf(KobwebProjectType.Worker)
 }
 
 private fun PsiElement.isInKobwebSource(): Boolean {
     return (this.containingFile as? KtFile)?.packageFqName?.asString()?.startsWith("com.varabyte.kobweb") ?: false
+}
+
+private fun PsiElement.isInKobwebContext(test: (KobwebProject) -> Boolean): Boolean {
+    this.findKobwebProject()?.let { return test(it) } ?: return false
 }
 
 /**
@@ -24,7 +44,7 @@ private fun PsiElement.isInKobwebSource(): Boolean {
  *   By default, this is false, so unless this is explicitly set, this extension point will be active inside Kobweb
  *   source.
  */
-fun PsiElement.isInKobwebReadContext(limitTo: Set<KobwebProject.Type> = KobwebProject.Types.Framework, excludeKobwebSource: Boolean = false): Boolean {
+fun PsiElement.isInKobwebReadContext(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework, excludeKobwebSource: Boolean = true): Boolean {
     return isInKobwebContext { it.type in limitTo } || (!excludeKobwebSource && isInKobwebSource())
 }
 
@@ -33,6 +53,6 @@ fun PsiElement.isInKobwebReadContext(limitTo: Set<KobwebProject.Type> = KobwebPr
  *
  * @param limitTo See the docs for [isInKobwebReadContext] for more info.
  */
-fun PsiElement.isInKobwebWriteContext(limitTo: Set<KobwebProject.Type> = KobwebProject.Types.Framework): Boolean {
+fun PsiElement.isInKobwebWriteContext(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework): Boolean {
     return isInKobwebContext { it.type in limitTo && it.source is KobwebProject.Source.Local }
 }

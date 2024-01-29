@@ -18,7 +18,7 @@ private val SUPPRESS_FUNCTION_NAME_WHEN_ANNOTATED_WITH = arrayOf(
 class FunctionNameInspectionSuppressor : InspectionSuppressor {
     override fun isSuppressedFor(element: PsiElement, toolId: String): Boolean {
         if (toolId != "FunctionName") return false
-        if (!element.isInKobwebReadContext()) return false
+        if (!element.isInKobwebReadContext(excludeKobwebSource = false)) return false
         val ktFunction = element.parent as? KtNamedFunction ?: return false
 
         analyze(ktFunction) {
