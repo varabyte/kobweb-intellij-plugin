@@ -1,3 +1,15 @@
+# IntelliJ
+
 .idea/
+
+# Build
+
 build/
+
+# Gradle
+
 .gradle/
+
+# Mac
+
+.DS_Store
