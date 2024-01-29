@@ -43,7 +43,7 @@ class KobwebColorProvider : ElementColorProvider {
         element !is LeafPsiElement -> null
         element.elementType != KtTokens.IDENTIFIER -> null
         element.parent is KtProperty -> null // Avoid showing multiple previews
-        !element.isInKobwebReadContext() -> null
+        !element.isInKobwebReadContext(excludeKobwebSource = false) -> null
         else -> traceColor(element.parent) // Leaf is just text. The parent is the actual object
     }
 
