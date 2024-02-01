@@ -9,7 +9,7 @@ import org.jetbrains.kotlin.psi.KtFile
 /**
  * A collection of useful sets of [KobwebProjectType]s.
  *
- * These can be useful to pass into the [isInKobwebReadContext] and [isInKobwebWriteContext] extension methods.
+ * These can be useful to pass into the [isInReadOnlyKobwebContext] and [isInWritableKobwebContext] extension methods.
  */
 object KobwebProjectTypes {
     /**
@@ -44,15 +44,15 @@ private fun PsiElement.isInKobwebContext(test: (KobwebProject) -> Boolean): Bool
  *   By default, this is false, so unless this is explicitly set, this extension point will be active inside Kobweb
  *   source.
  */
-fun PsiElement.isInKobwebReadContext(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework, excludeKobwebSource: Boolean = true): Boolean {
+fun PsiElement.isInReadOnlyKobwebContext(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework, excludeKobwebSource: Boolean = true): Boolean {
     return isInKobwebContext { it.type in limitTo } || (!excludeKobwebSource && isInKobwebSource())
 }
 
 /**
  * Useful test to see if a writing Kobweb Plugin action (like a refactor) should be allowed to run here.
  *
- * @param limitTo See the docs for [isInKobwebReadContext] for more info.
+ * @param limitTo See the docs for [isInReadOnlyKobwebContext] for more info.
  */
-fun PsiElement.isInKobwebWriteContext(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework): Boolean {
+fun PsiElement.isInWritableKobwebContext(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework): Boolean {
     return isInKobwebContext { it.type in limitTo && it.source is KobwebProject.Source.Local }
 }

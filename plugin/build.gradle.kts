@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.intellij)
@@ -29,7 +31,7 @@ tasks {
         sourceCompatibility = "17"
         targetCompatibility = "17"
     }
-    withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    withType<KotlinCompile> {
         kotlinOptions.jvmTarget = "17"
     }
 

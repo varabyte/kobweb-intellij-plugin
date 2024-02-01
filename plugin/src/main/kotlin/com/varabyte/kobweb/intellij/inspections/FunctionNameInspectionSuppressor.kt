@@ -3,7 +3,7 @@ package com.varabyte.kobweb.intellij.inspections
 import com.intellij.codeInspection.InspectionSuppressor
 import com.intellij.codeInspection.SuppressQuickFix
 import com.intellij.psi.PsiElement
-import com.varabyte.kobweb.intellij.util.kobweb.isInKobwebReadContext
+import com.varabyte.kobweb.intellij.util.kobweb.isInReadOnlyKobwebContext
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.annotations.annotationClassIds
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -18,7 +18,7 @@ private val SUPPRESS_FUNCTION_NAME_WHEN_ANNOTATED_WITH = arrayOf(
 class FunctionNameInspectionSuppressor : InspectionSuppressor {
     override fun isSuppressedFor(element: PsiElement, toolId: String): Boolean {
         if (toolId != "FunctionName") return false
-        if (!element.isInKobwebReadContext(excludeKobwebSource = false)) return false
+        if (!element.isInReadOnlyKobwebContext(excludeKobwebSource = false)) return false
         val ktFunction = element.parent as? KtNamedFunction ?: return false
 
         analyze(ktFunction) {

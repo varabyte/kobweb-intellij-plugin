@@ -1,6 +1,8 @@
 package com.varabyte.kobweb.intellij.util.kobweb.project
 
 import com.intellij.openapi.components.service
+import com.intellij.openapi.module.Module
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
 import com.varabyte.kobweb.intellij.model.KobwebProjectType
 import com.varabyte.kobweb.intellij.project.KobwebProject
@@ -21,6 +23,52 @@ private val KOBWEB_METADATA_IDENTIFIERS_LIBRARY = listOf(
 )
 private const val KOBWEB_METADATA_IDENTIFIER_WORKER = "$KOBWEB_METADATA_ROOT/worker.json"
 
+private fun Module.findKobwebProject(kobwebProjectsCache: KobwebProjectCacheService): KobwebProject? {
+    // Note that this module is likely a specific source submodule of the module we want (the one associated with
+    // the Gradle build script). That is, "this" is probably something like "app.site.jsMain" when we want "app.site"
+    @Suppress("UnstableApiUsage") // "findGradleModuleData" has been experimental for 5 years...
+    val gradleModule = GradleUtil.findGradleModuleData(this)?.let { moduleDataNode ->
+        GradleUtil.findGradleModule(this.project, moduleDataNode.data)
+    } ?: return null
+
+    kobwebProjectsCache[gradleModule]?.let { return it }
+
+    return gradleModule.findKobwebModel()?.let { kobwebModel ->
+        return KobwebProject(
+            gradleModule.name,
+            kobwebModel.projectType,
+            KobwebProject.Source.Local(gradleModule)
+        ).also {
+            kobwebProjectsCache.add(it)
+        }
+    }
+}
+
+private fun VirtualFile.findKobwebProject(kobwebProjectsCache: KobwebProjectCacheService): KobwebProject? {
+    require(this.extension == "klib")
+    val klib = this
+
+    kobwebProjectsCache[klib]?.let { return it }
+
+    val kobwebProjectType = when {
+        KOBWEB_METADATA_IDENTIFIERS_LIBRARY.any { this.findFileByRelativePath(it) != null } -> {
+            KobwebProjectType.Library
+        }
+
+        this.findFileByRelativePath(KOBWEB_METADATA_IDENTIFIER_WORKER) != null -> {
+            KobwebProjectType.Worker
+        }
+
+        else -> return null
+    }
+
+    return KobwebProject(
+        klib.name,
+        kobwebProjectType,
+        KobwebProject.Source.External(klib)
+    ).also { kobwebProjectsCache.add(it) }
+}
+
 /**
  * Returns the Kobweb project associated with the owning context of this element, or null if none is found.
  *
@@ -31,51 +79,13 @@ private const val KOBWEB_METADATA_IDENTIFIER_WORKER = "$KOBWEB_METADATA_ROOT/wor
  */
 fun PsiElement.findKobwebProject(): KobwebProject? {
     val kobwebProjectsCache = project.service<KobwebProjectCacheService>()
+    if (kobwebProjectsCache.isNotKobweb(this)) return null
 
-    this.module
-        ?.let { elementModule ->
-            // Note that this module is likely a specific source submodule of the module we want (the one associated with
-            // the Gradle build script). That is, we are probably getting "app.site.jsMain" when we want "app.site"
-            @Suppress("UnstableApiUsage") // "findGradleModuleData" has been experimental for 5 years...
-            GradleUtil.findGradleModuleData(elementModule)?.let { moduleDataNode ->
-                GradleUtil.findGradleModule(this.project, moduleDataNode.data)
-            }
-        }?.let { module ->
-            if (kobwebProjectsCache.isNotKobweb(module)) return null
-            kobwebProjectsCache[module]?.let { return it }
+    val kobwebProject =
+        this.module?.findKobwebProject(kobwebProjectsCache)
+            ?: this.containingKlib?.findKobwebProject(kobwebProjectsCache)
 
-            module.findKobwebModel()?.let { kobwebModel ->
-                return KobwebProject(module.name, kobwebModel.projectType, KobwebProject.Source.Local(module)).also {
-                    kobwebProjectsCache.add(it)
-                }
-            }
-        }
+    if (kobwebProject == null) kobwebProjectsCache.markNonKobweb(this)
 
-    this.containingKlib?.let { klib ->
-        if (kobwebProjectsCache.isNotKobweb(klib)) return null
-        kobwebProjectsCache[klib]?.let { return it }
-
-        val kobwebProjectType = when {
-            KOBWEB_METADATA_IDENTIFIERS_LIBRARY.any { klib.findFileByRelativePath(it) != null } -> {
-                KobwebProjectType.Library
-            }
-
-            klib.findFileByRelativePath(KOBWEB_METADATA_IDENTIFIER_WORKER) != null -> {
-                KobwebProjectType.Worker
-            }
-
-            else -> null
-        }
-
-        if (kobwebProjectType != null) {
-            return KobwebProject(
-                klib.name,
-                kobwebProjectType,
-                KobwebProject.Source.External(klib)
-            ).also { kobwebProjectsCache.add(it) }
-        }
-    }
-
-    kobwebProjectsCache.markNonKobweb(this)
-    return null
+    return kobwebProject
 }

@@ -12,9 +12,11 @@ import org.jetbrains.plugins.gradle.service.project.AbstractProjectResolverExten
 import org.jetbrains.plugins.gradle.util.GradleConstants
 
 /**
- * A project resolver that extends a module with information about its Kobweb contents (if any).
+ * A project resolver that extends an IntelliJ module with information about its Kobweb contents (if any).
+ *
+ * Note: In this case, "project" here refers to a Gradle project, not an IntelliJ project.
  */
-class KobwebProjectResolver : AbstractProjectResolverExtension() {
+class KobwebGradleProjectResolver : AbstractProjectResolverExtension() {
     object Keys {
         internal val KOBWEB_MODEL = Key.create(KobwebModel::class.java, 0)
     }
@@ -44,6 +46,6 @@ fun Module.findKobwebModel(): KobwebModel? {
     return ExternalSystemApiUtil
         .findModuleNode(project, GradleConstants.SYSTEM_ID, modulePath)
         ?.children
-        ?.singleOrNull { it.key == KobwebProjectResolver.Keys.KOBWEB_MODEL }
+        ?.singleOrNull { it.key == KobwebGradleProjectResolver.Keys.KOBWEB_MODEL }
         ?.data as? KobwebModel
 }

@@ -9,7 +9,9 @@ import org.jetbrains.kotlin.idea.base.util.module
 import java.util.*
 
 /**
- * A project service which can be queried to find all Kobweb projects in the current workspace.
+ * A project service which caches [KobwebProject]s, allowing for quick lookups of whether a given element is part of one.
+ *
+ * Callers can fetch this service and then either register Kobweb Projects with it or query it.
  *
  * Knowing if you're inside a Kobweb project can be useful before running an inspection or action, so that we don't
  * waste time processing code that isn't relevant to Kobweb (e.g. if we're in a multiplatform project with Kobweb,
@@ -24,12 +26,15 @@ import java.util.*
 interface KobwebProjectCacheService : Iterable<KobwebProject> {
     operator fun get(module: Module): KobwebProject?
     operator fun get(klib: VirtualFile): KobwebProject?
-    fun isNotKobweb(module: Module) = get(module) == null
-    fun isNotKobweb(klib: VirtualFile) = get(klib) == null
+
+    // This does NOT accept module / klib parameters like the `get` methods, because we need to support elements that
+    // potentially don't live in either a module nor a klib.
+    fun isNotKobweb(element: PsiElement): Boolean
 
     fun add(project: KobwebProject)
     fun addAll(collection: Collection<KobwebProject>)
     fun markNonKobweb(element: PsiElement)
+
     fun clear()
 }
 
@@ -47,12 +52,12 @@ private class KobwebProjectCacheServiceImpl : KobwebProjectCacheService {
         }
     }
 
-    override fun isNotKobweb(module: Module): Boolean {
-        return nonKobwebProjects.contains(module)
-    }
+    // There are easily thousands of elements in a project, so it would be wasteful to store each one individually.
+    // Instead, we return a container as broad as possible and store that.
+    private fun PsiElement.toElementContainer(): Any = module ?: containingKlib ?: containingFile
 
-    override fun isNotKobweb(klib: VirtualFile): Boolean {
-        return nonKobwebProjects.contains(klib)
+    override fun isNotKobweb(element: PsiElement): Boolean {
+        return nonKobwebProjects.contains(element.toElementContainer())
     }
 
     override fun addAll(collection: Collection<KobwebProject>) {
@@ -60,7 +65,7 @@ private class KobwebProjectCacheServiceImpl : KobwebProjectCacheService {
     }
 
     override fun markNonKobweb(element: PsiElement) {
-        nonKobwebProjects.add(element.module ?: element.containingKlib)
+        nonKobwebProjects.add(element.toElementContainer())
     }
 
     override fun clear() {

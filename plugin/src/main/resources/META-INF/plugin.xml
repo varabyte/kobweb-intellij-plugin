@@ -39,6 +39,6 @@
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.plugins.gradle">
-        <projectResolve implementation="com.varabyte.kobweb.intellij.project.KobwebProjectResolver" />
+        <projectResolve implementation="com.varabyte.kobweb.intellij.project.KobwebGradleProjectResolver" />
     </extensions>
 </idea-plugin>

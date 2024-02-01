@@ -11,7 +11,7 @@ private class KobwebModelImpl(
 ) : KobwebModel
 
 private fun Project.toKobwebModel(): KobwebModel? {
-    val type = with(pluginManager) {
+    val projectType = with(pluginManager) {
         when {
             hasPlugin("com.varabyte.kobweb.application") -> KobwebProjectType.Application
             hasPlugin("com.varabyte.kobweb.library") -> KobwebProjectType.Library
@@ -20,17 +20,23 @@ private fun Project.toKobwebModel(): KobwebModel? {
         }
     }
 
-    return KobwebModelImpl(type)
+    return KobwebModelImpl(projectType)
 }
 
 /**
  * A model builder that creates a [KobwebModel] for a Kobweb module.
  *
- * Note that this class is run in the user's Gradle JVM, so it should be thought of more as Gradle code than
- * IntelliJ plugin code.
+ * This service is declared in `META-INF/services`, where it will be found by the IntelliJ IDE engine and injected into
+ * Gradle.
+ *
+ * This allows our code to run directly in Gradle, giving us access to use Gradle APIs.
+ *
+ * The injected code then returns a serializable class (a model) which can be fetched with by an
+ * `AbstractProjectResolverExtension` (which we implement elsewhere in this codebase).
  */
 class KobwebModelBuilderService : AbstractModelBuilderService() {
     override fun canBuild(modelName: String?) = modelName == KobwebModel::class.qualifiedName
+
     override fun buildAll(modelName: String, project: Project, context: ModelBuilderContext): KobwebModel? {
         return project.toKobwebModel()
             ?.also {
@@ -44,9 +50,9 @@ class KobwebModelBuilderService : AbstractModelBuilderService() {
         context: ModelBuilderContext,
         exception: Exception
     ) {
-        project.logger.error(buildString {
-            appendLine("Building the Kobweb model has failed (Project: ${project.displayName}):")
-            append(exception.stackTraceToString())
+        project.logger.warn(buildString {
+            appendLine("The Kobweb IntelliJ plugin added some code that caused an unexpected error in your Gradle project (${project.displayName}). Consider filing an issue with the plugin authors at https://github.com/varabyte/kobweb-intellij-plugin/issues")
+            append("Exception: ${exception.stackTraceToString()}")
         })
     }
 }
