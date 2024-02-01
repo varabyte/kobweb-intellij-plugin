@@ -21,11 +21,12 @@
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
     <depends>com.intellij.modules.platform</depends>
     <depends>org.jetbrains.kotlin</depends>
+    <depends>org.jetbrains.plugins.gradle</depends>
 
     <!-- Extension points defined by the plugin.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
     <extensions defaultExtensionNs="com.intellij">
-        <postStartupActivity implementation="com.varabyte.kobweb.intellij.startup.DiscoverKobwebProjectsProjectActivity" />
+        <postStartupActivity implementation="com.varabyte.kobweb.intellij.startup.KobwebPostStartupProjectActivity" />
 
         <projectService
                 serviceInterface="com.varabyte.kobweb.intellij.services.project.KobwebProjectCacheService"
@@ -35,5 +36,9 @@
         <lang.inspectionSuppressor language="kotlin" implementationClass="com.varabyte.kobweb.intellij.inspections.UnusedInspectionSuppressor"/>
 
         <colorProvider implementation="com.varabyte.kobweb.intellij.colors.KobwebColorProvider" />
+    </extensions>
+
+    <extensions defaultExtensionNs="org.jetbrains.plugins.gradle">
+        <projectResolve implementation="com.varabyte.kobweb.intellij.project.KobwebGradleProjectResolver" />
     </extensions>
 </idea-plugin>
