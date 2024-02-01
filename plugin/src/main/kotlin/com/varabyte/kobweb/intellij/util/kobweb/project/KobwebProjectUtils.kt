@@ -23,18 +23,29 @@ private val KOBWEB_METADATA_IDENTIFIERS_LIBRARY = listOf(
 )
 private const val KOBWEB_METADATA_IDENTIFIER_WORKER = "$KOBWEB_METADATA_ROOT/worker.json"
 
-private fun Module.findKobwebProject(kobwebProjectsCache: KobwebProjectCacheService): KobwebProject? {
-    // Note that this module is likely a specific source submodule of the module we want (the one associated with
-    // the Gradle build script). That is, "this" is probably something like "app.site.jsMain" when we want "app.site"
+/**
+ * Given an IntelliJ module, return the associated module that represents the root of a Gradle project.
+ *
+ * Often, a module you fetch for a [PsiElement] is the one associated with a source directory, but what we often
+ * actually want it its parent module. That is, instead of the module "app.site.jsMain" we want "app.site".
+ *
+ * If found, the module returned will be home to a Gradle build file, and you can be confident it represents the
+ * root of a Gradle project.
+ */
+private fun Module.toGradleModule(): Module? {
     @Suppress("UnstableApiUsage") // "findGradleModuleData" has been experimental for 5 years...
-    val gradleModule = GradleUtil.findGradleModuleData(this)?.let { moduleDataNode ->
+    return GradleUtil.findGradleModuleData(this)?.let { moduleDataNode ->
         GradleUtil.findGradleModule(this.project, moduleDataNode.data)
-    } ?: return null
+    }
+}
+
+private fun Module.findKobwebProject(kobwebProjectsCache: KobwebProjectCacheService): KobwebProject? {
+    val gradleModule = this.toGradleModule() ?: return null
 
     kobwebProjectsCache[gradleModule]?.let { return it }
 
     return gradleModule.findKobwebModel()?.let { kobwebModel ->
-        return KobwebProject(
+        KobwebProject(
             gradleModule.name,
             kobwebModel.projectType,
             KobwebProject.Source.Local(gradleModule)

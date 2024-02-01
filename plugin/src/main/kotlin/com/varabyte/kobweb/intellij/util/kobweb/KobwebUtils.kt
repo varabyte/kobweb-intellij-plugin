@@ -45,7 +45,7 @@ private fun PsiElement.isInKobwebContext(test: (KobwebProject) -> Boolean): Bool
  *   source.
  */
 fun PsiElement.isInReadOnlyKobwebContext(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework, excludeKobwebSource: Boolean = true): Boolean {
-    return isInKobwebContext { it.type in limitTo } || (!excludeKobwebSource && isInKobwebSource())
+    return isInKobwebContext { kobwebProject -> kobwebProject.type in limitTo } || (!excludeKobwebSource && isInKobwebSource())
 }
 
 /**
@@ -54,5 +54,5 @@ fun PsiElement.isInReadOnlyKobwebContext(limitTo: Set<KobwebProjectType> = Kobwe
  * @param limitTo See the docs for [isInReadOnlyKobwebContext] for more info.
  */
 fun PsiElement.isInWritableKobwebContext(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework): Boolean {
-    return isInKobwebContext { it.type in limitTo && it.source is KobwebProject.Source.Local }
+    return isInKobwebContext { kobwebProject -> kobwebProject.type in limitTo && kobwebProject.source is KobwebProject.Source.Local }
 }
