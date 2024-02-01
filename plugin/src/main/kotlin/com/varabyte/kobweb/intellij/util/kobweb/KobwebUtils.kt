@@ -25,7 +25,13 @@ object KobwebProjectTypes {
     val WorkerOnly = setOf(KobwebProjectType.Worker)
 }
 
-private fun PsiElement.isInKobwebSource(): Boolean {
+/**
+ * Returns true if this is code inside the Kobweb framework itself.
+ *
+ * The user can easily end up in here if they navigate into it from their own code, e.g. to see how something is
+ * implemented or to look around at the docs or other API methods.
+ */
+fun PsiElement.isInKobwebSource(): Boolean {
     return (this.containingFile as? KtFile)?.packageFqName?.asString()?.startsWith("com.varabyte.kobweb") ?: false
 }
 
@@ -39,13 +45,9 @@ private fun PsiElement.isInKobwebContext(test: (KobwebProject) -> Boolean): Bool
  * @param limitTo The [KobwebProject] types to limit this action to. By default, restricted to presentation types (that
  *   is, the parts of Kobweb that interact with the DOM). This default was chosen because this is by far the most
  *   common case, the kind of code that most people associate with Kobweb.
- *
- * @param excludeKobwebSource If true, then disable this action if the user is navigating around Kobweb source code.
- *   By default, this is false, so unless this is explicitly set, this extension point will be active inside Kobweb
- *   source.
  */
-fun PsiElement.isInReadOnlyKobwebContext(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework, excludeKobwebSource: Boolean = true): Boolean {
-    return isInKobwebContext { kobwebProject -> kobwebProject.type in limitTo } || (!excludeKobwebSource && isInKobwebSource())
+fun PsiElement.isInReadOnlyKobwebContext(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework): Boolean {
+    return isInKobwebContext { kobwebProject -> kobwebProject.type in limitTo }
 }
 
 /**
