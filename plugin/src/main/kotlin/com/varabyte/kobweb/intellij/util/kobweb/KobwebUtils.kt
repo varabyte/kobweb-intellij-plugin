@@ -9,7 +9,7 @@ import org.jetbrains.kotlin.psi.KtFile
 /**
  * A collection of useful sets of [KobwebProjectType]s.
  *
- * These can be useful to pass into the [isInReadOnlyKobwebContext] and [isInWritableKobwebContext] extension methods.
+ * These can be useful to pass into the [isInReadableKobwebProject] and [isInWritableKobwebProject] extension methods.
  */
 object KobwebProjectTypes {
     /**
@@ -30,12 +30,15 @@ object KobwebProjectTypes {
  *
  * The user can easily end up in here if they navigate into it from their own code, e.g. to see how something is
  * implemented or to look around at the docs or other API methods.
+ *
+ * Not every extension point we implement for the Kobweb plugin should be enabled for the framework itself, but some
+ * should be, so this method is provided for the extension point implementor to decide how broad it should apply.
  */
 fun PsiElement.isInKobwebSource(): Boolean {
     return (this.containingFile as? KtFile)?.packageFqName?.asString()?.startsWith("com.varabyte.kobweb") ?: false
 }
 
-private fun PsiElement.isInKobwebContext(test: (KobwebProject) -> Boolean): Boolean {
+private fun PsiElement.isInKobwebProject(test: (KobwebProject) -> Boolean): Boolean {
     this.findKobwebProject()?.let { return test(it) } ?: return false
 }
 
@@ -46,15 +49,15 @@ private fun PsiElement.isInKobwebContext(test: (KobwebProject) -> Boolean): Bool
  *   is, the parts of Kobweb that interact with the DOM). This default was chosen because this is by far the most
  *   common case, the kind of code that most people associate with Kobweb.
  */
-fun PsiElement.isInReadOnlyKobwebContext(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework): Boolean {
-    return isInKobwebContext { kobwebProject -> kobwebProject.type in limitTo }
+fun PsiElement.isInReadableKobwebProject(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework): Boolean {
+    return isInKobwebProject { it.type in limitTo }
 }
 
 /**
  * Useful test to see if a writing Kobweb Plugin action (like a refactor) should be allowed to run here.
  *
- * @param limitTo See the docs for [isInReadOnlyKobwebContext] for more info.
+ * @param limitTo See the docs for [isInReadableKobwebProject] for more info.
  */
-fun PsiElement.isInWritableKobwebContext(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework): Boolean {
-    return isInKobwebContext { kobwebProject -> kobwebProject.type in limitTo && kobwebProject.source is KobwebProject.Source.Local }
+fun PsiElement.isInWritableKobwebProject(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework): Boolean {
+    return isInKobwebProject { it.type in limitTo && it.source is KobwebProject.Source.Local }
 }
