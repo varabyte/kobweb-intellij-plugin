@@ -27,7 +27,7 @@ private const val KOBWEB_METADATA_IDENTIFIER_WORKER = "$KOBWEB_METADATA_ROOT/wor
  * Given an IntelliJ module, return the associated module that represents the root of a Gradle project.
  *
  * Often, a module you fetch for a [PsiElement] is the one associated with a source directory, but what we often
- * actually want it its parent module. That is, instead of the module "app.site.jsMain" we want "app.site".
+ * actually want is its parent module. That is, instead of the module "app.site.jsMain" we want "app.site".
  *
  * If found, the module returned will be home to a Gradle build file, and you can be confident it represents the
  * root of a Gradle project.

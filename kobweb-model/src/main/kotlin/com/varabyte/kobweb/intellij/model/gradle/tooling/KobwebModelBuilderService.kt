@@ -31,7 +31,7 @@ private fun Project.toKobwebModel(): KobwebModel? {
  *
  * This allows our code to run directly in Gradle, giving us access to use Gradle APIs.
  *
- * The injected code then returns a serializable class (a model) which can be fetched with by an
+ * The injected code then returns a serializable class (a model) which can be fetched with an
  * `AbstractProjectResolverExtension` (which we implement elsewhere in this codebase).
  */
 class KobwebModelBuilderService : AbstractModelBuilderService() {
