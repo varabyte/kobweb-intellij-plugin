@@ -1,4 +1,4 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -16,37 +16,36 @@ dependencies {
 // Configure Gradle IntelliJ Plugin
 // Read more: https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html
 intellij {
-    version.set("2023.3.2")
-    type.set("IC") // Target IDE Platform
+    version = "2023.3.2"
+    type = "IC" // Target IDE Platform
 
-    plugins.set(listOf(
+    plugins = listOf(
         "org.jetbrains.kotlin",
         "org.jetbrains.plugins.gradle",
-    ))
+    )
 }
 
 tasks {
     // Set the JVM compatibility versions
-    withType<JavaCompile> {
-        sourceCompatibility = "17"
-        targetCompatibility = "17"
+    val jvmTarget = JvmTarget.JVM_17
+    withType<JavaCompile>().configureEach {
+        sourceCompatibility = jvmTarget.target
+        targetCompatibility = jvmTarget.target
     }
-    withType<KotlinCompile> {
-        kotlinOptions.jvmTarget = "17"
-    }
+    kotlin.compilerOptions.jvmTarget = jvmTarget
 
     patchPluginXml {
-        sinceBuild.set("233")
-        untilBuild.set("241.*")
+        sinceBuild = "233"
+        untilBuild = "241.*"
     }
 
     signPlugin {
-        certificateChain.set(System.getenv("CERTIFICATE_CHAIN"))
-        privateKey.set(System.getenv("PRIVATE_KEY"))
-        password.set(System.getenv("PRIVATE_KEY_PASSWORD"))
+        certificateChain = System.getenv("CERTIFICATE_CHAIN")
+        privateKey = System.getenv("PRIVATE_KEY")
+        password = System.getenv("PRIVATE_KEY_PASSWORD")
     }
 
     publishPlugin {
-        token.set(System.getenv("PUBLISH_TOKEN"))
+        token = System.getenv("PUBLISH_TOKEN")
     }
 }
