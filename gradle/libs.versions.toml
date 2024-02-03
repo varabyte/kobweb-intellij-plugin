@@ -1,6 +1,6 @@
 [versions]
 kobweb-ide-plugin="0.1.0-SNAPSHOT"
-intellij = "1.16.1"
+intellij = "1.17.0"
 kotlin = "1.9.21"
 kotlinx-serialization = "1.6.0"
 truthish = "0.6.5"
