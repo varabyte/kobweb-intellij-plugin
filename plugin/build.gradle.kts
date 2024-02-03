@@ -34,6 +34,11 @@ tasks {
     }
     kotlin.compilerOptions.jvmTarget = jvmTarget
 
+    // https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin-faq.html#how-to-disable-building-searchable-options
+    buildSearchableOptions {
+        enabled = false
+    }
+
     patchPluginXml {
         sinceBuild = "233"
         untilBuild = "241.*"
