@@ -1,20 +1,22 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
-    <!-- Unique identifier of the plugin. It should be FQN. It cannot be changed between the plugin versions. -->
     <id>com.varabyte.kobweb.intellij</id>
-
-    <!-- Public plugin name should be written in Title Case.
-         Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-name -->
     <name>Kobweb</name>
-
-    <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
     <vendor url="https://kobweb.varabyte.com" email="bitspittle@gmail.com">Varabyte</vendor>
 
-    <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
-         Simple HTML elements (text formatting, paragraphs, and lists) can be added inside of <![CDATA[ ]]> tag.
-         Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-description -->
     <description><![CDATA[
-    Support for the Kobweb Compose HTML framework
+    <p>Support for the Kobweb framework.</p>
+
+    <p>
+    This official plugin provides functionality relevant to users working on Kobweb projects, including:
+    <ul>
+        <li>Suppressing warnings that don't apply to Kobweb projects</li>
+        <li>Surfacing Kobweb colors in the gutter</li>
+        <li>(More to come very soon!)</li>
+    </ul>
+    </p>
+
+    <p>Source for this plugin is hosted at <a href="https://github.com/varabyte/kobweb-intellij-plugin/">https://github.com/varabyte/kobweb-intellij-plugin/</a></p>
     ]]></description>
 
     <!-- Product and plugin compatibility requirements.
