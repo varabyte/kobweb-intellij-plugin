@@ -5,7 +5,7 @@
     <vendor url="https://kobweb.varabyte.com" email="bitspittle@gmail.com">Varabyte</vendor>
 
     <description><![CDATA[
-    <p>Support for the Kobweb framework.</p>
+    <p>Support for the <a href="https://github.com/varabyte/kobweb">Kobweb</a> framework.</p>
 
     <p>
     This official plugin provides functionality relevant to users working on Kobweb projects, including:
@@ -16,7 +16,7 @@
     </ul>
     </p>
 
-    <p>Source for this plugin is hosted at <a href="https://github.com/varabyte/kobweb-intellij-plugin/">https://github.com/varabyte/kobweb-intellij-plugin/</a></p>
+    <p>Source for this plugin is hosted at <a href="https://github.com/varabyte/kobweb-intellij-plugin">https://github.com/varabyte/kobweb-intellij-plugin</a></p>
     ]]></description>
 
     <!-- Product and plugin compatibility requirements.
