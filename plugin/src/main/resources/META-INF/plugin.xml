@@ -1,5 +1,6 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
+    <!-- User-facing metadata -->
     <id>com.varabyte.kobweb.intellij</id>
     <name>Kobweb</name>
     <vendor url="https://kobweb.varabyte.com" email="bitspittle@gmail.com">Varabyte</vendor>
@@ -19,14 +20,12 @@
     <p>Source for this plugin is hosted at <a href="https://github.com/varabyte/kobweb-intellij-plugin">https://github.com/varabyte/kobweb-intellij-plugin</a></p>
     ]]></description>
 
-    <!-- Product and plugin compatibility requirements.
-         Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
+    <!-- Product and plugin compatibility requirements. -->
     <depends>com.intellij.modules.platform</depends>
     <depends>org.jetbrains.kotlin</depends>
     <depends>org.jetbrains.plugins.gradle</depends>
 
-    <!-- Extension points defined by the plugin.
-         Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
+    <!-- Extension points defined by the plugin. -->
     <extensions defaultExtensionNs="com.intellij">
         <postStartupActivity implementation="com.varabyte.kobweb.intellij.startup.KobwebPostStartupProjectActivity" />
 
