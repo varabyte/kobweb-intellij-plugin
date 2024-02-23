@@ -29,7 +29,7 @@ interface KobwebProjectCacheService : Iterable<KobwebProject> {
 
     // This does NOT accept module / klib parameters like the `get` methods, because we need to support elements that
     // potentially don't live in either a module nor a klib.
-    fun isNotKobweb(element: PsiElement): Boolean
+    fun isMarkedNotKobweb(element: PsiElement): Boolean
 
     fun add(project: KobwebProject)
     fun addAll(collection: Collection<KobwebProject>)
@@ -56,7 +56,7 @@ private class KobwebProjectCacheServiceImpl : KobwebProjectCacheService {
     // Instead, we return a container as broad as possible and store that.
     private fun PsiElement.toElementContainer(): Any = module ?: containingKlib ?: containingFile
 
-    override fun isNotKobweb(element: PsiElement): Boolean {
+    override fun isMarkedNotKobweb(element: PsiElement): Boolean {
         return nonKobwebProjects.contains(element.toElementContainer())
     }
 
@@ -71,6 +71,7 @@ private class KobwebProjectCacheServiceImpl : KobwebProjectCacheService {
     override fun clear() {
         externalProjects.clear()
         localProjects.clear()
+        nonKobwebProjects.clear()
     }
 
     override fun iterator(): Iterator<KobwebProject> {

@@ -90,7 +90,7 @@ private fun VirtualFile.findKobwebProject(kobwebProjectsCache: KobwebProjectCach
  */
 fun PsiElement.findKobwebProject(): KobwebProject? {
     val kobwebProjectsCache = project.service<KobwebProjectCacheService>()
-    if (kobwebProjectsCache.isNotKobweb(this)) return null
+    if (kobwebProjectsCache.isMarkedNotKobweb(this)) return null
 
     val kobwebProject =
         this.module?.findKobwebProject(kobwebProjectsCache)
