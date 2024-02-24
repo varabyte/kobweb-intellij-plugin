@@ -1,6 +1,5 @@
 package com.varabyte.kobweb.intellij.project
 
-import com.intellij.openapi.application.Application
 import com.intellij.openapi.diagnostic.LogLevel
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.externalSystem.model.DataNode
@@ -9,8 +8,6 @@ import com.intellij.openapi.externalSystem.model.project.ModuleData
 import com.intellij.openapi.externalSystem.model.project.ProjectData
 import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil
 import com.intellij.openapi.module.Module
-import com.intellij.openapi.project.Project
-import com.jetbrains.rd.util.AtomicInteger
 import com.varabyte.kobweb.intellij.model.KobwebModel
 import com.varabyte.kobweb.intellij.model.gradle.tooling.KobwebModelBuilderService
 import org.gradle.tooling.model.idea.IdeaModule
@@ -60,6 +57,14 @@ class KobwebGradleProjectResolver : AbstractProjectResolverExtension() {
         ideModule.createChild(Keys.KOBWEB_MODEL, kobwebModel)
         logger.info("Module \"${gradleModule.name}\" is a Kobweb module [${kobwebModel.projectType}]")
     }
+}
+
+fun Module.setKobwebModel(kobwebModel: KobwebModel) {
+    val modulePath = ExternalSystemApiUtil.getExternalProjectPath(this) ?: return
+    val project = this.project
+
+    val moduleNode = ExternalSystemApiUtil.findModuleNode(project, GradleConstants.SYSTEM_ID, modulePath)
+    moduleNode?.createChild(KobwebGradleProjectResolver.Keys.KOBWEB_MODEL, kobwebModel)
 }
 
 fun Module.findKobwebModel(): KobwebModel? {
