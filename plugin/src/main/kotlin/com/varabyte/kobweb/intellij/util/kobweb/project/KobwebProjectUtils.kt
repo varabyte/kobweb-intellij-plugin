@@ -96,7 +96,7 @@ fun PsiElement.findKobwebProject(): KobwebProject? {
         this.module?.findKobwebProject(kobwebProjectsCache)
             ?: this.containingKlib?.findKobwebProject(kobwebProjectsCache)
 
-    if (kobwebProject == null) kobwebProjectsCache.markNonKobweb(this)
+    if (kobwebProject == null) kobwebProjectsCache.markNotKobweb(this)
 
     return kobwebProject
 }

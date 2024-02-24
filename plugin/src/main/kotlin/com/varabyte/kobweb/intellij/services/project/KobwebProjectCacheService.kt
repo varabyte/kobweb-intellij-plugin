@@ -33,7 +33,7 @@ interface KobwebProjectCacheService : Iterable<KobwebProject> {
 
     fun add(project: KobwebProject)
     fun addAll(collection: Collection<KobwebProject>)
-    fun markNonKobweb(element: PsiElement)
+    fun markNotKobweb(element: PsiElement)
 
     fun clear()
 }
@@ -41,7 +41,7 @@ interface KobwebProjectCacheService : Iterable<KobwebProject> {
 private class KobwebProjectCacheServiceImpl : KobwebProjectCacheService {
     private val localProjects = Collections.synchronizedMap(mutableMapOf<Module, KobwebProject>())
     private val externalProjects = Collections.synchronizedMap(mutableMapOf<VirtualFile, KobwebProject>())
-    private val nonKobwebProjects = Collections.synchronizedSet(mutableSetOf<Any>())
+    private val notKobwebProjects = Collections.synchronizedSet(mutableSetOf<Any>())
 
     override operator fun get(module: Module) = localProjects[module]
     override operator fun get(klib: VirtualFile) = externalProjects[klib]
@@ -57,21 +57,21 @@ private class KobwebProjectCacheServiceImpl : KobwebProjectCacheService {
     private fun PsiElement.toElementContainer(): Any = module ?: containingKlib ?: containingFile
 
     override fun isMarkedNotKobweb(element: PsiElement): Boolean {
-        return nonKobwebProjects.contains(element.toElementContainer())
+        return notKobwebProjects.contains(element.toElementContainer())
     }
 
     override fun addAll(collection: Collection<KobwebProject>) {
         collection.forEach { add(it) }
     }
 
-    override fun markNonKobweb(element: PsiElement) {
-        nonKobwebProjects.add(element.toElementContainer())
+    override fun markNotKobweb(element: PsiElement) {
+        notKobwebProjects.add(element.toElementContainer())
     }
 
     override fun clear() {
         externalProjects.clear()
         localProjects.clear()
-        nonKobwebProjects.clear()
+        notKobwebProjects.clear()
     }
 
     override fun iterator(): Iterator<KobwebProject> {
