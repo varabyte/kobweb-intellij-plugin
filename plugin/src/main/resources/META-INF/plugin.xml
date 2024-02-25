@@ -39,6 +39,8 @@
         <lang.inspectionSuppressor language="kotlin" implementationClass="com.varabyte.kobweb.intellij.inspections.UnusedInspectionSuppressor"/>
 
         <colorProvider implementation="com.varabyte.kobweb.intellij.colors.KobwebColorProvider" />
+
+        <notificationGroup displayType="BALLOON" id="Kobweb" />
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.plugins.gradle">
