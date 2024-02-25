@@ -8,6 +8,7 @@ import com.varabyte.kobweb.intellij.model.KobwebProjectType
 import com.varabyte.kobweb.intellij.project.KobwebProject
 import com.varabyte.kobweb.intellij.project.findKobwebModel
 import com.varabyte.kobweb.intellij.services.project.KobwebProjectCacheService
+import com.varabyte.kobweb.intellij.util.module.toGradleModule
 import com.varabyte.kobweb.intellij.util.psi.containingKlib
 import org.jetbrains.kotlin.idea.base.util.module
 import org.jetbrains.plugins.gradle.util.GradleUtil

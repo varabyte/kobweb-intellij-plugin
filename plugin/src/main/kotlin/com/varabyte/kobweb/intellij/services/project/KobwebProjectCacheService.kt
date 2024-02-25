@@ -4,6 +4,7 @@ import com.intellij.openapi.module.Module
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
 import com.varabyte.kobweb.intellij.project.KobwebProject
+import com.varabyte.kobweb.intellij.util.module.toGradleModule
 import com.varabyte.kobweb.intellij.util.psi.containingKlib
 import org.jetbrains.kotlin.idea.base.util.module
 import java.util.*
@@ -54,7 +55,7 @@ private class KobwebProjectCacheServiceImpl : KobwebProjectCacheService {
 
     // There are easily thousands of elements in a project, so it would be wasteful to store each one individually.
     // Instead, we return a container as broad as possible and store that.
-    private fun PsiElement.toElementContainer(): Any = module ?: containingKlib ?: containingFile
+    private fun PsiElement.toElementContainer(): Any = module?.toGradleModule() ?: containingKlib ?: containingFile
 
     override fun isMarkedNotKobweb(element: PsiElement): Boolean {
         return notKobwebProjects.contains(element.toElementContainer())
