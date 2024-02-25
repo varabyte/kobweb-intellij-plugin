@@ -1,6 +1,5 @@
 package com.varabyte.kobweb.intellij.project
 
-import com.intellij.openapi.application.Application
 import com.intellij.openapi.diagnostic.LogLevel
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.externalSystem.model.DataNode
@@ -9,8 +8,6 @@ import com.intellij.openapi.externalSystem.model.project.ModuleData
 import com.intellij.openapi.externalSystem.model.project.ProjectData
 import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil
 import com.intellij.openapi.module.Module
-import com.intellij.openapi.project.Project
-import com.jetbrains.rd.util.AtomicInteger
 import com.varabyte.kobweb.intellij.model.KobwebModel
 import com.varabyte.kobweb.intellij.model.gradle.tooling.KobwebModelBuilderService
 import org.gradle.tooling.model.idea.IdeaModule
