@@ -1,10 +1,41 @@
 package com.varabyte.kobweb.intellij.util.kobweb
 
+import com.intellij.ide.util.PropertiesComponent
+import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
 import com.varabyte.kobweb.intellij.model.KobwebProjectType
 import com.varabyte.kobweb.intellij.project.KobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
 import org.jetbrains.kotlin.psi.KtFile
+
+enum class KobwebPluginState {
+    /**
+     * The Kobweb plugin is disabled for this project.
+     *
+     * This essentially means the user has installed the Kobweb plugin, but it should not be active for this project,
+     * because there aren't any Kobweb modules inside of it.
+     */
+    DISABLED,
+
+    /**
+     * Indicates we started enabling the Kobweb plugin for this project, but a full Gradle sync is required to finish.
+     */
+    UNINITIALIZED,
+
+    /**
+     * The Kobweb plugin is enabled for this project.
+     *
+     * At this point, the project has been scanned, and we can query all found Kobweb metadata information.
+     */
+    INITIALIZED,
+}
+
+private const val KOBWEB_PLUGIN_STATE_PROPERTY = "KOBWEB_PLUGIN_STATE"
+var Project.kobwebPluginState: KobwebPluginState
+    get() = PropertiesComponent.getInstance(this).getValue(KOBWEB_PLUGIN_STATE_PROPERTY, KobwebPluginState.DISABLED.name).let { KobwebPluginState.valueOf(it) }
+    set(value) = PropertiesComponent.getInstance(this).setValue(KOBWEB_PLUGIN_STATE_PROPERTY, value.name)
+
+val Project.isKobwebPluginEnabled get() = this.kobwebPluginState == KobwebPluginState.INITIALIZED
 
 /**
  * A collection of useful sets of [KobwebProjectType]s.
