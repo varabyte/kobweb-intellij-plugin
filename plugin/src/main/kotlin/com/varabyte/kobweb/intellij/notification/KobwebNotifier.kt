@@ -14,7 +14,8 @@ private val notificationGroup by lazy {
 /**
  * A handle to a notification that provides some constrained operations on it.
  */
-class KobwebNotificationHandle(private val notification: Notification) {
+@JvmInline
+value class KobwebNotificationHandle(private val notification: Notification) {
     /**
      * Manually expire the notification.
      *
@@ -28,8 +29,11 @@ class KobwebNotificationHandle(private val notification: Notification) {
 /**
  * A convenience class for generating notifications tagged with the Kobweb group.
  *
- * You can either use a [Builder] to generate a notification (which you must then call [Builder.notify] on), or use
- * one of the convenience [notify] methods.
+ * Use a [Builder] to build a notification, which you then fire by calling [Builder.notify] on it:
+ *
+ * ```
+ * KobwebNotifier.Builder("Hello, world!").notify(project)
+ * ```
  *
  * @see Notification
  */
@@ -85,50 +89,6 @@ class KobwebNotifier {
 
             notification.notify(project)
             return KobwebNotificationHandle(notification)
-        }
-    }
-
-    @Suppress("unused")
-    companion object {
-        fun notify(
-            project: Project,
-            title: String,
-            message: String,
-            type: NotificationType? = null
-        ): KobwebNotificationHandle {
-            return Builder(title, message)
-                .apply { type?.let { type(it) } }
-                .notify(project)
-        }
-
-        fun notify(project: Project, message: String, type: NotificationType? = null): KobwebNotificationHandle {
-            return Builder(message)
-                .apply { type?.let { type(it) } }
-                .notify(project)
-        }
-
-        fun notify(
-            project: Project,
-            title: String,
-            message: String,
-            actionText: String,
-            type: NotificationType? = null,
-            action: () -> Unit
-        ): KobwebNotificationHandle {
-            return Builder(title, message)
-                .apply { type?.let { type(it) } }
-                .addAction(actionText, action)
-                .notify(project)
-        }
-
-        fun notify(
-            project: Project,
-            message: String,
-            actionText: String,
-            type: NotificationType? = null,
-            action: () -> Unit
-        ): KobwebNotificationHandle {
-            return notify(project, title = "", message, actionText, type, action)
         }
     }
 }

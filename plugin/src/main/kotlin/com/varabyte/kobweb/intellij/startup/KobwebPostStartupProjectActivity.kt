@@ -1,9 +1,10 @@
 package com.varabyte.kobweb.intellij.startup
 
 import com.intellij.notification.NotificationType
-import com.intellij.openapi.actionSystem.*
+import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.ActionPlaces
+import com.intellij.openapi.actionSystem.PlatformDataKeys
 import com.intellij.openapi.actionSystem.ex.ActionUtil
-import com.intellij.openapi.actionSystem.ex.AnActionListener
 import com.intellij.openapi.components.service
 import com.intellij.openapi.externalSystem.action.RefreshAllExternalProjectsAction
 import com.intellij.openapi.externalSystem.service.project.manage.ProjectDataImportListener
@@ -72,19 +73,17 @@ class KobwebPostStartupProjectActivity : ProjectActivity {
 
         val refreshProjectAction = ActionManager.getInstance().getAction("ExternalSystem.RefreshAllProjects") as? RefreshAllExternalProjectsAction
         val syncRequestedNotification = if (refreshProjectAction != null && project.kobwebPluginState == KobwebPluginState.UNINITIALIZED) {
-            KobwebNotifier.notify(
-                project,
-                "The Kobweb plugin requires a one-time sync to enable functionality.",
-                "Sync Project",
-                NotificationType.WARNING
-            ) {
-                ActionUtil.invokeAction(refreshProjectAction, { dataId ->
-                    when {
-                        PlatformDataKeys.PROJECT.`is`(dataId) -> project
-                        else -> null
-                    }
-                }, ActionPlaces.NOTIFICATION, null, null)
-            }
+            KobwebNotifier.Builder("The Kobweb plugin requires a one-time sync to enable functionality.")
+                .type(NotificationType.WARNING)
+                .addAction("Sync Project") {
+                    ActionUtil.invokeAction(refreshProjectAction, { dataId ->
+                        when {
+                            PlatformDataKeys.PROJECT.`is`(dataId) -> project
+                            else -> null
+                        }
+                    }, ActionPlaces.NOTIFICATION, null, null)
+                }
+                .notify(project)
         } else null
 
         val messageBusConnection = project.messageBus.connect()
@@ -92,15 +91,5 @@ class KobwebPostStartupProjectActivity : ProjectActivity {
             ProjectDataImportListener.TOPIC,
             ImportListener(project, syncRequestedNotification)
         )
-
-        messageBusConnection.subscribe(AnActionListener.TOPIC, object : AnActionListener {
-            override fun beforeActionPerformed(action: AnAction, event: AnActionEvent) {
-                if (action === refreshProjectAction) {
-                    // Dismiss the sync popup no matter how the user executed the sync action, either directly through
-                    // the notification or by pressing the Gradle sync project button.
-                    syncRequestedNotification?.expire()
-                }
-            }
-        })
     }
 }
