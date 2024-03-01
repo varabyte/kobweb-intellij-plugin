@@ -1,8 +1,10 @@
+import org.jetbrains.changelog.Changelog
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.intellij)
+    alias(libs.plugins.jetbrains.changelog)
 }
 
 group = "com.varabyte.kobweb.intellij"
@@ -25,6 +27,11 @@ intellij {
     )
 }
 
+changelog {
+    path.set(file("../CHANGELOG.md").canonicalPath)
+    repositoryUrl.set("https://github.com/varabyte/kobweb-intellij-plugin")
+}
+
 tasks {
     // Set the JVM compatibility versions
     val jvmTarget = JvmTarget.JVM_17
@@ -42,6 +49,16 @@ tasks {
     patchPluginXml {
         sinceBuild = "233"
         untilBuild = "241.*"
+
+        changeNotes = provider {
+            changelog.renderItem(
+                changelog
+                    .getLatest()
+                    .withHeader(false)
+                    .withEmptySections(false),
+                Changelog.OutputType.HTML
+            )
+        }
     }
 
     run {

@@ -59,4 +59,13 @@ instructions [here](https://www.jetbrains.com/help/idea/managing-plugins.html#in
 
 ## Publishing
 
-TODO
+Publishing the plugin requires either credentials be set on your local machine *or* by using the project's GitHub
+publish action, as the credentials have been installed into the repository as a secret.
+
+Before publishing, you should make sure you've reviewed the following checklist:
+
+* The `kobweb-ide-plugin` version in the `libs.version.toml` is correct (and does *not* end in a `-SNAPSHOT` suffix).
+* The [CHANGELOG.md](CHANGELOG.md) file has been updated with the new version and its changes.
+* You've tested the plugin locally by running `:plugin:buildPlugin` and installing it from disk.
+* You've verified that the plugin works on the oldest and newest supported versions of IDEA (as declared using the
+  `sinceBuild` and `untilBuild` properties in the `plugin/build.gradle.kts` file).
