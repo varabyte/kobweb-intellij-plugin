@@ -18,19 +18,23 @@ import org.jetbrains.kotlin.psi.*
 import java.awt.Color
 import kotlin.math.abs
 
-/*
-This prevents the color tracer from following references ridiculously deep into the codebase.
-If a method ultimately returns a color, it's unlikely that it will involve *that* many jumps to fetch it.
-Testing showed, that a search depth of 15 allows finding a result 3-4 references deep.
-If we don't limit, we could possibly get stuck chasing a cyclical loop. Also, high limits
-may increase memory usage because we have to chase down every method we come across as possibly returning a color.
-Unlimited search depth might also introduce lag or, in the case of a cycle, a stack overflow.
-Note that Android Studio sets their depth a bit higher than we do. (See https://cs.android.com/android-studio/platform/tools/base/+/mirror-goog-studio-main:sdk-common/src/main/java/com/android/ide/common/resources/ResourceResolver.java;l=67?q=MAX_RESOURCE_INDIRECTION)
-However they also appear to do their tracing of colors differently.
-If there are reports in the wild about color preview not working, we can consider increasing this value at that time,
-though it is likely caused by their specific color function not being supported
-or the tracing algorithm being unable to analyze more complex code correctly.
-*/
+/**
+ * This constant prevents the color tracer from following references ridiculously deep into the codebase.
+ *
+ * If a method ultimately returns a color, it's unlikely that it will involve *that* many jumps to fetch it. Testing
+ * has showed that a search depth of 15 allows finding a result 3-4 references deep. If we don't limit this, we could
+ * possibly get stuck chasing a cyclical loop.
+ *
+ * Also, high limits may increase memory usage because we have to chase down every method we come across as possibly
+ * returning a color. Unlimited search depth might also introduce lag or, in the case of a cycle, a stack overflow.
+ *
+ * Note that Android Studio sets their depth a bit higher than we do. However, they also appear to do their tracing of
+ * colors differently. If there are reports in the wild about color preview not working, we can consider increasing this
+ * value at that time, though it is likely caused by their specific color function not being supported or the tracing
+ * algorithm being unable to analyze more complex code correctly.
+ *
+ * @see <a href="https://cs.android.com/android-studio/platform/tools/base/+/mirror-goog-studio-main:sdk-common/src/main/java/com/android/ide/common/resources/ResourceResolver.java;l=67?q=MAX_RESOURCE_INDIRECTION">Anroid Studio's ResourceResolver.java</a>
+ */
 private const val MAX_SEARCH_DEPTH = 15
 
 private const val KOBWEB_COLOR_COMPANION_FQ_NAME = "com.varabyte.kobweb.compose.ui.graphics.Color.Companion"
