@@ -47,6 +47,7 @@ tasks {
     }
 
     patchPluginXml {
+        // Useful statistics: https://plugins.jetbrains.com/docs/marketplace/product-versions-in-use-statistics.html
         sinceBuild = "233"
         untilBuild = "241.*"
 
