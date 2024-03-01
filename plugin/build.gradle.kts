@@ -36,6 +36,8 @@ changelog {
     repositoryUrl.set("https://github.com/varabyte/kobweb-intellij-plugin")
 }
 
+fun Project.isSnapshot() = version.toString().endsWith("-SNAPSHOT")
+
 tasks {
     // Set the JVM compatibility versions
     val jvmTarget = JvmTarget.JVM_17
@@ -55,11 +57,22 @@ tasks {
         untilBuild = "241.*" // Keep up to date with EAP
 
         changeNotes = provider {
+            val projectVersion = project.version.toString()
+            val changelogVersion = projectVersion.removeSuffix("-SNAPSHOT")
+
+            val changelogItem = if (project.isSnapshot()) {
+                changelog.getOrNull(changelogVersion) ?: Changelog.Item(
+                    version = changelogVersion,
+                    header = "Changelog $changelogVersion not found",
+                    summary = "**Note to developer:** This snapshot build does not have any changelog entries yet.\n\nConsider adding a `[$changelogVersion]` section to CHANGELOG.md.\n\n**This will become an error if not done before building the non-snapshot release.**"
+                )
+            } else {
+                changelog.getOrNull(changelogVersion)
+                    ?: throw GradleException("Section `[$changelogVersion]` must be added to CHANGELOG.md before building a release build.")
+            }
+
             changelog.renderItem(
-                changelog
-                    .get(project.version.toString().removeSuffix("-SNAPSHOT"))
-                    .withHeader(false)
-                    .withEmptySections(false),
+                changelogItem.withEmptySections(false),
                 Changelog.OutputType.HTML
             )
         }
