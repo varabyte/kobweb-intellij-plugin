@@ -65,7 +65,9 @@ publish action, as the credentials have been installed into the repository as a 
 Before publishing, you should make sure you've reviewed the following checklist:
 
 * The `kobweb-ide-plugin` version in the `libs.version.toml` is correct (and does *not* end in a `-SNAPSHOT` suffix).
+* The `intellij-plugin` version is up-to-date (the build process will emit a warning if not).
+* The `intellij.version` property in the `build.gradle.kts` file is set to the current stable release.
+* The `patchPluginXml.sinceBuild` and `patchPlugin.untilBuild` properties (especially the latter) still make sense (and
+  have been verified).
 * The [CHANGELOG.md](CHANGELOG.md) file has been updated with the new version and its changes.
 * You've tested the plugin locally by running `:plugin:buildPlugin` and installing it from disk.
-* You've verified that the plugin works on the oldest and newest supported versions of IDEA (as declared using the
-  `sinceBuild` and `untilBuild` properties in the `plugin/build.gradle.kts` file).
