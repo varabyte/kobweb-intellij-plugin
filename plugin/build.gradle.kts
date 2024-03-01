@@ -18,7 +18,11 @@ dependencies {
 // Configure Gradle IntelliJ Plugin
 // Read more: https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html
 intellij {
-    version = "2023.3.2"
+    // Interesting statistics: https://plugins.jetbrains.com/docs/marketplace/product-versions-in-use-statistics.html
+    // We target 2023.3 for:
+    // - ProjectActivity (available since 2023.1)
+    // - Kotlin 1.9 support
+    version = "2023.3"
     type = "IC" // Target IDE Platform
 
     plugins = listOf(
@@ -47,14 +51,13 @@ tasks {
     }
 
     patchPluginXml {
-        // Useful statistics: https://plugins.jetbrains.com/docs/marketplace/product-versions-in-use-statistics.html
-        sinceBuild = "233"
-        untilBuild = "241.*"
+        //sinceBuild derived from intellij.version
+        untilBuild = "241.*" // Keep up to date with EAP
 
         changeNotes = provider {
             changelog.renderItem(
                 changelog
-                    .getLatest()
+                    .get(project.version.toString().removeSuffix("-SNAPSHOT"))
                     .withHeader(false)
                     .withEmptySections(false),
                 Changelog.OutputType.HTML
