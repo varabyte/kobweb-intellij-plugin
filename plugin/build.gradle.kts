@@ -105,6 +105,10 @@ tasks {
             val token = (findProperty("kobweb.intellij.plugin.token") as? String) ?: return@publishPlugin
             tokenFound = true
             this.token = token
+
+            if (project.isSnapshot()) {
+                channels.set(listOf("eap"))
+            }
         }
 
         if (!tokenFound) {
