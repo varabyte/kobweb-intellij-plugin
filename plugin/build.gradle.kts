@@ -44,13 +44,39 @@ tasks {
         untilBuild = "241.*"
     }
 
-    signPlugin {
-        certificateChain = System.getenv("CERTIFICATE_CHAIN")
-        privateKey = System.getenv("PRIVATE_KEY")
-        password = System.getenv("PRIVATE_KEY_PASSWORD")
+    run {
+        var credentialsFound = false
+
+        signPlugin {
+            val password = (findProperty("kobweb.intellij.plugin.password") as? String) ?: return@signPlugin
+            val key = (findProperty("kobweb.intellij.plugin.key") as? String) ?: return@signPlugin
+            val cert = (findProperty("kobweb.intellij.plugin.cert") as? String) ?: return@signPlugin
+            credentialsFound = true
+
+            this.password = password
+            this.privateKey = key
+            this.certificateChain = cert
+        }
+
+        if (!credentialsFound) {
+            logger.info("Credentials not found. The plugin cannot be signed on this machine.")
+        } else {
+            logger.info("Credentials found. The plugin can be signed on this machine.")
+        }
     }
 
-    publishPlugin {
-        token = System.getenv("PUBLISH_TOKEN")
+    run {
+        var tokenFound = false
+        publishPlugin {
+            val token = (findProperty("kobweb.intellij.plugin.token") as? String) ?: return@publishPlugin
+            tokenFound = true
+            this.token = token
+        }
+
+        if (!tokenFound) {
+            logger.info("Credentials not found. The plugin cannot be published from this machine.")
+        } else {
+            logger.info("Credentials found. The plugin can be published from this machine.")
+        }
     }
 }
