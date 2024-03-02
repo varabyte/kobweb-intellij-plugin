@@ -60,15 +60,14 @@ tasks {
             val projectVersion = project.version.toString()
             val changelogVersion = projectVersion.removeSuffix("-SNAPSHOT")
 
-            val changelogItem = if (project.isSnapshot()) {
-                changelog.getOrNull(changelogVersion) ?: Changelog.Item(
+            val changelogItem = changelog.getOrNull(changelogVersion) ?: if (project.isSnapshot()) {
+                Changelog.Item(
                     version = changelogVersion,
                     header = "Changelog $changelogVersion not found",
                     summary = "**Note to developer:** This snapshot build does not have any changelog entries yet.\n\nConsider adding a `[$changelogVersion]` section to CHANGELOG.md.\n\n**This will become an error if not done before building the non-snapshot release.**"
                 )
             } else {
-                changelog.getOrNull(changelogVersion)
-                    ?: throw GradleException("Section `[$changelogVersion]` must be added to CHANGELOG.md before building a release build.")
+                throw GradleException("Section `[$changelogVersion]` must be added to CHANGELOG.md before building a release build.")
             }
 
             changelog.renderItem(
