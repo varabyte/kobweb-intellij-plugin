@@ -59,8 +59,10 @@ instructions [here](https://www.jetbrains.com/help/idea/managing-plugins.html#in
 
 ## Publishing
 
+The Gradle task associated with publishing a plugin is `:plugin:publishPlugin`.
+
 Publishing the plugin requires either credentials be set on your local machine *or* by using the project's GitHub
-publish action, as the credentials have been installed into the repository as a secret.
+publish action (preferred), as the credentials have been installed into the repository as a secret.
 
 Before publishing, you should make sure you've reviewed the following checklist:
 
@@ -71,3 +73,6 @@ Before publishing, you should make sure you've reviewed the following checklist:
 * The `patchPlugin.untilBuild` property still encompasses the latest EAP version.
 * The [CHANGELOG.md](CHANGELOG.md) file has been updated with the new version and its changes.
 * You've tested the plugin locally by running `:plugin:buildPlugin` and installing it from disk.
+* You've created a release on https://github.com/varabyte/kobweb-intellij-plugin
+  * The version should have the pattern "vX.Y.Z".
+  * The "What's New" section in the plugin UI links to commits associated with the tag created by the release.

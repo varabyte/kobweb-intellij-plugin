@@ -1,0 +1,38 @@
+name: Build Kobweb IntelliJ Plugin
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Add secret Gradle properties
+        env:
+          GRADLE_PROPERTIES: ${{ secrets.KOBWEB_IJ_PLUGIN_GRADLE_PROPERTIES }}
+        run: |
+          mkdir -p ~/.gradle/
+          echo "GRADLE_USER_HOME=${HOME}/.gradle" >> $GITHUB_ENV
+          echo "${GRADLE_PROPERTIES}" > ~/.gradle/gradle.properties
+
+      - name: Publish Kobweb IntelliJ Plugin
+        run: ./gradlew :plugin:signPlugin --scan
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kobweb-ij-plugin
+          path: plugin/build/distributions/plugin-*-signed.zip
+          if-no-files-found: error
+          retention-days: 1

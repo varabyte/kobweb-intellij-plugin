@@ -92,16 +92,16 @@ tasks {
         }
 
         if (!credentialsFound) {
-            logger.info("Credentials not found. The plugin cannot be signed on this machine.")
+            logger.lifecycle("Signing credentials not found. The plugin cannot be signed on this machine.")
         } else {
-            logger.info("Credentials found. The plugin can be signed on this machine.")
+            logger.lifecycle("Signing credentials found. The plugin can be signed on this machine.")
         }
     }
 
     run {
         var tokenFound = false
         publishPlugin {
-            val token = (findProperty("kobweb.intellij.plugin.token") as? String) ?: return@publishPlugin
+            val token = (findProperty("kobweb.intellij.plugin.publish.token") as? String) ?: return@publishPlugin
             tokenFound = true
             this.token = token
 
@@ -111,9 +111,9 @@ tasks {
         }
 
         if (!tokenFound) {
-            logger.info("Credentials not found. The plugin cannot be published from this machine.")
+            logger.lifecycle("Publishing credentials not found. The plugin cannot be published from this machine.")
         } else {
-            logger.info("Credentials found. The plugin can be published from this machine.")
+            logger.lifecycle("Publishing credentials found. The plugin can be published from this machine.")
         }
     }
 }
