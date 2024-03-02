@@ -30,7 +30,7 @@ enum class KobwebPluginState {
     INITIALIZED,
 }
 
-private const val KOBWEB_PLUGIN_STATE_PROPERTY = "KOBWEB_PLUGIN_STATE"
+private const val KOBWEB_PLUGIN_STATE_PROPERTY = "kobweb-plugin-state"
 var Project.kobwebPluginState: KobwebPluginState
     get() = PropertiesComponent.getInstance(this).getValue(KOBWEB_PLUGIN_STATE_PROPERTY, KobwebPluginState.DISABLED.name).let { KobwebPluginState.valueOf(it) }
     set(value) = PropertiesComponent.getInstance(this).setValue(KOBWEB_PLUGIN_STATE_PROPERTY, value.name)
