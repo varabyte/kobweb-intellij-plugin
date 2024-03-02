@@ -1,7 +1,7 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
     <!-- User-facing metadata -->
-    <id>com.varabyte.kobweb.intellij</id>
+    <id>com.varabyte.kobweb</id>
     <name>Kobweb</name>
     <vendor url="https://kobweb.varabyte.com" email="bitspittle@gmail.com">Varabyte</vendor>
 
