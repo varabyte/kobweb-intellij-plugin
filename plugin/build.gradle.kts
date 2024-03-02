@@ -54,7 +54,7 @@ tasks {
 
     patchPluginXml {
         //sinceBuild derived from intellij.version
-        untilBuild = "241.*" // Keep up to date with EAP
+        untilBuild = "241.*" // Include EAP
 
         changeNotes = provider {
             val projectVersion = project.version.toString()
