@@ -1,5 +1,5 @@
 [versions]
-kobweb-ide-plugin="0.1.0"
+kobweb-ide-plugin="0.2.0-SNAPSHOT"
 intellij-plugin = "1.17.2"
 jetbrains-changelog = "2.2.0"
 kotlin = "1.9.21"
