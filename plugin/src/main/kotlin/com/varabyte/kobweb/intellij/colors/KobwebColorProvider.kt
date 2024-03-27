@@ -110,38 +110,45 @@ private fun tryParseKobwebColorFunctionCall(
     callee: KtNamedFunction,
     valueArguments: Collection<KtValueArgument>
 ): Color? = with(valueArguments) {
-    when {
-        callee.isKobwebColorFunction("rgb(r: Int, g: Int, b: Int)") ->
-            evaluateArguments<Int>(3)?.let { args ->
-                tryCreateRgbColor(args[0], args[1], args[2])
-            }
+    try {
+        when {
+            callee.isKobwebColorFunction("rgb(r: Int, g: Int, b: Int)") ->
+                evaluateArguments<Int>(3)?.let { args ->
+                    tryCreateRgbColor(args[0], args[1], args[2])
+                }
 
-        callee.isKobwebColorFunction("rgb(value: Int)") ->
-            evaluateArguments<Int>(1)?.let { args ->
-                tryCreateRgbColor(args[0])
-            }
+            callee.isKobwebColorFunction("rgb(value: Int)") ->
+                evaluateArguments<Int>(1)?.let { args ->
+                    tryCreateRgbColor(args[0])
+                }
 
-        callee.isKobwebColorFunction("rgba(value: Int)", "rgba(value: Long)") ->
-            (evaluateArguments<Int>(1) ?: evaluateArguments<Long, Int>(1) { it.toInt() })?.let { args ->
-                tryCreateRgbColor(args[0] shr Byte.SIZE_BITS)
-            }
+            callee.isKobwebColorFunction("rgba(value: Int)", "rgba(value: Long)") ->
+                (evaluateArguments<Int>(1) ?: evaluateArguments<Long, Int>(1) { it.toInt() })?.let { args ->
+                    tryCreateRgbColor(args[0] shr Byte.SIZE_BITS)
+                }
 
-        callee.isKobwebColorFunction("argb(value: Int)", "argb(value: Long)") ->
-            (evaluateArguments<Int>(1) ?: evaluateArguments<Long, Int>(1) { it.toInt() })?.let { args ->
-                tryCreateRgbColor(args[0] and 0x00_FF_FF_FF)
-            }
+            callee.isKobwebColorFunction("argb(value: Int)", "argb(value: Long)") ->
+                (evaluateArguments<Int>(1) ?: evaluateArguments<Long, Int>(1) { it.toInt() })?.let { args ->
+                    tryCreateRgbColor(args[0] and 0x00_FF_FF_FF)
+                }
 
-        callee.isKobwebColorFunction("hsl(h: Float, s: Float, l: Float)") ->
-            evaluateArguments<Float>(3)?.let { args ->
-                tryCreateHslColor(args[0], args[1], args[2])
-            }
+            callee.isKobwebColorFunction("hsl(h: Float, s: Float, l: Float)") ->
+                evaluateArguments<Float>(3)?.let { args ->
+                    tryCreateHslColor(args[0], args[1], args[2])
+                }
 
-        callee.isKobwebColorFunction("hsla(h: Float, s: Float, l: Float, a: Float)") ->
-            evaluateArguments<Float>(4)?.let { args ->
-                tryCreateHslColor(args[0], args[1], args[2])
-            }
+            callee.isKobwebColorFunction("hsla(h: Float, s: Float, l: Float, a: Float)") ->
+                evaluateArguments<Float>(4)?.let { args ->
+                    tryCreateHslColor(args[0], args[1], args[2])
+                }
 
-        else -> null
+            else -> null
+        }
+    } catch(t: Throwable) {
+        // We got hit with a random exception from the depths if IJ code, nothing to do with us, which caused IDEA to
+        // point a scary finger at our plugin. Given this is a `tryParse` method, let's just return null at the
+        // slightest noise.
+        null
     }
 }
 
