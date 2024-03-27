@@ -14,6 +14,7 @@ class KobwebDictionary : Dictionary {
     private val words = setOf(
         "frontmatter",
         "kobweb",
+        "transferables",
         "varabyte",
     )
 
