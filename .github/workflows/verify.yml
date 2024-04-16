@@ -20,4 +20,4 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Verify Kobweb IntelliJ Plugin
-        run: ./gradlew :plugin:runPluginVerifier
+        run: ./gradlew :plugin:verifyPlugin

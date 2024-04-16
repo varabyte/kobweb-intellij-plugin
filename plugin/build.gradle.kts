@@ -3,58 +3,77 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
-    alias(libs.plugins.intellij)
+    alias(libs.plugins.intellij.platform)
     alias(libs.plugins.jetbrains.changelog)
 }
 
 group = "com.varabyte.kobweb.intellij"
 version = libs.versions.kobweb.ide.plugin.get()
 
+// For configuring the Gradle IntelliJ Platform Plugin, read more here:
+// https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin.html
+
+repositories {
+    mavenCentral()
+    intellijPlatform {
+        defaultRepositories()
+    }
+}
+
 dependencies {
-    implementation(project(":kobweb-model"))
     testImplementation(libs.truthish)
-}
 
-// Configure Gradle IntelliJ Plugin
-// Read more: https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html
-intellij {
-    // Interesting statistics: https://plugins.jetbrains.com/docs/marketplace/product-versions-in-use-statistics.html
-    // We target 2023.3 for:
-    // - ProjectActivity (available since 2023.1)
-    // - Kotlin 1.9 support
-    version = "2023.3"
-    type = "IC" // Target IDE Platform
+    intellijPlatform {
+        pluginModule(implementation(project(":kobweb-model")))
+        // Interesting statistics: https://plugins.jetbrains.com/docs/marketplace/product-versions-in-use-statistics.html
+        // We target 2023.3 for:
+        // - ProjectActivity (available since 2023.1)
+        // - Kotlin 1.9 support
+        intellijIdeaCommunity("2023.3")
 
-    plugins = listOf(
-        "org.jetbrains.kotlin",
-        "org.jetbrains.plugins.gradle",
-    )
-}
+        bundledPlugins(
+            "org.jetbrains.kotlin",
+            "org.jetbrains.plugins.gradle",
+        )
 
-changelog {
-    path.set(file("../CHANGELOG.md").canonicalPath)
-    repositoryUrl.set("https://github.com/varabyte/kobweb-intellij-plugin")
-}
-
-fun Project.isSnapshot() = version.toString().endsWith("-SNAPSHOT")
-
-tasks {
-    // Set the JVM compatibility versions
-    val jvmTarget = JvmTarget.JVM_17
-    withType<JavaCompile>().configureEach {
-        sourceCompatibility = jvmTarget.target
-        targetCompatibility = jvmTarget.target
+        instrumentationTools()
+        pluginVerifier()
+        zipSigner()
     }
-    kotlin.compilerOptions.jvmTarget = jvmTarget
+}
 
-    // https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin-faq.html#how-to-disable-building-searchable-options
-    buildSearchableOptions {
-        enabled = false
-    }
+// https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-extension.html#intellijPlatform
+intellijPlatform {
+    buildSearchableOptions = false
 
-    patchPluginXml {
-        //sinceBuild derived from intellij.version
-        untilBuild = "242.*" // Include EAP
+    pluginConfiguration {
+        id = "com.varabyte.kobweb"
+        name = "Kobweb"
+        vendor {
+            url = "https://kobweb.varabyte.com"
+            email = "bitspittle@gmail.com"
+            name = "Varabyte"
+        }
+        description =
+            """
+            <p>Support for the <a href="https://github.com/varabyte/kobweb">Kobweb</a> framework.</p>
+        
+            <p>
+            This official plugin provides functionality relevant to users working on Kobweb projects, including:
+            <ul>
+                <li>Suppressing warnings that don't apply to Kobweb projects</li>
+                <li>Surfacing Kobweb colors in the gutter</li>
+                <li>(More to come very soon!)</li>
+            </ul>
+            </p>
+        
+            <p>Source for this plugin is hosted at <a href="https://github.com/varabyte/kobweb-intellij-plugin">https://github.com/varabyte/kobweb-intellij-plugin</a></p>
+            """.trimIndent()
+
+        ideaVersion {
+            //sinceBuild derived from intellij.version
+            untilBuild = "242.*" // Include EAP
+        }
 
         changeNotes = provider {
             val projectVersion = project.version.toString()
@@ -79,11 +98,10 @@ tasks {
 
     run {
         var credentialsFound = false
-
-        signPlugin {
-            val password = (findProperty("kobweb.intellij.plugin.password") as? String) ?: return@signPlugin
-            val key = (findProperty("kobweb.intellij.plugin.key") as? String) ?: return@signPlugin
-            val cert = (findProperty("kobweb.intellij.plugin.cert") as? String) ?: return@signPlugin
+        signing {
+            val password = (findProperty("kobweb.intellij.plugin.password") as? String) ?: return@signing
+            val key = (findProperty("kobweb.intellij.plugin.key") as? String) ?: return@signing
+            val cert = (findProperty("kobweb.intellij.plugin.cert") as? String) ?: return@signing
             credentialsFound = true
 
             this.password = password
@@ -100,13 +118,13 @@ tasks {
 
     run {
         var tokenFound = false
-        publishPlugin {
-            val token = (findProperty("kobweb.intellij.plugin.publish.token") as? String) ?: return@publishPlugin
+        publishing {
+            val token = (findProperty("kobweb.intellij.plugin.publish.token") as? String) ?: return@publishing
             tokenFound = true
             this.token = token
 
             if (project.isSnapshot()) {
-                channels.set(listOf("eap"))
+                channels = listOf("eap")
             }
         }
 
@@ -116,4 +134,24 @@ tasks {
             logger.lifecycle("Publishing credentials found. The plugin can be published from this machine.")
         }
     }
+
+    pluginVerification {
+        ides {
+            recommended()
+        }
+    }
 }
+
+changelog {
+    path = file("../CHANGELOG.md").canonicalPath
+    repositoryUrl = "https://github.com/varabyte/kobweb-intellij-plugin"
+}
+
+fun Project.isSnapshot() = version.toString().endsWith("-SNAPSHOT")
+
+val jvmTarget = JvmTarget.JVM_17
+tasks.withType<JavaCompile>().configureEach {
+    sourceCompatibility = jvmTarget.target
+    targetCompatibility = jvmTarget.target
+}
+kotlin.compilerOptions.jvmTarget = jvmTarget

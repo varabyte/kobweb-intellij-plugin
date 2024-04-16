@@ -41,14 +41,14 @@ A `Run Plugin` run configuration is provided for testing during development.
 This will open up a new IntelliJ instance with the plugin installed. (This feels weird the first time you try it, but
 you'll get used to it!)
 
-You can then open up a project and test your features. You can find sample projects under [sample-projects/]() which you
+You can then open up a project and test your features. You can find sample projects under [sample-projects/](sample-projects/) which you
 can use.
 
 ## Building
 
 To build the plugin, run the `Build Plugin` run configuration.
 
-The built plugin will be located in the [plugin/build/distributions]() directory.
+The built plugin will be located in the [plugin/build/distributions](plugin/build/distributions) directory.
 
 ## Installing
 
@@ -67,14 +67,14 @@ publish action (preferred), as the credentials have been installed into the repo
 Before publishing, you should make sure you've reviewed the following checklist:
 
 * The `kobweb-ide-plugin` version in the `libs.version.toml` is correct (and does *not* end in a `-SNAPSHOT` suffix).
-* The `intellij-plugin` version is up-to-date.
-  * See [this page](https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html) for the latest version.
-* The `intellij.version` property in the `build.gradle.kts` file is set to as low a version as possible (to maximize
+* The `intellij-platform` version is up-to-date.
+  * See [this page](https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin.html) for the latest version.
+* The `intellijPlatform.intellijIdeaCommunity(<version>)` declaration in the `dependencies` block of the `build.gradle.kts` file is set to as low a version as possible (to maximize
   compatibility).
-* The `patchPlugin.untilBuild` property still encompasses the latest EAP version.
+* The `ideaVersion.untilBuild` property still encompasses the latest EAP version.
 * The [CHANGELOG.md](CHANGELOG.md) file has been updated with the new version and its changes.
 * You've tested the plugin locally by running `:plugin:buildPlugin` and installing it from disk.
-* You've verified plugin compatibility by running `:plugin:runPluginVerifier` (or
+* You've verified plugin compatibility by running `:plugin:verifyPlugin` (or
   checking [GitHub CI](https://github.com/varabyte/kobweb-intellij-plugin/actions/workflows/verify.yml)).
 * You've created a release on https://github.com/varabyte/kobweb-intellij-plugin
   * The version should have the pattern "vX.Y.Z".
@@ -83,4 +83,4 @@ Before publishing, you should make sure you've reviewed the following checklist:
 Finally, publish the plugin using the `publishPlugin` task (or
 using [GitHub CI](https://github.com/varabyte/kobweb-intellij-plugin/actions/workflows/publish.yml)).
 
-When finished, verify https://plugins.jetbrains.com/plugin/23882-kobweb is up to date.
+When finished, verify https://plugins.jetbrains.com/plugin/23883-kobweb is up to date.

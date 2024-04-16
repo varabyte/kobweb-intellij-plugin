@@ -13,3 +13,7 @@ build/
 # Mac
 
 .DS_Store
+
+# IntelliJ Platform
+
+.intellijPlatform

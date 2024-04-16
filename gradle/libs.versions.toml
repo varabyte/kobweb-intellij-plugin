@@ -1,6 +1,6 @@
 [versions]
 kobweb-ide-plugin="0.1.4-SNAPSHOT"
-intellij-plugin = "1.17.4"
+intellij-platform = "2.0.0"
 jetbrains-changelog = "2.2.0"
 kotlin = "1.9.23"
 kotlinx-serialization = "1.6.3"
@@ -14,7 +14,8 @@ truthish = { module = "com.varabyte.truthish:truthish", version.ref = "truthish"
 [bundles]
 
 [plugins]
-intellij = { id = "org.jetbrains.intellij", version.ref = "intellij-plugin" }
+intellij-base = { id = "org.jetbrains.intellij.platform.base", version.ref = "intellij-platform" }
+intellij-platform = { id = "org.jetbrains.intellij.platform", version.ref = "intellij-platform" }
 jetbrains-changelog = { id = "org.jetbrains.changelog", version.ref = "jetbrains-changelog" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
