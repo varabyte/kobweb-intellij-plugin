@@ -27,4 +27,4 @@ jobs:
           echo "${GRADLE_PROPERTIES}" > ~/.gradle/gradle.properties
 
       - name: Publish Kobweb IntelliJ Plugin
-        run: ./gradlew :plugin:buildPlugin # :plugin:publishPlugin --scan
+        run: ./gradlew :plugin:publishPlugin

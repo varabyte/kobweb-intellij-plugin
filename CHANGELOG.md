@@ -1,5 +1,11 @@
 # Kobweb IntelliJ Plugin
 
+## [0.1.1]
+
+### Added
+
+- A functionally identical release extending compatibility to include IntelliJ 2024.2
+
 ## [0.1.0]
 
 ### Added

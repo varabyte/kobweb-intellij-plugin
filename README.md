@@ -67,12 +67,20 @@ publish action (preferred), as the credentials have been installed into the repo
 Before publishing, you should make sure you've reviewed the following checklist:
 
 * The `kobweb-ide-plugin` version in the `libs.version.toml` is correct (and does *not* end in a `-SNAPSHOT` suffix).
-* The `intellij-plugin` version is up-to-date (the build process will emit a warning if not).
+* The `intellij-plugin` version is up-to-date.
+  * See [this page](https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html) for the latest version.
 * The `intellij.version` property in the `build.gradle.kts` file is set to as low a version as possible (to maximize
   compatibility).
 * The `patchPlugin.untilBuild` property still encompasses the latest EAP version.
 * The [CHANGELOG.md](CHANGELOG.md) file has been updated with the new version and its changes.
 * You've tested the plugin locally by running `:plugin:buildPlugin` and installing it from disk.
+* You've verified plugin compatibility by running `:plugin:runPluginVerifier` (or
+  checking [GitHub CI](https://github.com/varabyte/kobweb-intellij-plugin/actions/workflows/verify.yml)).
 * You've created a release on https://github.com/varabyte/kobweb-intellij-plugin
   * The version should have the pattern "vX.Y.Z".
   * The "What's New" section in the plugin UI links to commits associated with the tag created by the release.
+
+Finally, publish the plugin using the `publishPlugin` task (or
+using [GitHub CI](https://github.com/varabyte/kobweb-intellij-plugin/actions/workflows/publish.yml)).
+
+When finished, verify https://plugins.jetbrains.com/plugin/23882-kobweb is up to date.
