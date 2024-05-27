@@ -1,6 +1,6 @@
 [versions]
 kobweb-ide-plugin="0.1.1-SNAPSHOT"
-intellij-plugin = "1.17.2"
+intellij-plugin = "1.17.3"
 jetbrains-changelog = "2.2.0"
 kotlin = "1.9.21"
 kotlinx-serialization = "1.6.0"
