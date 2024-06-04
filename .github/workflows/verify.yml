@@ -1,6 +1,8 @@
 name: Verify Kobweb IntelliJ Plugin Compatibility
 
-on: push
+on:
+  push:
+  workflow_dispatch:
 
 jobs:
   verify:
