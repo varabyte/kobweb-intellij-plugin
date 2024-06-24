@@ -2,11 +2,14 @@ package com.varabyte.kobweb.intellij.inspections
 
 import com.intellij.codeInspection.InspectionSuppressor
 import com.intellij.codeInspection.SuppressQuickFix
+import com.intellij.openapi.util.Key
 import com.intellij.psi.PsiElement
+import com.intellij.psi.util.CachedValue
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
-import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.analysis.api.annotations.annotationClassIds
+import com.varabyte.kobweb.intellij.util.psi.hasAnyAnnotation
 import org.jetbrains.kotlin.psi.KtNamedFunction
+
+private val ANNOTATION_GENERATES_CODE_KEY = Key<CachedValue<Boolean>>("ANNOTATION_GENERATES_CODE")
 
 private val SUPPRESS_UNUSED_WHEN_ANNOTATED_WITH = arrayOf(
     "com.varabyte.kobweb.api.Api",
@@ -26,15 +29,7 @@ class UnusedInspectionSuppressor : InspectionSuppressor {
         if (!element.isInReadableKobwebProject()) return false
         val ktFunction = element.parent as? KtNamedFunction ?: return false
 
-        analyze(ktFunction) {
-            val symbol = ktFunction.getSymbol()
-
-            symbol.annotationClassIds.forEach {
-                if (it.asFqNameString() in SUPPRESS_UNUSED_WHEN_ANNOTATED_WITH) return true
-            }
-        }
-
-        return false
+        return ktFunction.hasAnyAnnotation(ANNOTATION_GENERATES_CODE_KEY, *SUPPRESS_UNUSED_WHEN_ANNOTATED_WITH)
     }
 
     override fun getSuppressActions(element: PsiElement?, toolId: String) = emptyArray<SuppressQuickFix>()
