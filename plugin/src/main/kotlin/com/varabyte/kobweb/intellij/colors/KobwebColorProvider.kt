@@ -33,7 +33,7 @@ import kotlin.math.abs
  * value at that time, though it is likely caused by their specific color function not being supported or the tracing
  * algorithm being unable to analyze more complex code correctly.
  *
- * @see <a href="https://cs.android.com/android-studio/platform/tools/base/+/mirror-goog-studio-main:sdk-common/src/main/java/com/android/ide/common/resources/ResourceResolver.java;l=67?q=MAX_RESOURCE_INDIRECTION">Anroid Studio's ResourceResolver.java</a>
+ * @see <a href="https://cs.android.com/android-studio/platform/tools/base/+/mirror-goog-studio-main:sdk-common/src/main/java/com/android/ide/common/resources/ResourceResolver.java;l=67?q=MAX_RESOURCE_INDIRECTION">Android Studio's ResourceResolver.java</a>
  */
 private const val MAX_SEARCH_DEPTH = 15
 
