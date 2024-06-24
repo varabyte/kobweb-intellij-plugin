@@ -18,6 +18,7 @@ import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode
 import java.awt.Color
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * This constant prevents the color tracer from following references ridiculously deep into the codebase.
@@ -57,6 +58,10 @@ class KobwebColorProvider : ElementColorProvider {
     override fun setColorTo(element: PsiElement, color: Color) = Unit
 }
 
+// navigationElement returns the element where a feature like "Go to declaration" would point:
+// The source declaration, if found, and not a compiled one, which would make further analyzing impossible.
+private fun KtSimpleNameExpression.findDeclaration(): PsiElement? = this.mainReference.resolve()?.navigationElement
+
 /**
  * Tries resolving references as deep as possible and checks if a Kobweb color is being referred to.
  *
@@ -82,13 +87,10 @@ private fun traceColor(element: PsiElement, currentDepth: Int = 0): Color? {
 
         is KtPropertyAccessor -> element.bodyExpression
 
-        is KtCallExpression -> null.also {
-            val calleeExpression = element.calleeExpression as? KtNameReferenceExpression ?: return@also
-            val callee = calleeExpression.findDeclaration() as? KtNamedFunction ?: return@also
-
-            tryParseKobwebColorFunctionCall(callee, element.valueArguments)?.let { parsedColor ->
-                return parsedColor
-            }
+        is KtCallExpression -> {
+            val color = element.tryParseKobwebColorFunctionColor()
+            if (color != null) return color
+            null
         }
 
         else -> null
@@ -99,105 +101,144 @@ private fun traceColor(element: PsiElement, currentDepth: Int = 0): Color? {
     } else null
 }
 
+private fun Float.toColorInt(): Int {
+    return (this * 255f).roundToInt().coerceIn(0, 255)
+}
+
 /**
- * Checks if a called function is a Kobweb color function and if it is, tries extracting the color from the call.
- *
- * @param callee The function being called, that might be a Kobweb color function
- * @param valueArguments The arguments the [callee] is called with
+ * Checks if a call expression represents a Kobweb color function call and if so, try extracting the color from it.
  *
  * @return The specified color, if it could be parsed and the callee is a Kobweb color function, otherwise null
  */
-private fun tryParseKobwebColorFunctionCall(
-    callee: KtNamedFunction,
-    valueArguments: Collection<KtValueArgument>
-): Color? = with(valueArguments) {
-    when {
-        callee.isKobwebColorFunction("rgb(r: Int, g: Int, b: Int)") ->
-            evaluateArguments<Int>(3)?.let { args ->
-                tryCreateRgbColor(args[0], args[1], args[2])
-            }
+private fun KtCallExpression.tryParseKobwebColorFunctionColor(): Color? {
+    "$KOBWEB_COLOR_COMPANION_FQ_NAME.rgb".let { rgbFqn ->
+        this.extractConstantArguments1<Int>(rgbFqn)?.let { (rgb) ->
+            return tryCreateRgbColor(rgb)
+        }
 
-        callee.isKobwebColorFunction("rgb(value: Int)") ->
-            evaluateArguments<Int>(1)?.let { args ->
-                tryCreateRgbColor(args[0])
-            }
+        this.extractConstantArguments1<Long>(rgbFqn)?.let { (rgb) ->
+            return tryCreateRgbColor(rgb.toInt())
+        }
 
-        callee.isKobwebColorFunction("rgba(value: Int)", "rgba(value: Long)") ->
-            (evaluateArguments<Int>(1) ?: evaluateArguments<Long, Int>(1) { it.toInt() })?.let { args ->
-                tryCreateRgbColor(args[0] shr Byte.SIZE_BITS)
-            }
+        this.extractConstantArguments3<Int, Int, Int>(rgbFqn)?.let { (r, g, b) ->
+            return tryCreateRgbColor(r, g, b)
+        }
 
-        callee.isKobwebColorFunction("argb(value: Int)", "argb(value: Long)") ->
-            (evaluateArguments<Int>(1) ?: evaluateArguments<Long, Int>(1) { it.toInt() })?.let { args ->
-                tryCreateRgbColor(args[0] and 0x00_FF_FF_FF)
-            }
-
-        callee.isKobwebColorFunction("hsl(h: Float, s: Float, l: Float)") ->
-            evaluateArguments<Float>(3)?.let { args ->
-                tryCreateHslColor(args[0], args[1], args[2])
-            }
-
-        callee.isKobwebColorFunction("hsla(h: Float, s: Float, l: Float, a: Float)") ->
-            evaluateArguments<Float>(4)?.let { args ->
-                tryCreateHslColor(args[0], args[1], args[2])
-            }
-
-        else -> null
+        this.extractConstantArguments3<Float, Float, Float>(rgbFqn)?.let { (r, g, b) ->
+            return tryCreateRgbColor(r.toColorInt(), g.toColorInt(), b.toColorInt())
+        }
     }
+
+    "$KOBWEB_COLOR_COMPANION_FQ_NAME.rgba".let { rgbaFqn ->
+        this.extractConstantArguments1<Int>(rgbaFqn)?.let { (rgb) ->
+            return tryCreateRgbColor(rgb shr 8)
+        }
+
+        this.extractConstantArguments1<Long>(rgbaFqn)?.let { (rgb) ->
+            return tryCreateRgbColor(rgb.toInt() shr 8)
+        }
+
+        this.extractConstantArguments4<Int, Int, Int, Int>(rgbaFqn)?.let { (r, g, b) ->
+            return tryCreateRgbColor(r, g, b)
+        }
+
+        this.extractConstantArguments4<Int, Int, Int, Float>(rgbaFqn)?.let { (r, g, b) ->
+            return tryCreateRgbColor(r, g, b)
+        }
+
+        this.extractConstantArguments4<Float, Float, Float, Float>(rgbaFqn)?.let { (r, g, b) ->
+            return tryCreateRgbColor(r.toColorInt(), g.toColorInt(), b.toColorInt())
+        }
+    }
+
+    "$KOBWEB_COLOR_COMPANION_FQ_NAME.argb".let { argbFqn ->
+        this.extractConstantArguments1<Int>(argbFqn)?.let { (rgb) ->
+            return tryCreateRgbColor(rgb and 0x00_FF_FF_FF)
+        }
+
+        this.extractConstantArguments1<Long>(argbFqn)?.let { (rgb) ->
+            return tryCreateRgbColor(rgb.toInt() and 0x00_FF_FF_FF)
+        }
+
+        this.extractConstantArguments4<Int, Int, Int, Int>(argbFqn)?.let { (_, r, g, b) ->
+            return tryCreateRgbColor(r, g, b)
+        }
+
+        this.extractConstantArguments4<Float, Int, Int, Int>(argbFqn)?.let { (_, r, g, b) ->
+            return tryCreateRgbColor(r, g, b)
+        }
+
+        this.extractConstantArguments4<Float, Float, Float, Float>(argbFqn)?.let { (_, r, g, b) ->
+            return tryCreateRgbColor(r.toColorInt(), g.toColorInt(), b.toColorInt())
+        }
+    }
+
+    "$KOBWEB_COLOR_COMPANION_FQ_NAME.hsl".let { hslFqn ->
+        this.extractConstantArguments3<Int, Float, Float>(hslFqn)?.let { (h, s, l) ->
+            return tryCreateHslColor(h, s, l)
+        }
+
+        this.extractConstantArguments3<Float, Float, Float>(hslFqn)?.let { (h, s, l) ->
+            return tryCreateHslColor(h.roundToInt(), s, l)
+        }
+    }
+
+    "$KOBWEB_COLOR_COMPANION_FQ_NAME.hsla".let { hslaFqn ->
+        this.extractConstantArguments4<Int, Float, Float, Float>(hslaFqn)?.let { (h, s, l) ->
+            return tryCreateHslColor(h, s, l)
+        }
+
+        this.extractConstantArguments4<Float, Float, Float, Float>(hslaFqn)?.let { (h, s, l) ->
+            return tryCreateHslColor(h.roundToInt(), s, l)
+        }
+    }
+
+    return null
 }
 
+private data class Values<T1, T2, T3, T4>(
+    val v1: T1,
+    val v2: T2,
+    val v3: T3,
+    val v4: T4
+)
 
-// navigationElement returns the element where a feature like "Go to declaration" would point:
-// The source declaration, if found, and not a compiled one, which would make further analyzing impossible.
-private fun KtSimpleNameExpression.findDeclaration(): PsiElement? = this.mainReference.resolve()?.navigationElement
-
-/**
- * Evaluates a collection of value arguments to the specified type.
- *
- * For example, if we have a collection of decimal, hex, and binary arguments,
- * this method can parse them into regular integer values, so 123, 0x7B and 0b0111_1011
- * would all evaluate to 123.
- *
- * @param argCount The size the original and evaluated collections must have. If this value disagrees with the size of
- *   the passed in collection, it will throw an exception; it's essentially treated like an assertion at that point.
- *   Otherwise, it's used to avoid returning a final, evaluated array of unexpected size.
- * @param evaluatedValueMapper Convenience parameter to avoid having to type `.map { ... }.toTypedArray()`
- *
- * @return the evaluated arguments of length [argCount] if evaluation of **all** arguments succeeded,
- * and [argCount] elements were passed for evaluation, otherwise null
- */
-private inline fun <reified Evaluated, reified Mapped> Collection<KtValueArgument>.evaluateArguments(
-    argCount: Int,
-    evaluatedValueMapper: (Evaluated) -> Mapped
-): Array<Mapped>? {
-
-    check(this.size == argCount) { "evaluateArguments called on a collection expecting $argCount arguments, but it only had ${this.size}"}
-
-    val constantExpressions = this.mapNotNull { it.getArgumentExpression() as? KtConstantExpression }
-
-    val evaluatedArguments = constantExpressions.mapNotNull { expr ->
-        val bindingContext = expr.analyze(BodyResolveMode.PARTIAL)
-        val constant = bindingContext.get(BindingContext.COMPILE_TIME_VALUE, expr) ?: return@mapNotNull null
-        val type = bindingContext.getType(expr) ?: return@mapNotNull null
-        constant.getValue(type) as? Evaluated
-    }
-
-    return if (evaluatedArguments.size != argCount) null
-    else evaluatedArguments.map(evaluatedValueMapper).toTypedArray()
+private inline fun <reified T> KtValueArgument.extractConstantValue(): T? {
+    val constantExpression = getArgumentExpression() as? KtConstantExpression ?: return null
+    val bindingContext = constantExpression.analyze(BodyResolveMode.PARTIAL)
+    val constant = bindingContext.get(BindingContext.COMPILE_TIME_VALUE, constantExpression) ?: return null
+    val type = bindingContext.getType(constantExpression) ?: return null
+    return constant.getValue(type) as? T
 }
 
-private inline fun <reified Evaluated> Collection<KtValueArgument>.evaluateArguments(argCount: Int) =
-    evaluateArguments<Evaluated, Evaluated>(argCount) { it }
+private fun KtCallExpression.valueArgumentsIf(fqn: String, requiredSize: Int): List<KtValueArgument>? {
+    val calleeExpression = calleeExpression as? KtNameReferenceExpression ?: return null
+    val callee = calleeExpression.findDeclaration() as? KtNamedFunction ?: return null
+    if (callee.kotlinFqName?.asString() != fqn) return null
+    return valueArguments.takeIf { it.size == requiredSize }
+}
 
-private fun KtNamedFunction.isKobwebColorFunction(vararg functionSignatures: String): Boolean {
-    val actualFqName = this.kotlinFqName?.asString() ?: return false
-    val actualParameters = this.valueParameterList?.text ?: return false
-    val actual = actualFqName + actualParameters
+private inline fun <reified I> KtCallExpression.extractConstantArguments1(fqn: String): Values<I, Unit, Unit, Unit>? {
+    val valueArguments = valueArgumentsIf(fqn, 1) ?: return null
+    val v1: I? = valueArguments[0].extractConstantValue()
+    return if (v1 != null) Values(v1, Unit, Unit, Unit) else null
+}
 
-    return functionSignatures.any { functionSignature ->
-        val expected = "$KOBWEB_COLOR_COMPANION_FQ_NAME.$functionSignature"
-        expected == actual
-    }
+private inline fun <reified I1, reified I2, reified I3> KtCallExpression.extractConstantArguments3(fqn: String): Values<I1, I2, I3, Unit>? {
+    val valueArguments = valueArgumentsIf(fqn, 3) ?: return null
+    val v1: I1? = valueArguments[0].extractConstantValue()
+    val v2: I2? = valueArguments[1].extractConstantValue()
+    val v3: I3? = valueArguments[2].extractConstantValue()
+    return if (v1 != null && v2 != null && v3 != null) Values(v1, v2, v3, Unit) else null
+}
+
+private inline fun <reified I1, reified I2, reified I3, reified I4> KtCallExpression.extractConstantArguments4(fqn: String): Values<I1, I2, I3, I4>? {
+    val valueArguments = valueArgumentsIf(fqn, 4) ?: return null
+    val v1: I1? = valueArguments[0].extractConstantValue()
+    val v2: I2? = valueArguments[1].extractConstantValue()
+    val v3: I3? = valueArguments[2].extractConstantValue()
+    val v4: I4? = valueArguments[3].extractConstantValue()
+    return if (v1 != null && v2 != null && v3 != null && v4 != null) Values(v1, v2, v3, v4) else null
 }
 
 private fun tryCreateRgbColor(r: Int, g: Int, b: Int) =
@@ -206,11 +247,15 @@ private fun tryCreateRgbColor(r: Int, g: Int, b: Int) =
 private fun tryCreateRgbColor(rgb: Int) =
     runCatching { Color(rgb) }.getOrNull()
 
-private fun tryCreateHslColor(hue: Float, saturation: Float, lightness: Float): Color? {
+// Expected values:
+//   hue: 0-360
+//   saturation: 0-1
+//   lightness: 0-1
+private fun tryCreateHslColor(hue: Int, saturation: Float, lightness: Float): Color? {
     // https://en.wikipedia.org/wiki/HSL_and_HSV#Color_conversion_formulae
     val chroma = (1 - abs(2 * lightness - 1)) * saturation
     val intermediateValue = chroma * (1 - abs(((hue / 60) % 2) - 1))
-    val hueSection = (hue.toInt() % 360) / 60
+    val hueSection = (hue % 360) / 60
     val r: Float
     val g: Float
     val b: Float
