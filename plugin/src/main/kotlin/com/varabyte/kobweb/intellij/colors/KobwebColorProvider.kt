@@ -8,13 +8,14 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
 import com.varabyte.kobweb.intellij.util.kobweb.isInKobwebSource
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
-import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.analysis.api.components.KtConstantEvaluationMode
 import org.jetbrains.kotlin.idea.base.psi.kotlinFqName
+import org.jetbrains.kotlin.idea.caches.resolve.analyze
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.js.translate.declaration.hasCustomGetter
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.resolve.BindingContext
+import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode
 import java.awt.Color
 import kotlin.math.abs
 
@@ -174,10 +175,11 @@ private inline fun <reified Evaluated, reified Mapped> Collection<KtValueArgumen
 
     val constantExpressions = this.mapNotNull { it.getArgumentExpression() as? KtConstantExpression }
 
-    val evaluatedArguments = constantExpressions.mapNotNull {
-        analyze(it.containingKtFile) {
-            it.evaluate(KtConstantEvaluationMode.CONSTANT_LIKE_EXPRESSION_EVALUATION)?.value as? Evaluated
-        }
+    val evaluatedArguments = constantExpressions.mapNotNull { expr ->
+        val bindingContext = expr.analyze(BodyResolveMode.PARTIAL)
+        val constant = bindingContext.get(BindingContext.COMPILE_TIME_VALUE, expr) ?: return@mapNotNull null
+        val type = bindingContext.getType(expr) ?: return@mapNotNull null
+        constant.getValue(type) as? Evaluated
     }
 
     return if (evaluatedArguments.size != argCount) null
