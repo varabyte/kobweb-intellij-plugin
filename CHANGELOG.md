@@ -1,5 +1,13 @@
 # Kobweb IntelliJ Plugin
 
+## [0.1.2]
+
+### Added
+
+- Implementation details around analyzing code have moved to more stable IntelliJ IDEA APIs.
+  - This works both with older versions of IDEA and should prevent us from hitting 2024.2 `NoClassDefFoundError` issues. 
+
+
 ## [0.1.1]
 
 ### Added
