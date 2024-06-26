@@ -1,5 +1,11 @@
 # Kobweb IntelliJ Plugin
 
+## [0.1.3]
+
+### Added
+
+- Fixed issue where plugin functionality stopped working in 2024.2
+
 ## [0.1.2]
 
 ### Added
