@@ -32,9 +32,12 @@ private fun Project.hasAnyKobwebDependency(): Boolean {
         .any { orderEntry ->
             when (orderEntry) {
                 // Most projects will indicate a dependency on Kobweb via library coordinates, e.g. `com.varabyte.kobweb:core`
-                is LibraryOrderEntry -> orderEntry.libraryName.orEmpty().substringBefore(':') == "com.varabyte.kobweb"
+                // Pre `2024.2`, libraryName looked like `com.varabyte.kobweb:kobweb-core:0.18.1`
+                // As of `2024.2`, libraryName looks like `Gradle: com.varabyte.kobweb:kobweb-silk:0.18.1`
+                is LibraryOrderEntry -> orderEntry.libraryName.orEmpty().contains("com.varabyte.kobweb:")
                 // Very rare, but if a project depends on Kobweb source directly, that counts. This is essentially for
                 // the `kobweb/playground` project which devs use to test latest Kobweb on.
+                // Module name looks like "com.namespace.project.jsMain"
                 is ModuleOrderEntry -> orderEntry.moduleName.substringBefore('.') == "kobweb"
                 else -> false
             }
