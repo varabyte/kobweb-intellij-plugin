@@ -47,8 +47,6 @@ import kotlin.math.roundToInt
  */
 private const val MAX_SEARCH_DEPTH = 15
 
-private const val KOBWEB_COLOR_COMPANION_FQ_NAME = "com.varabyte.kobweb.compose.ui.graphics.Color.Companion"
-
 /**
  * Enables showing small rectangular gutter icons that preview Kobweb colors
  */
@@ -97,9 +95,9 @@ private fun traceColor(element: PsiElement, currentDepth: Int = 0): Color? {
 
         is KtCallExpression -> {
             val color = if (KotlinPluginModeProvider.isK2Mode()) {
-                element.tryParseKobwebColorFunctionColorK2()
-            } else {
                 element.tryParseKobwebColorFunctionColor()
+            } else {
+                element.tryParseKobwebColorFunctionColorK1()
             }
             if (color != null) return color
             null
@@ -138,7 +136,7 @@ private fun KaConstantValue.asLongOrNull(): Long? = (this as? KaConstantValue.Lo
  *
  * @return The specified color, if it could be parsed and the callee is a Kobweb color function, otherwise null
  */
-private fun KtCallExpression.tryParseKobwebColorFunctionColorK2(): Color? {
+private fun KtCallExpression.tryParseKobwebColorFunctionColor(): Color? {
     val ktExpression = this.calleeExpression ?: return null
     analyze(ktExpression) {
         val callableId = (ktExpression.mainReference?.resolveToSymbol() as? KaFunctionSymbol)
@@ -223,13 +221,81 @@ private fun KtCallExpression.tryParseKobwebColorFunctionColorK2(): Color? {
     return null
 }
 
+private fun tryCreateRgbColor(r: Int, g: Int, b: Int) =
+    runCatching { Color(r, g, b) }.getOrNull()
+
+private fun tryCreateRgbColor(rgb: Int) =
+    runCatching { Color(rgb) }.getOrNull()
+
+// Expected values:
+//   hue: 0-360
+//   saturation: 0-1
+//   lightness: 0-1
+private fun tryCreateHslColor(hue: Int, saturation: Float, lightness: Float): Color? {
+    // https://en.wikipedia.org/wiki/HSL_and_HSV#Color_conversion_formulae
+    val chroma = (1 - abs(2 * lightness - 1)) * saturation
+    val intermediateValue = chroma * (1 - abs(((hue / 60) % 2) - 1))
+    val hueSection = (hue % 360) / 60
+    val r: Float
+    val g: Float
+    val b: Float
+    when (hueSection) {
+        0 -> {
+            r = chroma
+            g = intermediateValue
+            b = 0f
+        }
+
+        1 -> {
+            r = intermediateValue
+            g = chroma
+            b = 0f
+        }
+
+        2 -> {
+            r = 0f
+            g = chroma
+            b = intermediateValue
+        }
+
+        3 -> {
+            r = 0f
+            g = intermediateValue
+            b = chroma
+        }
+
+        4 -> {
+            r = intermediateValue
+            g = 0f
+            b = chroma
+        }
+
+        else -> {
+            check(hueSection == 5)
+            r = chroma
+            g = 0f
+            b = intermediateValue
+        }
+    }
+    val lightnessAdjustment = lightness - chroma / 2
+
+    return tryCreateRgbColor(
+        ((r + lightnessAdjustment) * 255f).toInt(),
+        ((g + lightnessAdjustment) * 255f).toInt(),
+        ((b + lightnessAdjustment) * 255f).toInt()
+    )
+}
+
+// region K1 legacy
+
+private const val KOBWEB_COLOR_COMPANION_FQ_NAME = "com.varabyte.kobweb.compose.ui.graphics.Color.Companion"
 
 /**
  * Checks if a call expression represents a Kobweb color function call and if so, try extracting the color from it.
  *
  * @return The specified color, if it could be parsed and the callee is a Kobweb color function, otherwise null
  */
-private fun KtCallExpression.tryParseKobwebColorFunctionColor(): Color? {
+private fun KtCallExpression.tryParseKobwebColorFunctionColorK1(): Color? {
     "$KOBWEB_COLOR_COMPANION_FQ_NAME.rgb".let { rgbFqn ->
         this.extractConstantArguments1<Int>(rgbFqn)?.let { (rgb) ->
             return tryCreateRgbColor(rgb)
@@ -360,67 +426,4 @@ private inline fun <reified I1, reified I2, reified I3, reified I4> KtCallExpres
     return if (v1 != null && v2 != null && v3 != null && v4 != null) Values(v1, v2, v3, v4) else null
 }
 
-private fun tryCreateRgbColor(r: Int, g: Int, b: Int) =
-    runCatching { Color(r, g, b) }.getOrNull()
-
-private fun tryCreateRgbColor(rgb: Int) =
-    runCatching { Color(rgb) }.getOrNull()
-
-// Expected values:
-//   hue: 0-360
-//   saturation: 0-1
-//   lightness: 0-1
-private fun tryCreateHslColor(hue: Int, saturation: Float, lightness: Float): Color? {
-    // https://en.wikipedia.org/wiki/HSL_and_HSV#Color_conversion_formulae
-    val chroma = (1 - abs(2 * lightness - 1)) * saturation
-    val intermediateValue = chroma * (1 - abs(((hue / 60) % 2) - 1))
-    val hueSection = (hue % 360) / 60
-    val r: Float
-    val g: Float
-    val b: Float
-    when (hueSection) {
-        0 -> {
-            r = chroma
-            g = intermediateValue
-            b = 0f
-        }
-
-        1 -> {
-            r = intermediateValue
-            g = chroma
-            b = 0f
-        }
-
-        2 -> {
-            r = 0f
-            g = chroma
-            b = intermediateValue
-        }
-
-        3 -> {
-            r = 0f
-            g = intermediateValue
-            b = chroma
-        }
-
-        4 -> {
-            r = intermediateValue
-            g = 0f
-            b = chroma
-        }
-
-        else -> {
-            check(hueSection == 5)
-            r = chroma
-            g = 0f
-            b = intermediateValue
-        }
-    }
-    val lightnessAdjustment = lightness - chroma / 2
-
-    return tryCreateRgbColor(
-        ((r + lightnessAdjustment) * 255f).toInt(),
-        ((g + lightnessAdjustment) * 255f).toInt(),
-        ((b + lightnessAdjustment) * 255f).toInt()
-    )
-}
+// endregion

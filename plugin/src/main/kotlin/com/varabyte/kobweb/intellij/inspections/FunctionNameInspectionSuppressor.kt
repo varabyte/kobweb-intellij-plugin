@@ -7,8 +7,8 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.util.CachedValue
 import com.varabyte.kobweb.intellij.util.kobweb.isInKobwebSource
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
+import com.varabyte.kobweb.intellij.util.psi.hasAnyAnnotationK1
 import com.varabyte.kobweb.intellij.util.psi.hasAnyAnnotation
-import com.varabyte.kobweb.intellij.util.psi.hasAnyAnnotationK2
 import org.jetbrains.kotlin.idea.base.plugin.KotlinPluginModeProvider
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -26,9 +26,9 @@ class FunctionNameInspectionSuppressor : InspectionSuppressor {
         val ktFunction = element.parent as? KtNamedFunction ?: return false
 
         return if (KotlinPluginModeProvider.isK2Mode()) {
-            ktFunction.hasAnyAnnotationK2(IS_COMPOSABLE_KEY, COMPOSABLE_ANNOTATION_ID)
+            ktFunction.hasAnyAnnotation(IS_COMPOSABLE_KEY, COMPOSABLE_ANNOTATION_ID)
         } else {
-            ktFunction.hasAnyAnnotation(IS_COMPOSABLE_KEY, "androidx.compose.runtime.Composable")
+            ktFunction.hasAnyAnnotationK1(IS_COMPOSABLE_KEY, "androidx.compose.runtime.Composable")
         }
     }
 

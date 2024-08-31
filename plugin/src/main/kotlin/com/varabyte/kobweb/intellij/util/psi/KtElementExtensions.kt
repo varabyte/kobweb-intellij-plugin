@@ -14,6 +14,32 @@ import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode
 
+// Code adapted from https://kotlin.github.io/analysis-api/migrating-from-k1.html#using-analysis-api
+private fun KtDeclaration.hasAnyAnnotation(vararg classIds: ClassId): Boolean {
+    analyze(this) {
+        val annotations = this@hasAnyAnnotation.symbol.annotations
+        return classIds.any { it in annotations }
+    }
+}
+
+/**
+ * Returns true if the function is tagged with any one of the given annotations.
+ *
+ * @param key A key must be provided to prevent ambiguity errors, as multiple places can call `hasAnyAnnotation` with
+ *   different annotation lists on the same target method.
+ */
+fun KtDeclaration.hasAnyAnnotation(key: Key<CachedValue<Boolean>>, vararg classIds: ClassId): Boolean {
+    return CachedValuesManager.getCachedValue(this, key) {
+        CachedValueProvider.Result.create(
+            hasAnyAnnotation(*classIds),
+            this.containingKtFile,
+            ProjectRootModificationTracker.getInstance(project),
+        )
+    }
+}
+
+// region K1 legacy
+
 /**
  * Determines whether this [KtAnnotationEntry] has the specified qualified name.
  * Careful: this does *not* currently take into account Kotlin type aliases (https://kotlinlang.org/docs/reference/type-aliases.html).
@@ -40,7 +66,7 @@ private fun KtAnnotationEntry.getQualifiedName(): String? =
  * @param key A key must be provided to prevent ambiguity errors, as multiple places can call `hasAnyAnnotation` with
  *   different annotation lists on the same target method.
  */
-internal fun KtAnnotated.hasAnyAnnotation(key: Key<CachedValue<Boolean>>, vararg annotationFqns: String): Boolean {
+internal fun KtAnnotated.hasAnyAnnotationK1(key: Key<CachedValue<Boolean>>, vararg annotationFqns: String): Boolean {
     // Not strictly required but results in a better error message if JB ever reports an issue:
     @Suppress("NAME_SHADOWING") val annotationFqns = annotationFqns.toList()
     // Code adapted from https://github.com/JetBrains/compose-multiplatform/blob/b501e0f794aecde9a6ce47cb4b5308939cbc7cc5/idea-plugin/src/main/kotlin/org/jetbrains/compose/desktop/ide/preview/locationUtils.kt#L135
@@ -57,20 +83,4 @@ internal fun KtAnnotated.hasAnyAnnotation(key: Key<CachedValue<Boolean>>, vararg
     }
 }
 
-// Code adapted from https://kotlin.github.io/analysis-api/migrating-from-k1.html#using-analysis-api
-private fun KtDeclaration.hasAnyAnnotationK2(vararg classIds: ClassId): Boolean {
-    analyze(this) {
-        val annotations = this@hasAnyAnnotationK2.symbol.annotations
-        return classIds.any { it in annotations }
-    }
-}
-
-fun KtDeclaration.hasAnyAnnotationK2(key: Key<CachedValue<Boolean>>, vararg classIds: ClassId): Boolean {
-    return CachedValuesManager.getCachedValue(this, key) {
-        CachedValueProvider.Result.create(
-            hasAnyAnnotationK2(*classIds),
-            this.containingKtFile,
-            ProjectRootModificationTracker.getInstance(project),
-        )
-    }
-}
+// endregion
