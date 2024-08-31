@@ -8,9 +8,13 @@ import com.intellij.psi.util.CachedValue
 import com.varabyte.kobweb.intellij.util.kobweb.isInKobwebSource
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.psi.hasAnyAnnotation
+import com.varabyte.kobweb.intellij.util.psi.hasAnyAnnotationK2
+import org.jetbrains.kotlin.idea.base.plugin.KotlinPluginModeProvider
+import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.psi.KtNamedFunction
 
 private val IS_COMPOSABLE_KEY = Key<CachedValue<Boolean>>("IS_COMPOSABLE")
+private val COMPOSABLE_ANNOTATION_ID = ClassId.fromString("androidx/compose/runtime/Composable")
 
 /**
  * Suppress the "Function name should start with a lowercase letter" inspection.
@@ -21,7 +25,11 @@ class FunctionNameInspectionSuppressor : InspectionSuppressor {
         if (!element.isInReadableKobwebProject() && !element.isInKobwebSource()) return false
         val ktFunction = element.parent as? KtNamedFunction ?: return false
 
-        return ktFunction.hasAnyAnnotation(IS_COMPOSABLE_KEY, "androidx.compose.runtime.Composable")
+        return if (KotlinPluginModeProvider.isK2Mode()) {
+            ktFunction.hasAnyAnnotationK2(IS_COMPOSABLE_KEY, COMPOSABLE_ANNOTATION_ID)
+        } else {
+            ktFunction.hasAnyAnnotation(IS_COMPOSABLE_KEY, "androidx.compose.runtime.Composable")
+        }
     }
 
     override fun getSuppressActions(element: PsiElement?, toolId: String) = emptyArray<SuppressQuickFix>()
