@@ -5,9 +5,12 @@ import com.intellij.openapi.util.Key
 import com.intellij.psi.util.CachedValue
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
+import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.idea.caches.resolve.analyze
+import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
+import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.lazy.BodyResolveMode
 
@@ -48,6 +51,24 @@ internal fun KtAnnotated.hasAnyAnnotation(key: Key<CachedValue<Boolean>>, vararg
                     annotationFqns.any { fqName -> annotationEntry.fqNameMatches(fqName) }
                 }
             },
+            this.containingKtFile,
+            ProjectRootModificationTracker.getInstance(project),
+        )
+    }
+}
+
+// Code adapted from https://kotlin.github.io/analysis-api/migrating-from-k1.html#using-analysis-api
+private fun KtDeclaration.hasAnyAnnotationK2(vararg classIds: ClassId): Boolean {
+    analyze(this) {
+        val annotations = this@hasAnyAnnotationK2.symbol.annotations
+        return classIds.any { it in annotations }
+    }
+}
+
+fun KtDeclaration.hasAnyAnnotationK2(key: Key<CachedValue<Boolean>>, vararg classIds: ClassId): Boolean {
+    return CachedValuesManager.getCachedValue(this, key) {
+        CachedValueProvider.Result.create(
+            hasAnyAnnotationK2(*classIds),
             this.containingKtFile,
             ProjectRootModificationTracker.getInstance(project),
         )

@@ -26,10 +26,8 @@ dependencies {
     intellijPlatform {
         pluginModule(implementation(project(":kobweb-model")))
         // Interesting statistics: https://plugins.jetbrains.com/docs/marketplace/product-versions-in-use-statistics.html
-        // We target 2023.3 for:
-        // - ProjectActivity (available since 2023.1)
-        // - Kotlin 1.9 support
-        intellijIdeaCommunity("2023.3")
+        // We target 2024.2.1 as it is the earliest version supporting K2 mode
+        intellijIdeaCommunity("2024.2.1")
 
         bundledPlugins(
             "org.jetbrains.kotlin",
@@ -149,7 +147,7 @@ changelog {
 
 fun Project.isSnapshot() = version.toString().endsWith("-SNAPSHOT")
 
-val jvmTarget = JvmTarget.JVM_17
+val jvmTarget = JvmTarget.JVM_21
 tasks.withType<JavaCompile>().configureEach {
     sourceCompatibility = jvmTarget.target
     targetCompatibility = jvmTarget.target
