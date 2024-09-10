@@ -1,5 +1,12 @@
 # Kobweb IntelliJ Plugin
 
+## [0.1.4]
+
+### Added
+
+- Support for Kotlin K2 mode
+- Increased the earliest compatible IntelliJ version to 2024.2.1
+
 ## [0.1.3]
 
 ### Added
