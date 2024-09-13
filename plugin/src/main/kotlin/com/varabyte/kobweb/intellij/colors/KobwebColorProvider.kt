@@ -106,7 +106,7 @@ private fun Float.toColorInt(): Int {
     return (this * 255f).roundToInt().coerceIn(0, 255)
 }
 
-private object ColorFunctionIds {
+private object ColorFunctions {
     private val KOBWEB_COLOR_COMPANION_ID =
         ClassId.fromString("com/varabyte/kobweb/compose/ui/graphics/Color.Companion")
     val rgb = CallableId(KOBWEB_COLOR_COMPANION_ID, Name.identifier("rgb"))
@@ -116,6 +116,7 @@ private object ColorFunctionIds {
     val hsla = CallableId(KOBWEB_COLOR_COMPANION_ID, Name.identifier("hsla"))
 
     val entries = listOf(rgb, rgba, argb, hsl, hsla)
+    val names = entries.map { it.callableName }
 }
 
 private fun KaConstantValue.asIntOrNull(): Int? = (this as? KaConstantValue.IntValue)?.value
@@ -128,17 +129,19 @@ private fun KaConstantValue.asLongOrNull(): Long? = (this as? KaConstantValue.Lo
  * @return The specified color, if it could be parsed and the callee is a Kobweb color function, otherwise null
  */
 private fun KtCallExpression.tryParseKobwebColorFunctionColor(): Color? {
-    val ktExpression = this.calleeExpression ?: return null
+    val ktExpression = (this.calleeExpression as? KtNameReferenceExpression)
+        ?.takeIf { it.getReferencedNameAsName() in ColorFunctions.names }
+        ?: return null
     analyze(ktExpression) {
-        val callableId = (ktExpression.mainReference?.resolveToSymbol() as? KaFunctionSymbol)
+        val callableId = (ktExpression.mainReference.resolveToSymbol() as? KaFunctionSymbol)
             ?.callableId
-            ?.takeIf { it in ColorFunctionIds.entries }
+            ?.takeIf { it in ColorFunctions.entries }
             ?: return@analyze
         val functionArgs = ktExpression.resolveToCall()?.successfulFunctionCallOrNull()?.argumentMapping
             ?: return@analyze
 
         when (callableId) {
-            ColorFunctionIds.rgb -> when (functionArgs.size) {
+            ColorFunctions.rgb -> when (functionArgs.size) {
                 1 -> {
                     val constantValue = functionArgs.entries.single().key.evaluate()
                     val rgb = constantValue?.asIntOrNull() ?: constantValue?.asLongOrNull()?.toInt() ?: return@analyze
@@ -154,7 +157,7 @@ private fun KtCallExpression.tryParseKobwebColorFunctionColor(): Color? {
                 }
             }
 
-            ColorFunctionIds.rgba -> when (functionArgs.size) {
+            ColorFunctions.rgba -> when (functionArgs.size) {
                 1 -> {
                     val constantValue = functionArgs.entries.single().key.evaluate()
                     val rgb = constantValue?.asIntOrNull() ?: constantValue?.asLongOrNull()?.toInt() ?: return@analyze
@@ -170,7 +173,7 @@ private fun KtCallExpression.tryParseKobwebColorFunctionColor(): Color? {
                 }
             }
 
-            ColorFunctionIds.argb -> when (functionArgs.size) {
+            ColorFunctions.argb -> when (functionArgs.size) {
                 1 -> {
                     val constantValue = functionArgs.entries.single().key.evaluate()
                     val rgb = constantValue?.asIntOrNull() ?: constantValue?.asLongOrNull()?.toInt() ?: return@analyze
@@ -186,7 +189,7 @@ private fun KtCallExpression.tryParseKobwebColorFunctionColor(): Color? {
                 }
             }
 
-            ColorFunctionIds.hsl -> {
+            ColorFunctions.hsl -> {
                 val h = functionArgs.entries.first().key.evaluate()
                     .let { it?.asIntOrNull() ?: it?.asFloatOrNull()?.roundToInt() }
                     ?: return@analyze
@@ -197,7 +200,7 @@ private fun KtCallExpression.tryParseKobwebColorFunctionColor(): Color? {
                 return tryCreateHslColor(h, s, l)
             }
 
-            ColorFunctionIds.hsla -> {
+            ColorFunctions.hsla -> {
                 val h = functionArgs.entries.first().key.evaluate()
                     .let { it?.asIntOrNull() ?: it?.asFloatOrNull()?.roundToInt() }
                     ?: return@analyze
