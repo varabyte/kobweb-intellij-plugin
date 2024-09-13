@@ -26,7 +26,7 @@ dependencies {
     intellijPlatform {
         pluginModule(implementation(project(":kobweb-model")))
         // Interesting statistics: https://plugins.jetbrains.com/docs/marketplace/product-versions-in-use-statistics.html
-        // We target 2024.2.1 as it is the earliest version supporting K2 mode
+        // We target 2024.2.1 as it is the earliest version supporting K2 mode / the Analysis API
         intellijIdeaCommunity("2024.2.1")
 
         bundledPlugins(
@@ -70,7 +70,7 @@ intellijPlatform {
 
         ideaVersion {
             //sinceBuild derived from intellij.version
-            untilBuild = "242.*" // Include EAP
+            untilBuild = "243.*" // Include EAP
         }
 
         changeNotes = provider {

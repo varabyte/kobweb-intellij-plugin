@@ -1,12 +1,8 @@
 package com.varabyte.kobweb.intellij.startup
 
 import com.intellij.notification.NotificationType
-import com.intellij.openapi.actionSystem.ActionManager
-import com.intellij.openapi.actionSystem.ActionPlaces
-import com.intellij.openapi.actionSystem.PlatformDataKeys
-import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.components.service
-import com.intellij.openapi.externalSystem.action.RefreshAllExternalProjectsAction
+import com.intellij.openapi.externalSystem.autoimport.ExternalSystemProjectTracker
 import com.intellij.openapi.externalSystem.service.project.manage.ProjectDataImportListener
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.modules
@@ -50,7 +46,7 @@ private fun Project.hasAnyKobwebDependency(): Boolean {
 class KobwebPostStartupProjectActivity : ProjectActivity {
     private class ImportListener(
         private val project: Project,
-        private val syncRequestedNotification: KobwebNotificationHandle?
+        private val syncRequestedNotification: KobwebNotificationHandle?,
     ) : ProjectDataImportListener {
         override fun onImportStarted(projectPath: String?) {
             // If an import is kicked off in an indirect way, we should still dismiss the sync popup.
@@ -74,17 +70,13 @@ class KobwebPostStartupProjectActivity : ProjectActivity {
             project.kobwebPluginState = KobwebPluginState.UNINITIALIZED
         }
 
-        val refreshProjectAction = ActionManager.getInstance().getAction("ExternalSystem.RefreshAllProjects") as? RefreshAllExternalProjectsAction
-        val syncRequestedNotification = if (refreshProjectAction != null && project.kobwebPluginState == KobwebPluginState.UNINITIALIZED) {
+        val syncRequestedNotification = if (project.kobwebPluginState == KobwebPluginState.UNINITIALIZED) {
             KobwebNotifier.Builder("The Kobweb plugin requires a one-time sync to enable functionality.")
                 .type(NotificationType.WARNING)
                 .addAction("Sync Project") {
-                    ActionUtil.invokeAction(refreshProjectAction, { dataId ->
-                        when {
-                            PlatformDataKeys.PROJECT.`is`(dataId) -> project
-                            else -> null
-                        }
-                    }, ActionPlaces.NOTIFICATION, null, null)
+                    val tracker = ExternalSystemProjectTracker.getInstance(project)
+                    tracker.markDirtyAllProjects()
+                    tracker.scheduleProjectRefresh()
                 }
                 .notify(project)
         } else null
