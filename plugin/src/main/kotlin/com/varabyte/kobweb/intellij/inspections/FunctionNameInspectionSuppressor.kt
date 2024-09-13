@@ -7,9 +7,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.util.CachedValue
 import com.varabyte.kobweb.intellij.util.kobweb.isInKobwebSource
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
-import com.varabyte.kobweb.intellij.util.psi.hasAnyAnnotationK1
 import com.varabyte.kobweb.intellij.util.psi.hasAnyAnnotation
-import org.jetbrains.kotlin.idea.base.plugin.KotlinPluginModeProvider
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.psi.KtNamedFunction
 
@@ -25,11 +23,7 @@ class FunctionNameInspectionSuppressor : InspectionSuppressor {
         if (!element.isInReadableKobwebProject() && !element.isInKobwebSource()) return false
         val ktFunction = element.parent as? KtNamedFunction ?: return false
 
-        return if (KotlinPluginModeProvider.isK2Mode()) {
-            ktFunction.hasAnyAnnotation(IS_COMPOSABLE_KEY, COMPOSABLE_ANNOTATION_ID)
-        } else {
-            ktFunction.hasAnyAnnotationK1(IS_COMPOSABLE_KEY, "androidx.compose.runtime.Composable")
-        }
+        return ktFunction.hasAnyAnnotation(IS_COMPOSABLE_KEY, COMPOSABLE_ANNOTATION_ID)
     }
 
     override fun getSuppressActions(element: PsiElement?, toolId: String) = emptyArray<SuppressQuickFix>()
