@@ -5,7 +5,7 @@
 ### Added
 
 - Support for Kotlin K2 mode
-- Increased the earliest compatible IntelliJ version to 2024.2.1
+- Updated the compatibility range to 2024.2.1 - 2024.3
 
 ## [0.1.3]
 
