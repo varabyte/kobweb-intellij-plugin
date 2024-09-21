@@ -4,7 +4,7 @@
 
 ### Added
 
-- Support for Kotlin K2 mode
+- Support for Kotlin [K2 mode](https://blog.jetbrains.com/idea/2024/08/meet-the-renovated-kotlin-support-k2-mode/)
 - Updated the compatibility range to 2024.2.1 - 2024.3
 
 ## [0.1.3]
