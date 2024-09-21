@@ -1,7 +1,11 @@
 package com.varabyte.kobweb.intellij.util.module
 
+import com.intellij.openapi.externalSystem.model.DataNode
+import com.intellij.openapi.externalSystem.model.project.ModuleData
+import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil
 import com.intellij.openapi.module.Module
 import com.intellij.psi.PsiElement
+import org.jetbrains.plugins.gradle.util.GradleConstants
 import org.jetbrains.plugins.gradle.util.GradleUtil
 
 /**
@@ -14,8 +18,14 @@ import org.jetbrains.plugins.gradle.util.GradleUtil
  * root of a Gradle project.
  */
 fun Module.toGradleModule(): Module? {
-    @Suppress("UnstableApiUsage") // "findGradleModuleData" has been experimental for 5 years...
-    return GradleUtil.findGradleModuleData(this)?.let { moduleDataNode ->
+    // Make a copy of GradleUtil.findGradleModuleData to avoid getting hit with an experimental API warning
+    fun findGradleModuleData(module: Module): DataNode<ModuleData>? {
+        return ExternalSystemApiUtil.getExternalProjectPath(module)?.let { projectPath ->
+            ExternalSystemApiUtil.findModuleNode(module.project, GradleConstants.SYSTEM_ID, projectPath)
+        }
+    }
+
+    return findGradleModuleData(this)?.let { moduleDataNode ->
         GradleUtil.findGradleModule(this.project, moduleDataNode.data)
     }
 }
