@@ -21,10 +21,12 @@ repositories {
 }
 
 dependencies {
+    // `kobweb-model` is bundled as an external jar (intentionally not an `intellijPlatform.pluginModule`, which would
+    // get merged into the final jar instead). Its purpose is to get injected into a running Gradle process.
+    implementation(project(":kobweb-model"))
     testImplementation(libs.truthish)
 
     intellijPlatform {
-        pluginModule(implementation(project(":kobweb-model")))
         // Interesting statistics: https://plugins.jetbrains.com/docs/marketplace/product-versions-in-use-statistics.html
         // We target 2024.2.1 as it is the earliest version supporting K2 mode / the Analysis API
         intellijIdeaCommunity("2024.2.1")
