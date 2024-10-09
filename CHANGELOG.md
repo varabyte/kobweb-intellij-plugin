@@ -1,5 +1,12 @@
 # Kobweb IntelliJ Plugin
 
+## [0.2.1]
+
+### Added
+
+- Fixed issue where projects wouldn't load if also using a Gradle version older than 8.3
+  - If you saw "Unsupported class major file version 65", congratulations... this was you! (And sorry...)
+
 ## [0.2.0]
 
 ### Added
