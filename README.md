@@ -78,7 +78,8 @@ Before publishing, you should make sure you've reviewed the following checklist:
   checking [GitHub CI](https://github.com/varabyte/kobweb-intellij-plugin/actions/workflows/verify.yml)).
 * You've created a release on https://github.com/varabyte/kobweb-intellij-plugin
   * The version should have the pattern "vX.Y.Z".
-  * The "What's New" section in the plugin UI links to commits associated with the tag created by the release.
+  * This is important because the "What's New" section in the [JetBrains marketplace plugin UI](https://plugins.jetbrains.com/plugin/23883-kobweb) will link to the commit range associated with the release.
+* Make sure the `main` branch is reset to latest 
 
 Finally, publish the plugin using the `publishPlugin` task (or
 using [GitHub CI](https://github.com/varabyte/kobweb-intellij-plugin/actions/workflows/publish.yml)).
