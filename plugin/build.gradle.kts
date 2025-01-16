@@ -72,7 +72,7 @@ intellijPlatform {
 
         ideaVersion {
             //sinceBuild derived from intellij.version
-            untilBuild = "243.*" // Include EAP
+            untilBuild = "251.*" // Include EAP
         }
 
         changeNotes = provider {

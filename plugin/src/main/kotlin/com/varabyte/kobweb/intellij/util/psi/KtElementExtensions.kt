@@ -8,6 +8,7 @@ import com.intellij.psi.util.CachedValuesManager
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.psi.KtDeclaration
+import org.jetbrains.kotlin.psi.KtProperty
 
 // Code adapted from https://kotlin.github.io/analysis-api/migrating-from-k1.html#using-analysis-api
 private fun KtDeclaration.hasAnyAnnotation(vararg classIds: ClassId): Boolean {
@@ -32,3 +33,6 @@ fun KtDeclaration.hasAnyAnnotation(key: Key<CachedValue<Boolean>>, vararg classI
         )
     }
 }
+
+// Used to live in `org.jetbrains.kotlin.js.translate.declaration.hasCustomGetter` but IJ removed it in 251.*
+fun KtProperty.hasCustomGetter() = getter?.hasBody() ?: false

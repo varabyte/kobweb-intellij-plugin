@@ -69,6 +69,7 @@ Before publishing, you should make sure you've reviewed the following checklist:
 * The `kobweb-ide-plugin` version in the `libs.version.toml` is correct (and does *not* end in a `-SNAPSHOT` suffix).
 * The `intellij-platform` version is up-to-date.
   * See [this page](https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin.html) for the latest version.
+* *(Optional)* Set other versions, e.g. kotlin, to latest also.
 * The `intellijPlatform.intellijIdeaCommunity(<version>)` declaration in the `dependencies` block of the `build.gradle.kts` file is set to as low a version as possible (to maximize
   compatibility).
 * The `ideaVersion.untilBuild` property still encompasses the latest EAP version.
