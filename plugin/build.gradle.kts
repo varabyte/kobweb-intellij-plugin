@@ -36,7 +36,6 @@ dependencies {
             "org.jetbrains.plugins.gradle",
         )
 
-        instrumentationTools()
         pluginVerifier()
         zipSigner()
     }
