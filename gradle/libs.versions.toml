@@ -1,10 +1,10 @@
 [versions]
 kobweb-ide-plugin="0.2.3-SNAPSHOT"
 #--------------------------------------
-intellij-platform = "2.2.1"
+intellij-platform = "2.5.0"
 jetbrains-changelog = "2.2.1"
-kotlin = "2.1.0"
-kotlinx-serialization = "1.8.0"
+kotlin = "2.1.20"
+kotlinx-serialization = "1.8.1"
 truthish = "1.0.2"
 
 [libraries]
