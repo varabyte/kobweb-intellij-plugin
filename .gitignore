@@ -10,6 +10,10 @@ build/
 
 .gradle/
 
+# Kotlin
+
+.kotlin/
+
 # Mac
 
 .DS_Store
