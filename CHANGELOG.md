@@ -1,5 +1,11 @@
 # Kobweb IntelliJ Plugin
 
+## [0.2.3]
+
+### Added
+
+- Extended the compatibility range to 2025.2
+
 ## [0.2.2]
 
 ### Added
