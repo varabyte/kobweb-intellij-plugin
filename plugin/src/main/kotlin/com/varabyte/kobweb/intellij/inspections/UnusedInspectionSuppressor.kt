@@ -16,8 +16,10 @@ private val SUPPRESS_UNUSED_WHEN_ANNOTATED_WITH = arrayOf(
     ClassId.fromString("com/varabyte/kobweb/api/Api"),
     ClassId.fromString("com/varabyte/kobweb/api/init/InitApi"),
     ClassId.fromString("com/varabyte/kobweb/core/App"),
+    ClassId.fromString("com/varabyte/kobweb/core/layout/Layout"),
     ClassId.fromString("com/varabyte/kobweb/core/Page"),
     ClassId.fromString("com/varabyte/kobweb/core/init/InitKobweb"),
+    ClassId.fromString("com/varabyte/kobweb/core/init/InitRoute"),
     ClassId.fromString("com/varabyte/kobweb/silk/init/InitSilk"),
 )
 
