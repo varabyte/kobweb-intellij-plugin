@@ -4,6 +4,7 @@
 
 ### Added
 
+- Spurious "unused" warnings for methods annotated with `@Layout` and `@InitRoute` are now suppressed.
 - Extended the compatibility range to 2025.2
 
 ## [0.2.2]
