@@ -70,7 +70,7 @@ fun PsiElement.isInKobwebSource(): Boolean {
 }
 
 private fun PsiElement.isInKobwebProject(test: (KobwebProject) -> Boolean): Boolean {
-    this.findKobwebProject()?.let { return test(it) } ?: return false
+    return this.findKobwebProject()?.let { test(it) } ?: false
 }
 
 /**
