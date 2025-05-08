@@ -3,9 +3,15 @@
 
 package com.varabyte.kobweb.intellij.colors
 
+import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.ElementColorProvider
+import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
+import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.psi.util.CachedValue
+import com.intellij.psi.util.CachedValueProvider
+import com.intellij.psi.util.CachedValuesManager
 import com.varabyte.kobweb.intellij.util.kobweb.isInKobwebSource
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.psi.hasCustomGetter
@@ -13,7 +19,9 @@ import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.base.KaConstantValue
 import org.jetbrains.kotlin.analysis.api.resolution.successfulFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
+import org.jetbrains.kotlin.idea.debugger.sequence.psi.callName
 import org.jetbrains.kotlin.idea.references.mainReference
+import org.jetbrains.kotlin.idea.stubindex.KotlinFullClassNameIndex
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
@@ -40,19 +48,73 @@ import kotlin.math.roundToInt
  *
  * @see <a href="https://cs.android.com/android-studio/platform/tools/base/+/mirror-goog-studio-main:sdk-common/src/main/java/com/android/ide/common/resources/ResourceResolver.java;l=67?q=MAX_RESOURCE_INDIRECTION">Android Studio's ResourceResolver.java</a>
  */
-private const val MAX_SEARCH_DEPTH = 15
+private const val MAX_NUM_SEARCH_STEPS = 15
+
+// CSS uses lowercase names, while Kobweb uses TitleCamelCase. This mapping lets us move from CSS names to Kobweb color
+// elements (e.g. "aliceblue" to Colors.AliceBlue).
+// NOTE: The result of this value is cached after the first time it is accessed.
+private fun kobwebColorsByCssName(project: Project): Map<String, PsiElement> {
+    val cachedValue: CachedValue<Map<String, PsiElement>> = CachedValuesManager.getManager(project)
+        .createCachedValue {
+            val scope = GlobalSearchScope.allScope(project)
+            val colorsObject = KotlinFullClassNameIndex.Helper[
+                "com.varabyte.kobweb.compose.ui.graphics.Colors", project, scope
+            ].singleOrNull() as? KtObjectDeclaration
+
+            val colorMap = colorsObject
+                ?.body
+                ?.properties
+                ?.filter { it.typeReference?.text == "Color.Rgb" }
+                ?.associateBy { it.name!!.lowercase() }
+                ?: emptyMap()
+
+            CachedValueProvider.Result.create(
+                colorMap,
+                if (colorMap.isEmpty()) project else colorsObject
+            )
+        }
+
+    return cachedValue.value
+}
+
+private val PsiElement.containingClassOrObject
+    get(): KtClassOrObject? {
+        var parent = this.parent
+        while (parent != null) {
+            if (parent is KtClassOrObject) {
+                return parent
+            }
+            parent = parent.parent
+        }
+        return null
+    }
+
+private fun PsiElement.isComposeHtmlColor(): Boolean {
+    return containingClassOrObject?.fqName?.asString() == "org.jetbrains.compose.web.css.Color"
+}
+
+private val PsiElement.lineNumber get(): Int? {
+    val document: Document = containingFile.viewProvider.document ?: return null
+    return document.getLineNumber(textRange.startOffset)
+}
 
 /**
  * Enables showing small rectangular gutter icons that preview Kobweb colors
  */
 class KobwebColorProvider : ElementColorProvider {
-
-    override fun getColorFrom(element: PsiElement): Color? = when {
-        element !is LeafPsiElement -> null
-        element.elementType != KtTokens.IDENTIFIER -> null
-        element.parent is KtProperty -> null // Avoid showing multiple previews
-        !element.isInReadableKobwebProject() && !element.isInKobwebSource() -> null
-        else -> traceColor(element.parent) // Leaf is just text. The parent is the actual object
+    override fun getColorFrom(element: PsiElement): Color? {
+        return when {
+            element !is LeafPsiElement -> null
+            element.elementType != KtTokens.IDENTIFIER -> null
+            element.isComposeHtmlColor() -> {
+                kobwebColorsByCssName(element.project)[element.text.lowercase()]?.let {
+                    traceColor(it, elementContext = element)
+                }
+            }
+            !element.isComposeHtmlColor() && element.parent is KtProperty -> null // Avoid showing multiple previews
+            !element.isInReadableKobwebProject() && !element.isInKobwebSource() -> null
+            else -> traceColor(element.parent) // Leaf is just text. The parent is the actual object
+        }
     }
 
     // TODO(#30): Support setting colors when possible
@@ -66,40 +128,80 @@ private fun KtSimpleNameExpression.findDeclaration(): PsiElement? = this.mainRef
 /**
  * Tries resolving references as deep as possible and checks if a Kobweb color is being referred to.
  *
+ * Note that we only want to return an element as having a color IF...
+ *
+ * * It is a call to Color.rgb, hsl, or that family of methods (e.g. `Color.rgb(0xFF, 0x00, 0xFF)`.
+ * * It is a property that references another property that is a color (e.g. `SiteColors.Accent` which may be set to
+ *   `Colors.Violet` which calls `Color.rgb` under the hood.)
+ * * It is an instance of NamedRgb, a class internal to Kobweb which calls `Color.rgb` as its second argument.
+ *
+ * @param elementContext Additional context that can be passed in to this method, as the original element making the
+ *   request (as in the case of Compose HTML colors, they delegate their color tracing to Kobweb colors)
+ *
  * @return the color being referenced, or null if the [element] ultimately doesn't resolve to
  * a color at all (which is common) or if the amount of times we'd have to follow references to get to the color
  * is too many, or it *was* a color but not one we could extract specific information
  * about (e.g. a method that returns one of two colors based on a condition).
  */
-private fun traceColor(element: PsiElement, currentDepth: Int = 0): Color? {
-    val nextElement = when (element) {
-        is KtDotQualifiedExpression -> element.selectorExpression
+private fun traceColor(element: PsiElement, elementContext: PsiElement = element): Color? {
+    val visitedElements = mutableSetOf<PsiElement>()
+    var stepCount = 0
 
-        is KtNameReferenceExpression -> when {
-            element.parent is KtCallExpression -> element.parent // Element is name of a function
-            else -> element.findDeclaration()
-        }
+    // Process elements BFS style; otherwise, we could easily follow the wrong branch way too deep and use up our
+    // allotted search step count. We don't really expect to find colors more than a couple levels deep.
+    val elementQueue = ArrayDeque(listOf(element))
+    while (elementQueue.isNotEmpty()) {
+        val currentElement = elementQueue.removeFirst()
+        if (!visitedElements.add(currentElement)) continue
+        if (stepCount++ > MAX_NUM_SEARCH_STEPS) break
 
-        is KtProperty -> when {
-            element.hasInitializer() -> element.initializer
-            element.hasCustomGetter() -> element.getter
+        when (currentElement) {
+            is KtDotQualifiedExpression -> currentElement.selectorExpression
+
+            is KtNameReferenceExpression -> when {
+                currentElement.parent is KtCallExpression -> currentElement.parent // Element is name of a function
+                else -> currentElement.findDeclaration()
+            }
+
+            is KtProperty -> {
+                val interceptedJbColor = if (currentElement.isComposeHtmlColor()) {
+                    kobwebColorsByCssName(currentElement.project)[currentElement.name]
+                } else null
+
+                when {
+                    interceptedJbColor != null -> interceptedJbColor
+                    currentElement.hasInitializer() -> currentElement.initializer
+                    currentElement.hasCustomGetter() -> currentElement.getter
+                    else -> null
+                }
+            }
+
+            is KtPropertyAccessor -> {
+                currentElement.bodyExpression
+            }
+
+            is KtCallExpression -> {
+                val color = currentElement.tryParseKobwebColorFunctionColor()
+                if (color != null) return color
+
+                if (currentElement.callName() == "NamedRgb"
+                    && currentElement.containingClassOrObject?.fqName?.asString() == "com.varabyte.kobweb.compose.ui.graphics.Colors"
+                    // If the original element we're tracing is actually inside the Colors.kt file, we don't need to
+                    // reach in to find the `Color.rgb` expression because we will visit it directly. Otherwise, return
+                    // the last argument (which will be the `Color.rgb` call) as the next element to explore.
+                    && !elementContext.containingFile.virtualFile.path.endsWith("/com/varabyte/kobweb/compose/ui/graphics/Color.kt")
+                ) {
+                    currentElement.valueArguments.last().getArgumentExpression()
+                } else {
+                    null
+                }
+            }
+
             else -> null
-        }
-
-        is KtPropertyAccessor -> element.bodyExpression
-
-        is KtCallExpression -> {
-            val color = element.tryParseKobwebColorFunctionColor()
-            if (color != null) return color
-            null
-        }
-
-        else -> null
+        }?.let { nextElement -> elementQueue.add(nextElement) }
     }
 
-    return if (currentDepth <= MAX_SEARCH_DEPTH) {
-        nextElement?.let { traceColor(it, currentDepth + 1) }
-    } else null
+    return null
 }
 
 private fun Float.toColorInt(): Int {
