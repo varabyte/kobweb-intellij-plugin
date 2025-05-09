@@ -3,15 +3,9 @@
 
 package com.varabyte.kobweb.intellij.colors
 
-import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.ElementColorProvider
-import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
-import com.intellij.psi.search.GlobalSearchScope
-import com.intellij.psi.util.CachedValue
-import com.intellij.psi.util.CachedValueProvider
-import com.intellij.psi.util.CachedValuesManager
 import com.varabyte.kobweb.intellij.util.kobweb.isInKobwebSource
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.psi.hasCustomGetter
@@ -19,9 +13,7 @@ import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.base.KaConstantValue
 import org.jetbrains.kotlin.analysis.api.resolution.successfulFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
-import org.jetbrains.kotlin.idea.debugger.sequence.psi.callName
 import org.jetbrains.kotlin.idea.references.mainReference
-import org.jetbrains.kotlin.idea.stubindex.KotlinFullClassNameIndex
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
@@ -50,31 +42,160 @@ import kotlin.math.roundToInt
  */
 private const val MAX_NUM_SEARCH_STEPS = 15
 
-// CSS uses lowercase names, while Kobweb uses TitleCamelCase. This mapping lets us move from CSS names to Kobweb color
-// elements (e.g. "aliceblue" to Colors.AliceBlue).
-// NOTE: The result of this value is cached after the first time it is accessed.
-private fun kobwebColorsByCssName(project: Project): Map<String, PsiElement> {
-    val cachedValue: CachedValue<Map<String, PsiElement>> = CachedValuesManager.getManager(project)
-        .createCachedValue {
-            val scope = GlobalSearchScope.allScope(project)
-            val colorsObject = KotlinFullClassNameIndex.Helper[
-                "com.varabyte.kobweb.compose.ui.graphics.Colors", project, scope
-            ].singleOrNull() as? KtObjectDeclaration
+private val cssNamedColors: Map<String, Color> by lazy {
+    mapOf(
+        "transparent" to Color(0, 0, 0, 0),
 
-            val colorMap = colorsObject
-                ?.body
-                ?.properties
-                ?.filter { it.typeReference?.text == "Color.Rgb" }
-                ?.associateBy { it.name!!.lowercase() }
-                ?: emptyMap()
-
-            CachedValueProvider.Result.create(
-                colorMap,
-                if (colorMap.isEmpty()) project else colorsObject
-            )
-        }
-
-    return cachedValue.value
+        // From https://www.w3schools.com/colors/colors_names.asp
+        "aliceblue" to Color(0xF0F8FF),
+        "antiquewhite" to Color(0xFAEBD7),
+        "aqua" to Color(0x00FFFF),
+        "aquamarine" to Color(0x7FFFD4),
+        "azure" to Color(0xF0FFFF),
+        "beige" to Color(0xF5F5DC),
+        "bisque" to Color(0xFFE4C4),
+        "black" to Color(0x000000),
+        "blanchedalmond" to Color(0xFFEBCD),
+        "blue" to Color(0x0000FF),
+        "blueviolet" to Color(0x8A2BE2),
+        "brown" to Color(0xA52A2A),
+        "burlywood" to Color(0xDEB887),
+        "cadetblue" to Color(0x5F9EA0),
+        "chartreuse" to Color(0x7FFF00),
+        "chocolate" to Color(0xD2691E),
+        "coral" to Color(0xFF7F50),
+        "cornflowerblue" to Color(0x6495ED),
+        "cornsilk" to Color(0xFFF8DC),
+        "crimson" to Color(0xDC143C),
+        "cyan" to Color(0x00FFFF),
+        "darkblue" to Color(0x00008B),
+        "darkcyan" to Color(0x008B8B),
+        "darkgoldenrod" to Color(0xB8860B),
+        "darkgray" to Color(0xA9A9A9),
+        "darkgrey" to Color(0xA9A9A9),
+        "darkgreen" to Color(0x006400),
+        "darkkhaki" to Color(0xBDB76B),
+        "darkmagenta" to Color(0x8B008B),
+        "darkolivegreen" to Color(0x556B2F),
+        "darkorange" to Color(0xFF8C00),
+        "darkorchid" to Color(0x9932CC),
+        "darkred" to Color(0x8B0000),
+        "darksalmon" to Color(0xE9967A),
+        "darkseagreen" to Color(0x8FBC8F),
+        "darkslateblue" to Color(0x483D8B),
+        "darkslategray" to Color(0x2F4F4F),
+        "darkslategrey" to Color(0x2F4F4F),
+        "darkturquoise" to Color(0x00CED1),
+        "darkviolet" to Color(0x9400D3),
+        "deeppink" to Color(0xFF1493),
+        "deepskyblue" to Color(0x00BFFF),
+        "dimgray" to Color(0x696969),
+        "dimgrey" to Color(0x696969),
+        "dodgerblue" to Color(0x1E90FF),
+        "firebrick" to Color(0xB22222),
+        "floralwhite" to Color(0xFFFAF0),
+        "forestgreen" to Color(0x228B22),
+        "fuchsia" to Color(0xFF00FF),
+        "gainsboro" to Color(0xDCDCDC),
+        "ghostwhite" to Color(0xF8F8FF),
+        "gold" to Color(0xFFD700),
+        "goldenrod" to Color(0xDAA520),
+        "gray" to Color(0x808080),
+        "grey" to Color(0x808080),
+        "green" to Color(0x008000),
+        "greenyellow" to Color(0xADFF2F),
+        "honeydew" to Color(0xF0FFF0),
+        "hotpink" to Color(0xFF69B4),
+        "indianred" to Color(0xCD5C5C),
+        "indigo" to Color(0x4B0082),
+        "ivory" to Color(0xFFFFF0),
+        "khaki" to Color(0xF0E68C),
+        "lavender" to Color(0xE6E6FA),
+        "lavenderblush" to Color(0xFFF0F5),
+        "lawngreen" to Color(0x7CFC00),
+        "lemonchiffon" to Color(0xFFFACD),
+        "lightblue" to Color(0xADD8E6),
+        "lightcoral" to Color(0xF08080),
+        "lightcyan" to Color(0xE0FFFF),
+        "lightgoldenrodyellow" to Color(0xFAFAD2),
+        "lightgray" to Color(0xD3D3D3),
+        "lightgrey" to Color(0xD3D3D3),
+        "lightgreen" to Color(0x90EE90),
+        "lightpink" to Color(0xFFB6C1),
+        "lightsalmon" to Color(0xFFA07A),
+        "lightseagreen" to Color(0x20B2AA),
+        "lightskyblue" to Color(0x87CEFA),
+        "lightslategray" to Color(0x778899),
+        "lightslategrey" to Color(0x778899),
+        "lightsteelblue" to Color(0xB0C4DE),
+        "lightyellow" to Color(0xFFFFE0),
+        "lime" to Color(0x00FF00),
+        "limegreen" to Color(0x32CD32),
+        "linen" to Color(0xFAF0E6),
+        "magenta" to Color(0xFF00FF),
+        "maroon" to Color(0x800000),
+        "mediumaquamarine" to Color(0x66CDAA),
+        "mediumblue" to Color(0x0000CD),
+        "mediumorchid" to Color(0xBA55D3),
+        "mediumpurple" to Color(0x9370DB),
+        "mediumseagreen" to Color(0x3CB371),
+        "mediumslateblue" to Color(0x7B68EE),
+        "mediumspringgreen" to Color(0x00FA9A),
+        "mediumturquoise" to Color(0x48D1CC),
+        "mediumvioletred" to Color(0xC71585),
+        "midnightblue" to Color(0x191970),
+        "mintcream" to Color(0xF5FFFA),
+        "mistyrose" to Color(0xFFE4E1),
+        "moccasin" to Color(0xFFE4B5),
+        "navajowhite" to Color(0xFFDEAD),
+        "navy" to Color(0x000080),
+        "oldlace" to Color(0xFDF5E6),
+        "olive" to Color(0x808000),
+        "olivedrab" to Color(0x6B8E23),
+        "orange" to Color(0xFFA500),
+        "orangered" to Color(0xFF4500),
+        "orchid" to Color(0xDA70D6),
+        "palegoldenrod" to Color(0xEEE8AA),
+        "palegreen" to Color(0x98FB98),
+        "paleturquoise" to Color(0xAFEEEE),
+        "palevioletred" to Color(0xDB7093),
+        "papayawhip" to Color(0xFFEFD5),
+        "peachpuff" to Color(0xFFDAB9),
+        "peru" to Color(0xCD853F),
+        "pink" to Color(0xFFC0CB),
+        "plum" to Color(0xDDA0DD),
+        "powderblue" to Color(0xB0E0E6),
+        "purple" to Color(0x800080),
+        "rebeccapurple" to Color(0x663399),
+        "red" to Color(0xFF0000),
+        "rosybrown" to Color(0xBC8F8F),
+        "royalblue" to Color(0x4169E1),
+        "saddlebrown" to Color(0x8B4513),
+        "salmon" to Color(0xFA8072),
+        "sandybrown" to Color(0xF4A460),
+        "seagreen" to Color(0x2E8B57),
+        "seashell" to Color(0xFFF5EE),
+        "sienna" to Color(0xA0522D),
+        "silver" to Color(0xC0C0C0),
+        "skyblue" to Color(0x87CEEB),
+        "slateblue" to Color(0x6A5ACD),
+        "slategray" to Color(0x708090),
+        "slategrey" to Color(0x708090),
+        "snow" to Color(0xFFFAFA),
+        "springgreen" to Color(0x00FF7F),
+        "steelblue" to Color(0x4682B4),
+        "tan" to Color(0xD2B48C),
+        "teal" to Color(0x008080),
+        "thistle" to Color(0xD8BFD8),
+        "tomato" to Color(0xFF6347),
+        "turquoise" to Color(0x40E0D0),
+        "violet" to Color(0xEE82EE),
+        "wheat" to Color(0xF5DEB3),
+        "white" to Color(0xFFFFFF),
+        "whitesmoke" to Color(0xF5F5F5),
+        "yellow" to Color(0xFFFF00),
+        "yellowgreen" to Color(0x9ACD32),
+    )
 }
 
 private val PsiElement.containingClassOrObject
@@ -93,9 +214,8 @@ private fun PsiElement.isComposeHtmlColor(): Boolean {
     return containingClassOrObject?.fqName?.asString() == "org.jetbrains.compose.web.css.Color"
 }
 
-private val PsiElement.lineNumber get(): Int? {
-    val document: Document = containingFile.viewProvider.document ?: return null
-    return document.getLineNumber(textRange.startOffset)
+private fun KtProperty.isKobwebColor(): Boolean {
+    return containingClassOrObject?.fqName?.asString() == "com.varabyte.kobweb.compose.ui.graphics.Colors"
 }
 
 /**
@@ -107,11 +227,12 @@ class KobwebColorProvider : ElementColorProvider {
             element !is LeafPsiElement -> null
             element.elementType != KtTokens.IDENTIFIER -> null
             element.isComposeHtmlColor() -> {
-                kobwebColorsByCssName(element.project)[element.text.lowercase()]?.let {
-                    traceColor(it, elementContext = element)
-                }
+                // If we're inside Compose HTML source, intercept and return the color directly. Adding a case for a
+                // single file seems like overkill but it can happen quite often if a user navigates to a Compose HTML
+                // color, e.g. `Color.red`.
+                cssNamedColors[element.text]
             }
-            !element.isComposeHtmlColor() && element.parent is KtProperty -> null // Avoid showing multiple previews
+            element.parent is KtProperty -> null // Avoid showing multiple previews
             !element.isInReadableKobwebProject() && !element.isInKobwebSource() -> null
             else -> traceColor(element.parent) // Leaf is just text. The parent is the actual object
         }
@@ -132,18 +253,15 @@ private fun KtSimpleNameExpression.findDeclaration(): PsiElement? = this.mainRef
  *
  * * It is a call to Color.rgb, hsl, or that family of methods (e.g. `Color.rgb(0xFF, 0x00, 0xFF)`.
  * * It is a property that references another property that is a color (e.g. `SiteColors.Accent` which may be set to
- *   `Colors.Violet` which calls `Color.rgb` under the hood.)
- * * It is an instance of NamedRgb, a class internal to Kobweb which calls `Color.rgb` as its second argument.
- *
- * @param elementContext Additional context that can be passed in to this method, as the original element making the
- *   request (as in the case of Compose HTML colors, they delegate their color tracing to Kobweb colors)
+ *   `Colors.Violet`.)
+ * * It is an instance of a Compose HTML or Kobweb color property (e.g. `Colors.AliceBlue`, `Color.aliceblue`).
  *
  * @return the color being referenced, or null if the [element] ultimately doesn't resolve to
  * a color at all (which is common) or if the amount of times we'd have to follow references to get to the color
  * is too many, or it *was* a color but not one we could extract specific information
  * about (e.g. a method that returns one of two colors based on a condition).
  */
-private fun traceColor(element: PsiElement, elementContext: PsiElement = element): Color? {
+private fun traceColor(element: PsiElement): Color? {
     val visitedElements = mutableSetOf<PsiElement>()
     var stepCount = 0
 
@@ -164,12 +282,15 @@ private fun traceColor(element: PsiElement, elementContext: PsiElement = element
             }
 
             is KtProperty -> {
-                val interceptedJbColor = if (currentElement.isComposeHtmlColor()) {
-                    kobwebColorsByCssName(currentElement.project)[currentElement.name]
-                } else null
+                // If we encounter a Kobweb color (e.g. `Colors.AliceBlue`) or a Compose HTML one
+                // (e.g. `Color.aliceblue`), then we can stop here and don't have to dive deep any further.
+                if (currentElement.isKobwebColor()) {
+                    cssNamedColors[currentElement.name?.lowercase().orEmpty()]?.let { return it }
+                } else if (currentElement.isComposeHtmlColor()) {
+                    cssNamedColors[currentElement.name]?.let { return it }
+                }
 
                 when {
-                    interceptedJbColor != null -> interceptedJbColor
                     currentElement.hasInitializer() -> currentElement.initializer
                     currentElement.hasCustomGetter() -> currentElement.getter
                     else -> null
@@ -183,18 +304,7 @@ private fun traceColor(element: PsiElement, elementContext: PsiElement = element
             is KtCallExpression -> {
                 val color = currentElement.tryParseKobwebColorFunctionColor()
                 if (color != null) return color
-
-                if (currentElement.callName() == "NamedRgb"
-                    && currentElement.containingClassOrObject?.fqName?.asString() == "com.varabyte.kobweb.compose.ui.graphics.Colors"
-                    // If the original element we're tracing is actually inside the Colors.kt file, we don't need to
-                    // reach in to find the `Color.rgb` expression because we will visit it directly. Otherwise, return
-                    // the last argument (which will be the `Color.rgb` call) as the next element to explore.
-                    && !elementContext.containingFile.virtualFile.path.endsWith("/com/varabyte/kobweb/compose/ui/graphics/Color.kt")
-                ) {
-                    currentElement.valueArguments.last().getArgumentExpression()
-                } else {
-                    null
-                }
+                null
             }
 
             else -> null
