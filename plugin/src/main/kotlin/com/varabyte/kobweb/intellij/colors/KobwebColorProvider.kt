@@ -222,20 +222,18 @@ private fun KtProperty.isKobwebColor(): Boolean {
  * Enables showing small rectangular gutter icons that preview Kobweb colors
  */
 class KobwebColorProvider : ElementColorProvider {
-    override fun getColorFrom(element: PsiElement): Color? {
-        return when {
-            element !is LeafPsiElement -> null
-            element.elementType != KtTokens.IDENTIFIER -> null
-            element.isComposeHtmlColor() -> {
-                // If we're inside Compose HTML source, intercept and return the color directly. Adding a case for a
-                // single file seems like overkill but it can happen quite often if a user navigates to a Compose HTML
-                // color, e.g. `Color.red`.
-                cssNamedColors[element.text]
-            }
-            element.parent is KtProperty -> null // Avoid showing multiple previews
-            !element.isInReadableKobwebProject() && !element.isInKobwebSource() -> null
-            else -> traceColor(element.parent) // Leaf is just text. The parent is the actual object
+    override fun getColorFrom(element: PsiElement): Color? = when {
+        element !is LeafPsiElement -> null
+        element.elementType != KtTokens.IDENTIFIER -> null
+        element.isComposeHtmlColor() -> {
+            // If we're inside Compose HTML source, intercept and return the color directly. Adding a case for a
+            // single file seems like overkill but it can happen quite often if a user navigates to a Compose HTML
+            // color, e.g. `Color.red`.
+            cssNamedColors[element.text]
         }
+        element.parent is KtProperty -> null // Avoid showing multiple previews
+        !element.isInReadableKobwebProject() && !element.isInKobwebSource() -> null
+        else -> traceColor(element.parent) // Leaf is just text. The parent is the actual object
     }
 
     // TODO(#30): Support setting colors when possible
