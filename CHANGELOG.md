@@ -1,5 +1,14 @@
 # Kobweb IntelliJ Plugin
 
+## [0.2.4]
+
+### Added
+
+- Improved logic around providing Kobweb colors in the gutter
+  - Preparing for an upcoming Kobweb which uses named colors (e.g. `Colors.red` now outputs the CSS name `red` instead
+    of `rgb(255, 0, 0)`)  
+  - We now also surface colors for values that come from Compose HTML (e.g. `Color.aliceblue`)
+
 ## [0.2.3]
 
 ### Added
@@ -38,7 +47,7 @@
 ### Added
 
 - Implementation details around analyzing code have moved to more stable IntelliJ IDEA APIs.
-  - This works both with older versions of IDEA and should prevent us from hitting 2024.2 `NoClassDefFoundError` issues. 
+  - This works both with older versions of IDEA and should prevent us from hitting 2024.2 `NoClassDefFoundError` issues.
 
 
 ## [0.1.1]
