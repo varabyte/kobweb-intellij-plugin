@@ -2,7 +2,12 @@ name: Verify Kobweb IntelliJ Plugin Compatibility
 
 on:
   push:
+    branches:
+      - dev
   workflow_dispatch:
+  release:
+    types:
+      - published
 
 jobs:
   verify:
