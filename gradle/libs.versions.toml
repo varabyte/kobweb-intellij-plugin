@@ -1,11 +1,11 @@
 [versions]
 kobweb-ide-plugin="0.2.5-SNAPSHOT"
 #--------------------------------------
-intellij-platform = "2.5.0"
-jetbrains-changelog = "2.2.1"
-kotlin = "2.1.20"
-kotlinx-serialization = "1.8.1"
-truthish = "1.0.2"
+intellij-platform = "2.9.0"
+jetbrains-changelog = "2.4.0"
+kotlin = "2.2.20"
+kotlinx-serialization = "1.9.0"
+truthish = "1.0.3"
 
 [libraries]
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
