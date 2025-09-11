@@ -7,7 +7,7 @@
 
     <!-- Extension points defined by the plugin. -->
     <extensions defaultExtensionNs="com.intellij">
-        <spellchecker.dictionary.runtimeDictionaryProvider implementation="com.varabyte.kobweb.intellij.spellcheck.KobwebDictionaryProvider" />
+        <spellchecker.bundledDictionaryProvider implementation="com.varabyte.kobweb.intellij.spellcheck.KobwebBundledDictionaryProvider" />
 
         <postStartupActivity implementation="com.varabyte.kobweb.intellij.startup.KobwebPostStartupProjectActivity" />
 
