@@ -21,6 +21,10 @@
         <colorProvider implementation="com.varabyte.kobweb.intellij.colors.KobwebColorProvider" />
 
         <notificationGroup displayType="BALLOON" id="Kobweb" />
+
+        <platform.backend.documentation.psiTargetProvider
+                order="before KotlinDocumentationTargetProvider"
+                implementation="com.varabyte.kobweb.intellij.docs.CssModifierDocumentationTargetProvider"/>
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.plugins.gradle">
