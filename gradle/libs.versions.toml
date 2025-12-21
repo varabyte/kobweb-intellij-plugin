@@ -1,5 +1,5 @@
 [versions]
-kobweb-ide-plugin="0.2.5"
+kobweb-ide-plugin="0.2.6-SNAPSHOT"
 #--------------------------------------
 intellij-platform = "2.10.5"
 jetbrains-changelog = "2.5.0"
