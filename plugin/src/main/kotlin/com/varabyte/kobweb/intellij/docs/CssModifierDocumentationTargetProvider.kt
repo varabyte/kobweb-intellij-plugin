@@ -11,7 +11,6 @@ import org.jetbrains.kotlin.name.ClassId
 
 private val MODIFIER_ID = ClassId.fromString("com/varabyte/kobweb/compose/ui/Modifier")
 
-// If docs classes ever change in the future, we can always delete this feature as it is pretty minor
 class CssModifierDocumentationTargetProvider : PsiDocumentationTargetProvider {
     val kotlinDocProvider = KotlinPsiDocumentationTargetProvider()
 
