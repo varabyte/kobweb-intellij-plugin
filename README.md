@@ -72,7 +72,6 @@ Before publishing, you should make sure you've reviewed the following checklist:
 * *(Optional)* Set other versions, e.g. kotlin, to latest also.
 * The `intellijPlatform.intellijIdeaCommunity(<version>)` declaration in the `dependencies` block of the `build.gradle.kts` file is set to as low a version as possible (to maximize
   compatibility).
-* The `ideaVersion.untilBuild` property still encompasses the latest EAP version.
 * The [CHANGELOG.md](CHANGELOG.md) file has been updated with the new version and its changes.
 * You've tested the plugin locally by running `:plugin:buildPlugin` and installing it from disk.
 * You've verified plugin compatibility by running `:plugin:verifyPlugin` (or

@@ -69,11 +69,6 @@ intellijPlatform {
             <p>Source for this plugin is hosted at <a href="https://github.com/varabyte/kobweb-intellij-plugin">https://github.com/varabyte/kobweb-intellij-plugin</a></p>
             """.trimIndent()
 
-        ideaVersion {
-            //sinceBuild derived from intellij.version
-            untilBuild = "252.*" // Include EAP
-        }
-
         changeNotes = provider {
             val projectVersion = project.version.toString()
             val changelogVersion = projectVersion.removeSuffix("-SNAPSHOT")
