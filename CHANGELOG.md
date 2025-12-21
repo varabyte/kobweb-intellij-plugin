@@ -1,5 +1,14 @@
 # Kobweb IntelliJ Plugin
 
+## [0.2.5]
+
+### Added
+
+- Extended the compatibility range to 2025.3 (and beyond?)
+- New additional documentation page on CSS modifiers that pulls information down from the MDN:
+  ![MDN docs](https://github.com/varabyte/media/raw/main/kobweb-intellij-plugin/0.2.5/mdn-docs.png)
+- Migrated some dictionary code over from an API destined for deletion to a more reliable one 
+
 ## [0.2.4]
 
 ### Added
