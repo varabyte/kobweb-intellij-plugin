@@ -1,5 +1,6 @@
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -143,9 +144,13 @@ changelog {
 
 fun Project.isSnapshot() = version.toString().endsWith("-SNAPSHOT")
 
-val jvmTarget = JvmTarget.JVM_21
+val targetJvm = JvmTarget.JVM_21
 tasks.withType<JavaCompile>().configureEach {
-    sourceCompatibility = jvmTarget.target
-    targetCompatibility = jvmTarget.target
+    sourceCompatibility = targetJvm.target
+    targetCompatibility = targetJvm.target
 }
-kotlin.compilerOptions.jvmTarget = jvmTarget
+tasks.withType<KotlinCompile>().configureEach {
+    compilerOptions {
+        jvmTarget.set(targetJvm)
+    }
+}

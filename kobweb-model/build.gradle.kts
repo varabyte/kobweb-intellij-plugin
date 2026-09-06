@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -27,10 +28,13 @@ dependencies {
 
 // These model classes will be run using the Gradle JVM, not the IntelliJ JVM. Let's set them to
 // an old version to reduce the chance of JDK incompatibilities.
-val oldJdkVersion = JvmTarget.JVM_1_8
-
+val targetJvm = JvmTarget.JVM_1_8
 tasks.withType<JavaCompile>().configureEach {
-    sourceCompatibility = oldJdkVersion.target
-    targetCompatibility = oldJdkVersion.target
+    sourceCompatibility = targetJvm.target
+    targetCompatibility = targetJvm.target
 }
-kotlin.compilerOptions.jvmTarget = oldJdkVersion
+tasks.withType<KotlinCompile>().configureEach {
+    compilerOptions {
+        jvmTarget.set(targetJvm)
+    }
+}
