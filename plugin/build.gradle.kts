@@ -28,9 +28,9 @@ dependencies {
 
     intellijPlatform {
         // Interesting statistics: https://plugins.jetbrains.com/docs/marketplace/product-versions-in-use-statistics.html
-        // We target 2024.2.1 as it is the earliest version supporting K2 mode / the Analysis API.
+        // We target 2024.2.1 (build 242.21829.142) as it is the earliest version supporting K2 mode / the Analysis API.
         // Resolve the IDE from Maven instead of the installer feed so verification works without the product releases CDN.
-        intellijIdeaCommunity("2024.2.1") {
+        intellijIdeaCommunity("242.21829.142") {
             useInstaller = false
         }
 
