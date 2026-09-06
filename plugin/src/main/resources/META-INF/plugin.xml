@@ -3,6 +3,7 @@
     <!-- Product and plugin compatibility requirements. -->
     <depends>com.intellij.modules.platform</depends>
     <depends>org.jetbrains.kotlin</depends>
+    <depends>com.intellij.gradle</depends>
     <depends>org.jetbrains.plugins.gradle</depends>
 
     <!-- Extension points defined by the plugin. -->
@@ -25,10 +26,6 @@
         <platform.backend.documentation.psiTargetProvider
                 order="before KotlinDocumentationTargetProvider"
                 implementation="com.varabyte.kobweb.intellij.docs.CssModifierDocumentationTargetProvider"/>
-    </extensions>
-
-    <extensions defaultExtensionNs="org.jetbrains.plugins.gradle">
-        <projectResolve implementation="com.varabyte.kobweb.intellij.project.KobwebGradleProjectResolver" />
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
