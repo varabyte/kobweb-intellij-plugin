@@ -18,8 +18,9 @@ repositories {
 dependencies {
     // Dependencies will ultimately be provided by the IDE.
     compileOnly(gradleApi())
-    // The exact version is not critical as long as the API remains backwards compatible with the target IDE.
-    compileOnly("com.jetbrains.intellij.gradle:gradle-tooling-extension:242.21829.142")
+    // The version doesn't matter too much here; just using something recent at the time of writing this build script.
+    // As long as the project compiles and the API is backwards compatible with latest IJ APIs, we should be good.
+    compileOnly("com.jetbrains.intellij.gradle:gradle-tooling-extension:233.13135.103")
 }
 
 // These model classes will run inside the Gradle JVM, not the IntelliJ JVM.
