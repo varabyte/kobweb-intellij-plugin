@@ -30,6 +30,7 @@ dependencies {
         intellijIdea("2026.2.2")
 
         bundledPlugins(
+            "com.intellij.java",
             "org.jetbrains.kotlin",
             "com.intellij.gradle",
             "org.jetbrains.plugins.gradle",
