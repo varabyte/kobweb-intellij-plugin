@@ -1,16 +1,19 @@
 package com.varabyte.kobweb.intellij.project
 
+import com.intellij.gradle.toolingExtension.modelProvider.GradleClassProjectModelProvider
 import com.intellij.openapi.diagnostic.LogLevel
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.externalSystem.model.DataNode
 import com.intellij.openapi.externalSystem.model.Key
+import com.intellij.openapi.module.Module
 import com.intellij.openapi.externalSystem.model.project.ModuleData
 import com.intellij.openapi.externalSystem.model.project.ProjectData
 import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil
-import com.intellij.openapi.module.Module
 import com.varabyte.kobweb.intellij.model.KobwebModel
+import com.varabyte.kobweb.intellij.model.KobwebProjectType
 import com.varabyte.kobweb.intellij.model.gradle.tooling.KobwebModelBuilderService
 import org.gradle.tooling.model.idea.IdeaModule
+import org.jetbrains.plugins.gradle.model.ProjectImportModelProvider
 import org.jetbrains.plugins.gradle.service.project.AbstractProjectResolverExtension
 import org.jetbrains.plugins.gradle.util.GradleConstants
 
@@ -30,20 +33,19 @@ class KobwebGradleProjectResolver : AbstractProjectResolverExtension() {
         internal val KOBWEB_MODEL = Key.create(KobwebModel::class.java, 0)
     }
 
-    // Note that the classes returned by `getExtraProjectModelClasses` and `getToolingExtensionsClasses` are potentially
-    // consumed by a different JVM than the IDE one (e.g. the Gradle JVM). Therefore, they should be built separately
-    // from the rest of the plugin, using an older JDK.
-    override fun getExtraProjectModelClasses(): Set<Class<*>> = setOf(KobwebModel::class.java)
+    override fun getModelProviders(): List<ProjectImportModelProvider> =
+        listOf(GradleClassProjectModelProvider(KobwebModel::class.java))
+
     override fun getToolingExtensionsClasses(): Set<Class<*>> = setOf(
         KobwebModel::class.java,
-        KobwebModelBuilderService::class.java
+        KobwebModelBuilderService::class.java,
     )
 
     override fun preImportCheck() {
         logger.info("Scanning modules in project \"${resolverCtx.projectPath}\", looking for Kobweb metadata...")
     }
 
-    @Suppress("UnstableApiUsage") // Just used for logging, it's fine.
+    @Suppress("UnstableApiUsage")
     override fun resolveFinished(projectDataNode: DataNode<ProjectData>) {
         logger.info("Finished scanning \"${resolverCtx.projectPath}\"")
     }
@@ -51,8 +53,8 @@ class KobwebGradleProjectResolver : AbstractProjectResolverExtension() {
     override fun populateModuleExtraModels(gradleModule: IdeaModule, ideModule: DataNode<ModuleData>) {
         super.populateModuleExtraModels(gradleModule, ideModule)
 
-        val kobwebModel = resolverCtx.getExtraProject(gradleModule, KobwebModel::class.java)
-            ?: return // Kobweb model not found. No problem, it just means this module is not a Kobweb module
+        val kobwebModel = resolverCtx.getProjectModel(gradleModule, KobwebModel::class.java)
+            ?: return
 
         ideModule.createChild(Keys.KOBWEB_MODEL, kobwebModel)
         logger.info("Module \"${gradleModule.name}\" is a Kobweb module [${kobwebModel.projectType}]")

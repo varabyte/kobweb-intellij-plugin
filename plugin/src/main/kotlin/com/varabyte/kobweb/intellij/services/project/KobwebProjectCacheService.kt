@@ -75,11 +75,8 @@ private class KobwebProjectCacheServiceImpl : KobwebProjectCacheService {
         notKobwebProjects.clear()
     }
 
-    override fun iterator(): Iterator<KobwebProject> {
-        return (localProjects.values + externalProjects.values).iterator()
-    }
-
     override fun toString(): String {
         return "KobwebProjects${this.iterator().asSequence().joinToString(prefix = "[", postfix = "]") { it.name }}"
     }
+    override fun iterator(): Iterator<KobwebProject> = (localProjects.values + externalProjects.values).iterator()
 }

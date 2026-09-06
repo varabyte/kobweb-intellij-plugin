@@ -49,7 +49,6 @@ class KobwebPostStartupProjectActivity : ProjectActivity {
         private val syncRequestedNotification: KobwebNotificationHandle?,
     ) : ProjectDataImportListener {
         override fun onImportStarted(projectPath: String?) {
-            // If an import is kicked off in an indirect way, we should still dismiss the sync popup.
             syncRequestedNotification?.expire()
         }
 
@@ -59,8 +58,6 @@ class KobwebPostStartupProjectActivity : ProjectActivity {
                 false -> KobwebPluginState.DISABLED
             }
 
-            // After an import / gradle sync, let's just clear the cache, which should get automatically rebuilt
-            // as users interact with their code.
             project.service<KobwebProjectCacheService>().clear()
         }
     }
