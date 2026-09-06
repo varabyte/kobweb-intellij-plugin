@@ -11,6 +11,10 @@ repositories {
     mavenCentral()
 }
 
+dependencies {
+    implementation(kotlin("stdlib"))
+}
+
 val jvmTarget = JvmTarget.JVM_21
 
 tasks.withType<JavaCompile>().configureEach {

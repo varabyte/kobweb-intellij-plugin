@@ -18,14 +18,9 @@ enum class KobwebPluginState {
     DISABLED,
 
     /**
-     * Indicates we started enabling the Kobweb plugin for this project, but a full Gradle sync is required to finish.
-     */
-    UNINITIALIZED,
-
-    /**
      * The Kobweb plugin is enabled for this project.
      *
-     * At this point, the project has been scanned, and we can query all found Kobweb metadata information.
+     * At this point, the project appears to use Kobweb and background scanning can populate module-specific metadata.
      */
     INITIALIZED,
 }
