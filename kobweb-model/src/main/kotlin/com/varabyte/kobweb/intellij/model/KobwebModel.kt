@@ -1,5 +1,7 @@
 package com.varabyte.kobweb.intellij.model
 
+import java.io.Serializable
+
 /**
  * A Kobweb project is one that applies one of the Kobweb gradle plugins.
  */
@@ -10,12 +12,11 @@ enum class KobwebProjectType {
 }
 
 /**
- * A small IDEA-side model for surfacing the Kobweb plugin type associated with a Gradle module.
+ * A collection of data surfaced about a Kobweb project.
+ *
+ * This model is used as a way to communicate information between a Gradle project and the Kobweb IntelliJ plugin (which
+ * is why it is serializable).
  */
-interface KobwebModel {
+interface KobwebModel : Serializable {
     val projectType: KobwebProjectType
 }
-
-data class DefaultKobwebModel(
-    override val projectType: KobwebProjectType,
-) : KobwebModel

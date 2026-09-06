@@ -27,25 +27,19 @@ import java.util.*
 interface KobwebProjectCacheService : Iterable<KobwebProject> {
     operator fun get(module: Module): KobwebProject?
     operator fun get(klib: VirtualFile): KobwebProject?
-    val isReady: Boolean
 
     // This does NOT accept module / klib parameters like the `get` methods, because we need to support elements that
     // potentially don't live in either a module nor a klib.
-    fun canMarkNotKobweb(element: PsiElement): Boolean
     fun isMarkedNotKobweb(element: PsiElement): Boolean
 
     fun add(project: KobwebProject)
     fun addAll(collection: Collection<KobwebProject>)
-    fun markReady()
     fun markNotKobweb(element: PsiElement)
 
     fun clear()
 }
 
 private class KobwebProjectCacheServiceImpl : KobwebProjectCacheService {
-    @Volatile
-    override var isReady: Boolean = false
-        private set
     private val localProjects = Collections.synchronizedMap(mutableMapOf<Module, KobwebProject>())
     private val externalProjects = Collections.synchronizedMap(mutableMapOf<VirtualFile, KobwebProject>())
     private val notKobwebProjects = Collections.synchronizedSet(mutableSetOf<Any>())
@@ -63,10 +57,6 @@ private class KobwebProjectCacheServiceImpl : KobwebProjectCacheService {
     // Instead, we return a container as broad as possible and store that.
     private fun PsiElement.toElementContainer(): Any = module?.toGradleModule() ?: containingKlib ?: containingFile
 
-    override fun canMarkNotKobweb(element: PsiElement): Boolean {
-        return isReady || element.module?.toGradleModule() == null
-    }
-
     override fun isMarkedNotKobweb(element: PsiElement): Boolean {
         return notKobwebProjects.contains(element.toElementContainer())
     }
@@ -74,8 +64,6 @@ private class KobwebProjectCacheServiceImpl : KobwebProjectCacheService {
     override fun addAll(collection: Collection<KobwebProject>) {
         collection.forEach { add(it) }
     }
-
-    override fun markReady() { isReady = true }
 
     override fun markNotKobweb(element: PsiElement) {
         notKobwebProjects.add(element.toElementContainer())
@@ -85,7 +73,6 @@ private class KobwebProjectCacheServiceImpl : KobwebProjectCacheService {
         externalProjects.clear()
         localProjects.clear()
         notKobwebProjects.clear()
-        isReady = false
     }
 
     override fun toString(): String {

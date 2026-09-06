@@ -1,6 +1,8 @@
 package com.varabyte.kobweb.intellij.startup
 
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
+import com.intellij.openapi.externalSystem.autoimport.ExternalSystemProjectTracker
 import com.intellij.openapi.externalSystem.service.project.manage.ProjectDataImportListener
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.modules
@@ -8,7 +10,8 @@ import com.intellij.openapi.project.rootManager
 import com.intellij.openapi.roots.LibraryOrderEntry
 import com.intellij.openapi.roots.ModuleOrderEntry
 import com.intellij.openapi.startup.ProjectActivity
-import com.varabyte.kobweb.intellij.project.refreshKobwebProjectCache
+import com.varabyte.kobweb.intellij.notification.KobwebNotificationHandle
+import com.varabyte.kobweb.intellij.notification.KobwebNotifier
 import com.varabyte.kobweb.intellij.services.project.KobwebProjectCacheService
 import com.varabyte.kobweb.intellij.util.kobweb.KobwebPluginState
 import com.varabyte.kobweb.intellij.util.kobweb.kobwebPluginState
@@ -41,25 +44,44 @@ private fun Project.hasAnyKobwebDependency(): Boolean {
  * Actions to perform after the project has been loaded.
  */
 class KobwebPostStartupProjectActivity : ProjectActivity {
-    private class ImportListener(private val project: Project) : ProjectDataImportListener {
+    private class ImportListener(
+        private val project: Project,
+        private val syncRequestedNotification: KobwebNotificationHandle?,
+    ) : ProjectDataImportListener {
+        override fun onImportStarted(projectPath: String?) {
+            syncRequestedNotification?.expire()
+        }
+
         override fun onImportFinished(projectPath: String?) {
             project.kobwebPluginState = when (project.hasAnyKobwebDependency()) {
-                true -> KobwebPluginState.INITIALIZED.also { project.refreshKobwebProjectCache() }
-                false -> KobwebPluginState.DISABLED.also { project.service<KobwebProjectCacheService>().clear() }
+                true -> KobwebPluginState.INITIALIZED
+                false -> KobwebPluginState.DISABLED
             }
+
+            project.service<KobwebProjectCacheService>().clear()
         }
     }
 
     override suspend fun execute(project: Project) {
-        project.kobwebPluginState = when (project.hasAnyKobwebDependency()) {
-            true -> KobwebPluginState.INITIALIZED.also { project.refreshKobwebProjectCache() }
-            false -> KobwebPluginState.DISABLED
+        if (project.hasAnyKobwebDependency() && project.kobwebPluginState == KobwebPluginState.DISABLED) {
+            project.kobwebPluginState = KobwebPluginState.UNINITIALIZED
         }
+
+        val syncRequestedNotification = if (project.kobwebPluginState == KobwebPluginState.UNINITIALIZED) {
+            KobwebNotifier.Builder("The Kobweb plugin requires a one-time sync to enable functionality.")
+                .type(NotificationType.WARNING)
+                .addAction("Sync Project") {
+                    val tracker = ExternalSystemProjectTracker.getInstance(project)
+                    tracker.markDirtyAllProjects()
+                    tracker.scheduleProjectRefresh()
+                }
+                .notify(project)
+        } else null
 
         val messageBusConnection = project.messageBus.connect()
         messageBusConnection.subscribe(
             ProjectDataImportListener.TOPIC,
-            ImportListener(project)
+            ImportListener(project, syncRequestedNotification)
         )
     }
 }
