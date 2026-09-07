@@ -1,4 +1,8 @@
+import com.jetbrains.plugin.structure.intellij.version.ProductReleaseVersion
+import org.gradle.kotlin.dsl.support.serviceOf
 import org.jetbrains.changelog.Changelog
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
+import org.jetbrains.intellij.platform.gradle.services.ProductReleasesService
 import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask.FailureLevel
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
@@ -55,6 +59,21 @@ dependencies {
     }
 }
 
+intellijPlatformTesting {
+    runIde {
+        register("runRecentIde") {
+            type = IntelliJPlatformType.IntellijIdea
+            // See all versions here: https://www.jetbrains.com/idea/download/other/
+            version = "2026.2.2"
+
+            // Re-register required bundled plugins for this target IDE version
+            plugins {
+                bundledPlugin("org.jetbrains.kotlin")
+                bundledPlugin("org.jetbrains.plugins.gradle")
+            }
+        }
+    }
+}
 // https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-extension.html#intellijPlatform
 intellijPlatform {
     buildSearchableOptions = false
