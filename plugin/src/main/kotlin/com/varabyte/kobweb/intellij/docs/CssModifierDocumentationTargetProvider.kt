@@ -11,6 +11,12 @@ import org.jetbrains.kotlin.name.ClassId
 
 private val MODIFIER_ID = ClassId.fromString("com/varabyte/kobweb/compose/ui/Modifier")
 
+/**
+ * Provides documentation for CSS modifier functions tied to CSS properties.
+ *
+ * For example, `Modifier.backgroundColor(...)` will show the MDN documentation for the `background-color` CSS property
+ * on the second page.
+ */
 class CssModifierDocumentationTargetProvider : PsiDocumentationTargetProvider {
     val kotlinDocProvider = KotlinPsiDocumentationTargetProvider()
 
