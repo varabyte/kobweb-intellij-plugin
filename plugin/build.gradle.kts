@@ -1,4 +1,5 @@
 import org.jetbrains.changelog.Changelog
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask.FailureLevel
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
@@ -18,6 +19,18 @@ repositories {
     mavenCentral()
     intellijPlatform {
         defaultRepositories()
+    }
+}
+
+intellijPlatform {
+    pluginVerification {
+        // Stop treating OVERRIDE_ONLY_API_USAGES as a failure for now.
+        // See https://platform.jetbrains.com/t/question-about-extending-psidocumentationtargetprovider/ for more
+        // information about the reason.
+        failureLevel = listOf(
+            FailureLevel.COMPATIBILITY_PROBLEMS,
+            FailureLevel.INTERNAL_API_USAGES,
+        )
     }
 }
 
