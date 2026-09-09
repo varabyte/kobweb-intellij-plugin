@@ -3,13 +3,13 @@ package com.varabyte.kobweb.intellij.docs
 import com.intellij.platform.backend.documentation.DocumentationTarget
 import com.intellij.platform.backend.documentation.PsiDocumentationTargetProvider
 import com.intellij.psi.PsiElement
+import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebModifierType
+import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebModifierType
+import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierChainingExtension
 import com.varabyte.kobweb.intellij.util.text.camelCaseToKebabCase
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.idea.k2.codeinsight.quickDoc.KotlinPsiDocumentationTargetProvider
 import org.jetbrains.kotlin.idea.testIntegration.framework.KotlinPsiBasedTestFramework.Companion.asKtNamedFunction
-import org.jetbrains.kotlin.name.ClassId
-
-private val MODIFIER_ID = ClassId.fromString("com/varabyte/kobweb/compose/ui/Modifier")
 
 /**
  * Provides documentation for CSS modifier functions tied to CSS properties.
@@ -35,17 +35,12 @@ class CssModifierDocumentationTargetProvider : PsiDocumentationTargetProvider {
 
     private fun documentationTarget(element: PsiElement): DocumentationTarget? {
         val function = element.asKtNamedFunction() ?: return null
+        val propertyName = function.name?.camelCaseToKebabCase() ?: return null
 
         analyze(function) {
-            if (function.receiverTypeReference?.type?.isClassType(MODIFIER_ID) != true) {
-                return null
-            }
-            if (!function.returnType.isClassType(MODIFIER_ID)) {
-                return null
-            }
+            if (!function.isModifierChainingExtension()) return null
         }
-
-        val propertyName = function.name?.camelCaseToKebabCase() ?: return null
+        if (function.getWebModifierType() != WebModifierType.STYLE) return null
 
         return CssModifierDocumentationTarget(propertyName, element)
     }
