@@ -8,10 +8,13 @@ import com.intellij.platform.backend.documentation.DocumentationTarget
 import com.intellij.platform.backend.presentation.TargetPresentation
 import com.intellij.psi.PsiElement
 import com.intellij.psi.createSmartPointer
+import com.varabyte.kobweb.intellij.util.text.camelCaseToKebabCase
 
 // If docs classes ever change in the future, we can always delete this feature as it is pretty minor
 @Suppress("UnstableApiUsage")
-class CssModifierDocumentationTarget(val cssPropertyName: String, val element: PsiElement) : DocumentationTarget {
+class StyleModifierDocumentationTarget(kotlinName: String, val element: PsiElement) : DocumentationTarget {
+    val cssPropertyName = kotlinName.camelCaseToKebabCase()
+
     override fun computePresentation(): TargetPresentation =
         TargetPresentation.builder(cssPropertyName)
             .icon(com.intellij.icons.AllIcons.FileTypes.Css)
@@ -29,7 +32,7 @@ class CssModifierDocumentationTarget(val cssPropertyName: String, val element: P
 
         return Pointer {
             elementPointer.element?.let {
-                CssModifierDocumentationTarget(cssPropertyName, it)
+                StyleModifierDocumentationTarget(cssPropertyName, it)
             }
         }
     }

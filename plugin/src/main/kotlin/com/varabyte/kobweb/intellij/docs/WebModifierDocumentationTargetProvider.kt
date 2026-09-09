@@ -17,7 +17,7 @@ import org.jetbrains.kotlin.idea.testIntegration.framework.KotlinPsiBasedTestFra
  * For example, `Modifier.backgroundColor(...)` will show the MDN documentation for the `background-color` CSS property
  * on the second page.
  */
-class CssModifierDocumentationTargetProvider : PsiDocumentationTargetProvider {
+class WebModifierDocumentationTargetProvider : PsiDocumentationTargetProvider {
     val kotlinDocProvider = KotlinPsiDocumentationTargetProvider()
 
     /**
@@ -35,13 +35,23 @@ class CssModifierDocumentationTargetProvider : PsiDocumentationTargetProvider {
 
     private fun documentationTarget(element: PsiElement): DocumentationTarget? {
         val function = element.asKtNamedFunction() ?: return null
-        val propertyName = function.name?.camelCaseToKebabCase() ?: return null
 
         analyze(function) {
             if (!function.isModifierChainingExtension()) return null
         }
-        if (function.getWebModifierType() != WebModifierType.STYLE) return null
 
-        return CssModifierDocumentationTarget(propertyName, element)
+        // In a few cases, Kobweb may have taken some liberties with their chosen names, e.g., for clarity or to avoid
+        // conflicts with Kotlin keywords.
+        fun String.nameOverride() = when (this) {
+            "classNames" -> "class"
+            else -> this
+        }
+        val propertyName = function.name?.nameOverride() ?: return null
+
+        return when(function.getWebModifierType()) {
+            WebModifierType.STYLE -> StyleModifierDocumentationTarget(propertyName, element)
+            WebModifierType.ATTRS -> AttrsModifierDocumentationTarget(propertyName, element)
+            else -> null
+        }
     }
 }

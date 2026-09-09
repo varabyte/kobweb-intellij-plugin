@@ -24,7 +24,7 @@
 
         <platform.backend.documentation.psiTargetProvider
                 order="before KotlinDocumentationTargetProvider"
-                implementation="com.varabyte.kobweb.intellij.docs.CssModifierDocumentationTargetProvider"/>
+                implementation="com.varabyte.kobweb.intellij.docs.WebModifierDocumentationTargetProvider"/>
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.plugins.gradle">
