@@ -6,10 +6,21 @@ import com.intellij.psi.PsiElement
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierChainingExtension
-import com.varabyte.kobweb.intellij.util.text.camelCaseToKebabCase
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.idea.k2.codeinsight.quickDoc.KotlinPsiDocumentationTargetProvider
 import org.jetbrains.kotlin.idea.testIntegration.framework.KotlinPsiBasedTestFramework.Companion.asKtNamedFunction
+
+// In a few cases, Kobweb may have taken some liberties with their chosen names, e.g., for clarity or to mimic
+// Jetpack Compose or to avoid conflicts with Kotlin keywords.
+private val WEB_MODIFIER_NAME_OVERRIDES: Map<String, List<String>> = mapOf(
+    "classNames" to listOf("class"),
+    "fillMaxWidth" to listOf("width"),
+    "fillMaxHeight" to listOf("height"),
+    "fillMaxSize" to listOf("width", "height"),
+    "size" to listOf("width", "height"),
+    "minSize" to listOf("minWidth", "minHeight"),
+    "maxSize" to listOf("maxWidth", "maxHeight"),
+)
 
 /**
  * Provides documentation for CSS modifier functions tied to CSS properties.
@@ -29,29 +40,25 @@ class WebModifierDocumentationTargetProvider : PsiDocumentationTargetProvider {
         element: PsiElement,
         originalElement: PsiElement?,
     ): List<DocumentationTarget> {
-        return kotlinDocProvider.documentationTargets(element, originalElement) +
-                listOfNotNull(documentationTarget(element))
+        return kotlinDocProvider.documentationTargets(element, originalElement) + webDocumentationTargetsFor(element)
     }
 
-    private fun documentationTarget(element: PsiElement): DocumentationTarget? {
-        val function = element.asKtNamedFunction() ?: return null
+    private fun webDocumentationTargetsFor(element: PsiElement): List<DocumentationTarget> {
+        val function = element.asKtNamedFunction() ?: return emptyList()
 
         analyze(function) {
-            if (!function.isModifierChainingExtension()) return null
+            if (!function.isModifierChainingExtension()) return emptyList()
         }
 
-        // In a few cases, Kobweb may have taken some liberties with their chosen names, e.g., for clarity or to avoid
-        // conflicts with Kotlin keywords.
-        fun String.nameOverride() = when (this) {
-            "classNames" -> "class"
-            else -> this
-        }
-        val propertyName = function.name?.nameOverride() ?: return null
+        val webModifierType = function.getWebModifierType().takeUnless { it == WebModifierType.UNKNOWN } ?: return emptyList()
 
-        return when(function.getWebModifierType()) {
-            WebModifierType.STYLE -> StyleModifierDocumentationTarget(propertyName, element)
-            WebModifierType.ATTRS -> AttrsModifierDocumentationTarget(propertyName, element)
-            else -> null
+        fun String.nameOverrides(): List<String> = WEB_MODIFIER_NAME_OVERRIDES[this] ?: listOf(this)
+        val propertyNames = function.name?.nameOverrides() ?: return emptyList()
+
+        return when (webModifierType) {
+            WebModifierType.STYLE -> propertyNames.map { propertyName -> StyleModifierDocumentationTarget(propertyName, element) }
+            WebModifierType.ATTRS -> propertyNames.map { propertyName -> AttrsModifierDocumentationTarget(propertyName, element) }
+            else -> error("Unexpected modifier type: $webModifierType") // We should have early aborted before this point
         }
     }
 }
