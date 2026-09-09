@@ -1,8 +1,6 @@
 package com.varabyte.kobweb.intellij.docs
 
 import com.intellij.documentation.mdn.MdnApiNamespace
-import com.intellij.documentation.mdn.MdnCssSymbolKind
-import com.intellij.documentation.mdn.getCssMdnDocumentation
 import com.intellij.documentation.mdn.getHtmlMdnAttributeDocumentation
 import com.intellij.icons.AllIcons
 import com.intellij.model.Pointer
@@ -22,14 +20,15 @@ class AttrsModifierDocumentationTarget(kotlinName: String, val element: PsiEleme
             .icon(AllIcons.FileTypes.Html)
             .presentation()
 
-    override fun computeDocumentation(): DocumentationResult? {
-        val possibleNamespaces = listOf(MdnApiNamespace.Html, MdnApiNamespace.DomEvents)
+    override fun computeDocumentation(): DocumentationResult {
+        val orderedRelevantNamespaces = listOf(MdnApiNamespace.Html, MdnApiNamespace.DomEvents)
 
         val mdnDoc =
-            possibleNamespaces.asSequence()
+            orderedRelevantNamespaces.asSequence()
                 .map { getHtmlMdnAttributeDocumentation(it, tagName = null, htmlAttrName) }
                 .firstOrNull()
-                ?: return null
+                ?: return DocumentationResult.documentation("No documentation found for HTML attribute <code style=\"white-space:nowrap\">$htmlAttrName</code>.<ul><li><a href=\"https://developer.mozilla.org/en-US/search?q=$htmlAttrName\">Search the official docs</a>.</li><li>Consider <a href=\"https://github.com/varabyte/kobweb-intellij-plugin/issues/new?title=Missing+docs+for+attribute+`$htmlAttrName`&body=(You+can+just+hit+Create)\">filing an issue against the Kobweb Plugin</a> if you think it should support it.</li></ul>")
+
         val html = mdnDoc.getDocumentation(withDefinition = true)
         return DocumentationResult.documentation(html).externalUrl(mdnDoc.url)
     }

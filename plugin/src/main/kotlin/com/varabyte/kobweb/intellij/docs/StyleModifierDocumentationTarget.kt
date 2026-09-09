@@ -20,9 +20,9 @@ class StyleModifierDocumentationTarget(kotlinName: String, val element: PsiEleme
             .icon(com.intellij.icons.AllIcons.FileTypes.Css)
             .presentation()
 
-    override fun computeDocumentation(): DocumentationResult? {
+    override fun computeDocumentation(): DocumentationResult {
         val mdnDoc = getCssMdnDocumentation(cssPropertyName, MdnCssSymbolKind.Property)
-            ?: return null
+            ?: return DocumentationResult.documentation("No documentation found for CSS style <code style=\"white-space:nowrap\">$cssPropertyName</code>.<ul><li><a href=\"https://developer.mozilla.org/en-US/search?q=$cssPropertyName\">Search the official docs</a>.</li><li>Consider <a href=\"https://github.com/varabyte/kobweb-intellij-plugin/issues/new?title=Missing+docs+for+style+`$cssPropertyName`&body=(You+can+just+hit+Create)\">filing an issue against the Kobweb Plugin</a> if you think it should support it.</li></ul>")
         val html = mdnDoc.getDocumentation(withDefinition = true)
         return DocumentationResult.documentation(html).externalUrl(mdnDoc.url)
     }
