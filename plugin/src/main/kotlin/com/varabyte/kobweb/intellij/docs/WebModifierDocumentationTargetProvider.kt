@@ -3,6 +3,7 @@ package com.varabyte.kobweb.intellij.docs
 import com.intellij.platform.backend.documentation.DocumentationTarget
 import com.intellij.platform.backend.documentation.PsiDocumentationTargetProvider
 import com.intellij.psi.PsiElement
+import com.varabyte.kobweb.intellij.util.kobweb.isUsedInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierChainingExtension
@@ -40,6 +41,7 @@ class WebModifierDocumentationTargetProvider : PsiDocumentationTargetProvider {
         element: PsiElement,
         originalElement: PsiElement?,
     ): List<DocumentationTarget> {
+        if (!element.isUsedInReadableKobwebProject()) return emptyList()
         return kotlinDocProvider.documentationTargets(element, originalElement) + webDocumentationTargetsFor(element)
     }
 
