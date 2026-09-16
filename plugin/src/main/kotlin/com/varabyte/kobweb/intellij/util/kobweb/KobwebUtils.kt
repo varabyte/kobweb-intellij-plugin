@@ -40,7 +40,8 @@ val Project.isKobwebPluginEnabled get() = this.kobwebPluginState == KobwebPlugin
 /**
  * A collection of useful sets of [KobwebProjectType]s.
  *
- * These can be useful to pass into the [isInReadableKobwebProject] and [isInWritableKobwebProject] extension methods.
+ * These can be useful to pass into the [isDeclaredInReadableKobwebProject], [isDeclaredInWritableKobwebProject],
+ * [isUsedInReadableKobwebProject], and [isUsedInWritableKobwebProject] extension methods.
  */
 object KobwebProjectTypes {
     /**
@@ -74,35 +75,58 @@ private fun PsiElement.isInKobwebProject(test: (KobwebProject) -> Boolean): Bool
 }
 
 /**
- * Useful test to see if a read-only Kobweb Plugin action (like an inspection) should run here.
+ * Whether the target [PsiElement] is declared inside a [KobwebProject] or not.
+ *
+ * Note that it does not check if the element it _itself_ being used inside a Kobweb project, but rather if it is
+ * declared there. If you want to check usage instead, use [isUsedInReadableKobwebProject].
+ *
+ * This is a useful test to see if a read-only Kobweb Plugin action (like an inspection) can run here.
+ *
+ * Finally, be aware that even writable projects will return true for this method. Since technically, it's a read-write
+ * project.
  *
  * @param limitTo The [KobwebProject] types to limit this action to. By default, restricted to presentation types (that
  *   is, the parts of Kobweb that interact with the DOM). This default was chosen because this is by far the most
  *   common case, the kind of code that most people associate with Kobweb.
  */
-fun PsiElement.isInReadableKobwebProject(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework): Boolean {
+fun PsiElement.isDeclaredInReadableKobwebProject(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework): Boolean {
     return isInKobwebProject { it.type in limitTo }
 }
 
 /**
- * Useful test to see if a writing Kobweb Plugin action (like a refactor) should be allowed to run here.
+ * Like [isDeclaredInReadableKobwebProject], but for code that can be edited.
  *
- * @param limitTo See the docs for [isInReadableKobwebProject] for more info.
+ * You may also wish to use [isUsedInWritableKobwebProject] if you care about where the code is called within rather than
+ * where it is declared.
+ *
+ * If this method returns true, then the readable version will also return true (but not vice versa);
+ *
+ * This is a useful test to see if a Kobweb Plugin write action (like an inspection) can run here.
+ *
+ * @param limitTo See the docs for [isDeclaredInReadableKobwebProject] for more info.
  */
-fun PsiElement.isInWritableKobwebProject(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework): Boolean {
+fun PsiElement.isDeclaredInWritableKobwebProject(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework): Boolean {
     return isInKobwebProject { it.type in limitTo && it.source is KobwebProject.Source.Local }
 }
 
 /**
- * Like [isInReadableKobwebProject], but checking the file containing the element rather than where it was declared.
+ * Like [isDeclaredInReadableKobwebProject], but checking the file containing the element rather than where it was declared.
+ *
+ * This is useful if you are writing an inspection that cares about the _current_ file some code is in rather than the
+ * source file that the [PsiElement] was declared in.
  */
 fun PsiElement.isUsedInReadableKobwebProject(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework): Boolean {
-    return this.containingFile.isInReadableKobwebProject(limitTo)
+    return this.containingFile.isDeclaredInReadableKobwebProject(limitTo)
 }
 
 /**
- * Like [isInWritableKobwebProject], but checking the file containing the element rather than where it was declared.
+ * Like [isDeclaredInWritableKobwebProject], but checking the file containing the element rather than where it was declared.
+ *
+ * This is useful if you are writing an inspection that cares about the _current_ file some code is in rather than the
+ * source file that the [PsiElement] was declared in.
+ *
+ * If this method returns true, then the readable version will also return true (but not vice versa);
  */
 fun PsiElement.isUsedInWritableKobwebProject(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework): Boolean {
-    return this.containingFile.isInWritableKobwebProject(limitTo)
+    return this.containingFile.isDeclaredInWritableKobwebProject(limitTo)
 }

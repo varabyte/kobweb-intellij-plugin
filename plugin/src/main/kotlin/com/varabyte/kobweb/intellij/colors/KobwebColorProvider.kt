@@ -7,7 +7,7 @@ import com.intellij.openapi.editor.ElementColorProvider
 import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
 import com.varabyte.kobweb.intellij.util.kobweb.isInKobwebSource
-import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
+import com.varabyte.kobweb.intellij.util.kobweb.isDeclaredInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.psi.hasCustomGetter
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.base.KaConstantValue
@@ -232,7 +232,7 @@ class KobwebColorProvider : ElementColorProvider {
             cssNamedColors[element.text]
         }
         element.parent is KtProperty -> null // Avoid showing multiple previews
-        !element.isInReadableKobwebProject() && !element.isInKobwebSource() -> null
+        !element.isDeclaredInReadableKobwebProject() && !element.isInKobwebSource() -> null
         else -> traceColor(element.parent) // Leaf is just text. The parent is the actual object
     }
 
