@@ -1,0 +1,27 @@
+<html>
+<body>
+Reports Kobweb properties (like <code>val MyStyle = CssStyle</code>) that <i>must</i> be declared on the top level but aren't.
+<pre><code>
+// OK
+val MyStyle = CssStyle { }
+val MyKeyframes = Keyframes { }
+
+// OK
+object OrganizaingObject {
+    val MyStyle = CssStyle { }
+    val MyKeyframes = Keyframes { }
+}
+
+// Bad -- not top level
+fun someFunction() {
+    val MyStyle = CssStyle { }
+}
+
+// Bad -- not top level
+class SomeClass {
+    val MyKeyframes = Keyframes { }
+}
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>

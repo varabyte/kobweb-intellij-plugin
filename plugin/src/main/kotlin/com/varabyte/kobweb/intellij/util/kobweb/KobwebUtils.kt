@@ -92,3 +92,17 @@ fun PsiElement.isInReadableKobwebProject(limitTo: Set<KobwebProjectType> = Kobwe
 fun PsiElement.isInWritableKobwebProject(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework): Boolean {
     return isInKobwebProject { it.type in limitTo && it.source is KobwebProject.Source.Local }
 }
+
+/**
+ * Like [isInReadableKobwebProject], but checking the file containing the element rather than where it was declared.
+ */
+fun PsiElement.isUsedInReadableKobwebProject(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework): Boolean {
+    return this.containingFile.isInReadableKobwebProject(limitTo)
+}
+
+/**
+ * Like [isInWritableKobwebProject], but checking the file containing the element rather than where it was declared.
+ */
+fun PsiElement.isUsedInWritableKobwebProject(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework): Boolean {
+    return this.containingFile.isInWritableKobwebProject(limitTo)
+}
