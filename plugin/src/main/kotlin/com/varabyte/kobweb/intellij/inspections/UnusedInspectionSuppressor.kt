@@ -5,7 +5,7 @@ import com.intellij.codeInspection.SuppressQuickFix
 import com.intellij.openapi.util.Key
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.CachedValue
-import com.varabyte.kobweb.intellij.util.kobweb.isDeclaredInReadableKobwebProject
+import com.varabyte.kobweb.intellij.util.kobweb.isUsedInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.psi.hasAnyAnnotation
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -29,7 +29,7 @@ private val SUPPRESS_UNUSED_WHEN_ANNOTATED_WITH = arrayOf(
 class UnusedInspectionSuppressor : InspectionSuppressor {
     override fun isSuppressedFor(element: PsiElement, toolId: String): Boolean {
         if (toolId != "unused") return false
-        if (!element.isDeclaredInReadableKobwebProject()) return false
+        if (!element.isUsedInReadableKobwebProject()) return false
         // Originally, only `element.parent` was checked, but at some point it became necessary to check `element` too
         val ktFunction = element.parent as? KtNamedFunction
             ?: element as? KtNamedFunction

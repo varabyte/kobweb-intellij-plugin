@@ -6,7 +6,7 @@ import com.intellij.openapi.util.Key
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.CachedValue
 import com.varabyte.kobweb.intellij.util.kobweb.isInKobwebSource
-import com.varabyte.kobweb.intellij.util.kobweb.isDeclaredInReadableKobwebProject
+import com.varabyte.kobweb.intellij.util.kobweb.isUsedInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.psi.hasAnyAnnotation
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -20,7 +20,7 @@ private val COMPOSABLE_ANNOTATION_ID = ClassId.fromString("androidx/compose/runt
 class FunctionNameInspectionSuppressor : InspectionSuppressor {
     override fun isSuppressedFor(element: PsiElement, toolId: String): Boolean {
         if (toolId != "FunctionName") return false
-        if (!element.isDeclaredInReadableKobwebProject() && !element.isInKobwebSource()) return false
+        if (!element.isUsedInReadableKobwebProject() && !element.isInKobwebSource()) return false
         val ktFunction = element.parent as? KtNamedFunction ?: return false
 
         return ktFunction.hasAnyAnnotation(IS_COMPOSABLE_KEY, COMPOSABLE_ANNOTATION_ID)
