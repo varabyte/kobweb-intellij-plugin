@@ -19,7 +19,7 @@
         <lang.inspectionSuppressor language="kotlin" implementationClass="com.varabyte.kobweb.intellij.inspections.supressors.UnusedInspectionSuppressor"/>
         <localInspection
                 language="kotlin"
-                displayName="Kobweb top-level properties enforcement"
+                displayName="Kobweb top-level style enforcement"
                 groupName="Kobweb"
                 enabledByDefault="true"
                 level="ERROR"
