@@ -28,8 +28,6 @@ class MovePropertyToTopLevelQuickFix(private val propertyName: String) : LocalQu
         return "Move properties to the top level"
     }
 
-    override fun startInWriteAction() = true
-
     override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
         val property = descriptor.psiElement as? KtProperty
             ?: descriptor.psiElement.parent as? KtProperty
