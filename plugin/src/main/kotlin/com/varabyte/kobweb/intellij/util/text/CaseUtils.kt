@@ -47,3 +47,13 @@ fun String.splitCamelCase(): List<String> {
  * will be converted to "abc-example" (not "example-a-b-c" and "a-b-c-example").
  */
 fun String.camelCaseToKebabCase(): String = splitCamelCase().joinToString("-") { it.lowercase() }
+
+/**
+ * Convert a String for a name that is using TitleCamelCase into SCREAMING_SNAKE_CASE.
+ *
+ * For example, "ExampleText" to "EXAMPLE_TEST"
+ *
+ * Note that there's special handling for acronyms, so "ExampleABC" will be converted to "EXAMPLE_ABC", and "ABCExample"
+ * will be converted to "ABC_EXAMPLES" (not "EXAMPLE_A_B_C" and "A_B_C_EXAMPLE").
+ */
+fun String.camelCaseToScreamingSnakeCase(): String = splitCamelCase().joinToString("_") { it.uppercase() }

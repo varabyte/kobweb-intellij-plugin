@@ -24,6 +24,13 @@
                 enabledByDefault="true"
                 level="ERROR"
                 implementationClass="com.varabyte.kobweb.intellij.inspections.TopLevelStyleSingletonsInspection"/>
+        <localInspection
+                language="kotlin"
+                displayName="Kobweb public style enforcement"
+                groupName="Kobweb"
+                enabledByDefault="true"
+                level="ERROR"
+                implementationClass="com.varabyte.kobweb.intellij.inspections.PrivateStyleSingletonsInspection"/>
 
         <colorProvider implementation="com.varabyte.kobweb.intellij.colors.KobwebColorProvider" />
         <annotator language="kotlin" implementationClass="com.varabyte.kobweb.intellij.annotations.AttrModifierFunctionAnnotator"/>

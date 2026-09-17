@@ -1,0 +1,24 @@
+<html>
+<body>
+Reports Kobweb style-type properties (like <code>CssStyle</code> and <code>Keyframes</code>) that should be
+declared as public (so the generated Kobweb code can find and register them).
+
+These value are allowed to be private but only if annotated with a proper `@Suppress` annotation or named with a
+leading underscore.
+<pre><code>
+// OK
+val MyStyle = CssStyle { }
+
+// Not OK
+private val MyStyle = CssStyle { }
+
+// Suppression is OK
+@Suppress("PRIVATE_CSS_STYLE")
+private val MyStyle = CssStyle { }
+
+// Leading underscore is OK
+private val _MyStyle = CssStyle { }
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>

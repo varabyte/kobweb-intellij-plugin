@@ -6,7 +6,11 @@ import com.intellij.psi.util.CachedValue
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationValue
+import org.jetbrains.kotlin.daemon.common.trimQuotes
 import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtProperty
 
@@ -36,3 +40,35 @@ fun KtDeclaration.hasAnyAnnotation(key: Key<CachedValue<Boolean>>, vararg classI
 
 // Used to live in `org.jetbrains.kotlin.js.translate.declaration.hasCustomGetter` but IJ removed it in 251.*
 fun KtProperty.hasCustomGetter() = getter?.hasBody() ?: false
+
+/**
+ * Check if this annotatable declaration is annotated with a target and (optional) text value.
+ */
+fun KtAnnotated.isAnnotatedWith(classId: ClassId, expectedValue: String? = null): Boolean {
+    fun KaAnnotationValue?.flattenStringValues(): List<String> = when (this) {
+        is KaAnnotationValue.ConstantValue -> listOfNotNull(value.render().trimQuotes())
+        is KaAnnotationValue.ArrayValue -> values.flatMap { it.flattenStringValues() }
+        else -> emptyList()
+    }
+
+    val self = this
+    val selfDeclaration = self as? KtDeclaration ?: return false
+    return analyze(this) {
+        val symbol = selfDeclaration.symbol
+
+        symbol.annotations.any { annotation ->
+            if (annotation.classId != classId) return@any false
+            if (expectedValue == null) return@any true
+            annotation.arguments.any { namedValue ->
+                val annotationValues = namedValue.expression.flattenStringValues()
+                expectedValue in annotationValues
+            }
+        }
+    }
+}
+
+private val KOTLIN_SUPPRESS_CLASS_ID = ClassId.topLevel(FqName("kotlin.Suppress"))
+
+fun KtAnnotated.isSuppressedWith(suppressKey: String): Boolean {
+    return isAnnotatedWith(KOTLIN_SUPPRESS_CLASS_ID, suppressKey)
+}
