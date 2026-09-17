@@ -1,6 +1,9 @@
 <html>
 <body>
-Reports Kobweb properties (like <code>val MyStyle = CssStyle</code>) that <i>must</i> be declared on the top level but aren't.
+Reports Kobweb style-type properties (like <code>CssStyle</code> and <code>Keyframes</code>) that <i>must</i> be
+declared as a singleton on the top level but aren't.
+
+Note that these singleton style properties can live inside top-level objects as well.
 <pre><code>
 // OK
 val MyStyle = CssStyle { }

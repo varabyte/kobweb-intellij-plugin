@@ -23,7 +23,7 @@
                 groupName="Kobweb"
                 enabledByDefault="true"
                 level="ERROR"
-                implementationClass="com.varabyte.kobweb.intellij.inspections.TopLevelPropertiesInspection"/>
+                implementationClass="com.varabyte.kobweb.intellij.inspections.TopLevelStyleSingletonsInspection"/>
 
         <colorProvider implementation="com.varabyte.kobweb.intellij.colors.KobwebColorProvider" />
         <annotator language="kotlin" implementationClass="com.varabyte.kobweb.intellij.annotations.AttrModifierFunctionAnnotator"/>

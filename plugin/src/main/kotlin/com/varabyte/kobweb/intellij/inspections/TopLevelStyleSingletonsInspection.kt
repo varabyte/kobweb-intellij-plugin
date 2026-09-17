@@ -6,19 +6,12 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiElementVisitor
 import com.varabyte.kobweb.intellij.quickfixes.MovePropertyToTopLevelQuickFix
 import com.varabyte.kobweb.intellij.util.kobweb.isUsedInWritableKobwebProject
+import com.varabyte.kobweb.intellij.util.kobweb.style.styleSingletonClassId
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.name.ClassId
-import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.*
 
-private val SILK_STYLE_PACKAGE = FqName("com.varabyte.kobweb.silk.style")
-private val SILK_STYLE_ANIMATION_PACKAGE = SILK_STYLE_PACKAGE.child(Name.identifier("animation"))
-private val CSS_STYLE_ID = ClassId(SILK_STYLE_PACKAGE, Name.identifier("CssStyle"))
-private val CSS_STYLE_VARIANT_ID = ClassId(SILK_STYLE_PACKAGE, Name.identifier("CssStyleVariant"))
-private val KEYFRAMES_ID = ClassId(SILK_STYLE_ANIMATION_PACKAGE, Name.identifier("Keyframes"))
-
-class TopLevelPropertiesInspection : LocalInspectionTool() {
+class TopLevelStyleSingletonsInspection : LocalInspectionTool() {
     override fun buildVisitor(
         holder: ProblemsHolder,
         isOnTheFly: Boolean
@@ -32,8 +25,7 @@ class TopLevelPropertiesInspection : LocalInspectionTool() {
                 val nameIdentifier = property.nameIdentifier ?: return
 
                 val matchingClassId: ClassId? = analyze(property) {
-                    val type = property.initializer?.expressionType ?: return@analyze null
-                    type.expandedSymbol?.classId?.takeIf { it in setOf(CSS_STYLE_ID, CSS_STYLE_VARIANT_ID, KEYFRAMES_ID) }
+                    property.initializer?.expressionType?.styleSingletonClassId ?: return@analyze null
                 }
 
                 if (matchingClassId == null) return

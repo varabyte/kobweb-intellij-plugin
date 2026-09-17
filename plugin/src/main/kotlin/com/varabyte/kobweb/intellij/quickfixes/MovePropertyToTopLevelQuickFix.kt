@@ -6,7 +6,7 @@ import com.intellij.codeInspection.util.IntentionFamilyName
 import com.intellij.codeInspection.util.IntentionName
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
-import com.varabyte.kobweb.intellij.inspections.TopLevelPropertiesInspection
+import com.varabyte.kobweb.intellij.inspections.TopLevelStyleSingletonsInspection
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPsiFactory
@@ -17,7 +17,7 @@ import org.jetbrains.kotlin.psi.KtPsiFactory
  * Some property types (like `CssStyle` and `Keyframes`) have to live at a top-level as singletons so that Kobweb can
  * find and register them.
  *
- * See also: [TopLevelPropertiesInspection].
+ * See also: [TopLevelStyleSingletonsInspection].
  */
 class MovePropertyToTopLevelQuickFix(private val propertyName: String) : LocalQuickFix {
     override fun getName(): @IntentionName String {
