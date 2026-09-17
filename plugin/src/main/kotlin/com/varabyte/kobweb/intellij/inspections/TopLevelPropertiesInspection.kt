@@ -11,8 +11,6 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.*
-import org.jetbrains.kotlin.psi.psiUtil.isPrivate
-import org.jetbrains.kotlin.psi.psiUtil.isPublic
 
 private val SILK_STYLE_PACKAGE = FqName("com.varabyte.kobweb.silk.style")
 private val SILK_STYLE_ANIMATION_PACKAGE = SILK_STYLE_PACKAGE.child(Name.identifier("animation"))
