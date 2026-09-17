@@ -1,4 +1,4 @@
-package com.varabyte.kobweb.intellij.inspections
+package com.varabyte.kobweb.intellij.inspections.supressors
 
 import com.intellij.codeInspection.InspectionSuppressor
 import com.intellij.codeInspection.SuppressQuickFix
