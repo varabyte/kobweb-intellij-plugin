@@ -1,6 +1,7 @@
 package com.varabyte.kobweb.intellij.util.kobweb.modifier
 
 import com.intellij.psi.util.PsiTreeUtil
+import com.varabyte.kobweb.intellij.util.psi.resolvedType
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
@@ -8,14 +9,28 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtCallExpression
+import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
 
 private val COMPOSE_UI_PACKAGE = FqName("com.varabyte.kobweb.compose.ui")
-val MODIFIER_ID = ClassId(COMPOSE_UI_PACKAGE, Name.identifier("Modifier"))
+val MODIFIER_CLASS_ID = ClassId(COMPOSE_UI_PACKAGE, Name.identifier("Modifier"))
+private val MODIFIER_COMPANION_CLASS_ID = ClassId(COMPOSE_UI_PACKAGE, Name.identifier("Modifier.Companion"))
 private val ATTRS_MODIFIER_FQNAME = COMPOSE_UI_PACKAGE.child(Name.identifier("attrsModifier"))
 private val STYLE_MODIFIER_FQNAME = COMPOSE_UI_PACKAGE.child(Name.identifier("styleModifier"))
 
 enum class WebModifierType { ATTRS, STYLE, UNKNOWN }
+
+/**
+ * Checks if this is the `Modifier` instance.
+ *
+ * e.g. `Modifier` in `Modifier.backgroundColor(...).id("...")`
+ *
+ * This function should be called inside an [analyze] block.
+ */
+context(kaSession: KaSession)
+fun KtNameReferenceExpression.isModifierCompanion(): Boolean = with(kaSession) {
+    this@isModifierCompanion.resolvedType == MODIFIER_COMPANION_CLASS_ID
+}
 
 /**
  * Checks if this function is an extension on Kobweb's `Modifier` interface.
@@ -29,7 +44,7 @@ fun KtNamedFunction.isModifierExtension(): Boolean {
     val receiverRef = receiverTypeReference ?: return false
     kaSession.apply {
         val receiverType = receiverRef.type
-        return receiverType.expandedSymbol?.classId == MODIFIER_ID
+        return receiverType.expandedSymbol?.classId == MODIFIER_CLASS_ID
     }
 }
 
@@ -43,7 +58,7 @@ fun KtNamedFunction.isModifierExtension(): Boolean {
 context(kaSession: KaSession)
 fun KtNamedFunction.returnsModifier(): Boolean {
     kaSession.apply {
-        return returnType.expandedSymbol?.classId == MODIFIER_ID
+        return this@returnsModifier.resolvedType == MODIFIER_CLASS_ID
     }
 }
 
