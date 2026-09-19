@@ -5,14 +5,30 @@ import com.intellij.openapi.util.Key
 import com.intellij.psi.util.CachedValue
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
+import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationValue
+import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
+import org.jetbrains.kotlin.analysis.api.resolution.symbol
 import org.jetbrains.kotlin.daemon.common.trimQuotes
+import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtAnnotated
+import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtDeclaration
+import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtProperty
+
+/**
+ * Resolve an expression into a [ClassId] containing the type it evaluates to.
+ *
+ * This method must be called inside an [analyze] block.
+ */
+context(kaSession: KaSession)
+val KtExpression.resolvedType: ClassId? get() = with(kaSession) {
+    expressionType?.expandedSymbol?.classId
+}
 
 // Code adapted from https://kotlin.github.io/analysis-api/migrating-from-k1.html#using-analysis-api
 private fun KtDeclaration.hasAnyAnnotation(vararg classIds: ClassId): Boolean {
@@ -71,4 +87,19 @@ private val KOTLIN_SUPPRESS_CLASS_ID = ClassId.topLevel(FqName("kotlin.Suppress"
 
 fun KtAnnotated.isSuppressedWith(suppressKey: String): Boolean {
     return isAnnotatedWith(KOTLIN_SUPPRESS_CLASS_ID, suppressKey)
+}
+
+/**
+ * Resolve a call expression into a [CallableId], which you can use to test for fqn's representing methods.
+ *
+ * This could return null if, for example, the call expression is actually a lambda property (and not actually a real
+ * method), or it is an invoke operator.
+ *
+ * This method must be called inside an [analyze] block.
+ */
+context(kaSession: KaSession)
+fun KtCallExpression.resolveToCallableId(): CallableId? = with(kaSession) {
+    val functionCall = resolveToCall()?.singleFunctionCallOrNull() ?: return@with null
+    val symbol = functionCall.symbol
+    return symbol.callableId
 }

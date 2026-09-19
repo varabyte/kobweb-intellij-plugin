@@ -15,6 +15,10 @@
                 serviceInterface="com.varabyte.kobweb.intellij.services.project.KobwebProjectCacheService"
                 serviceImplementation="com.varabyte.kobweb.intellij.services.project.KobwebProjectCacheServiceImpl"/>
 
+        <codeInsight.lineMarkerProvider
+                language="kotlin"
+                implementationClass="com.varabyte.kobweb.intellij.lineMarkers.ExtractCssStyleRefactorLineMarkerProvider" />
+
         <lang.inspectionSuppressor language="kotlin" implementationClass="com.varabyte.kobweb.intellij.inspections.supressors.FunctionNameInspectionSuppressor"/>
         <lang.inspectionSuppressor language="kotlin" implementationClass="com.varabyte.kobweb.intellij.inspections.supressors.UnusedInspectionSuppressor"/>
         <localInspection
