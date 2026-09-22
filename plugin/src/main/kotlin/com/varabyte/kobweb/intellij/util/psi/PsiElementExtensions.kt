@@ -13,12 +13,14 @@ import com.intellij.psi.PsiElement
  */
 internal val PsiElement.containingKlib: VirtualFile?
     get() {
-        return ProjectFileIndex.getInstance(this.project)
-            .getOrderEntriesForFile(this.containingFile.virtualFile)
-            .asSequence()
-            .filterIsInstance<LibraryOrderEntry>()
-            .mapNotNull { it.library?.getFiles(OrderRootType.CLASSES)?.toList() }
-            .flatten()
-            .toSet() // Remove duplicates
-            .singleOrNull { it.extension == "klib" }
+        return this.containingFile?.let { containingFile ->
+            ProjectFileIndex.getInstance(this.project)
+                .getOrderEntriesForFile(containingFile.virtualFile)
+                .asSequence()
+                .filterIsInstance<LibraryOrderEntry>()
+                .mapNotNull { it.library?.getFiles(OrderRootType.CLASSES)?.toList() }
+                .flatten()
+                .toSet() // Remove duplicates
+                .singleOrNull { it.extension == "klib" }
+        }
     }

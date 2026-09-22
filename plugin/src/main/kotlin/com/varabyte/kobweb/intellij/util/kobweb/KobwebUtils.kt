@@ -116,7 +116,7 @@ fun PsiElement.isDeclaredInWritableKobwebProject(limitTo: Set<KobwebProjectType>
  * source file that the [PsiElement] was declared in.
  */
 fun PsiElement.isUsedInReadableKobwebProject(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework): Boolean {
-    return this.containingFile.isDeclaredInReadableKobwebProject(limitTo)
+    return this.containingFile?.isDeclaredInReadableKobwebProject(limitTo) ?: false
 }
 
 /**
@@ -128,5 +128,5 @@ fun PsiElement.isUsedInReadableKobwebProject(limitTo: Set<KobwebProjectType> = K
  * If this method returns true, then the readable version will also return true (but not vice versa);
  */
 fun PsiElement.isUsedInWritableKobwebProject(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework): Boolean {
-    return this.containingFile.isDeclaredInWritableKobwebProject(limitTo)
+    return this.containingFile?.isDeclaredInWritableKobwebProject(limitTo) ?: false
 }
