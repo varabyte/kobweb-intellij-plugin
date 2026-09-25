@@ -43,6 +43,7 @@ dependencies {
     // get merged into the final jar instead). Its purpose is to get injected into a running Gradle process.
     implementation(project(":kobweb-model"))
     testImplementation(libs.truthish)
+    testImplementation(kotlin("test"))
 
     intellijPlatform {
         // Interesting statistics: https://plugins.jetbrains.com/docs/marketplace/product-versions-in-use-statistics.html
