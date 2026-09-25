@@ -676,11 +676,11 @@ fun ExtractCssStyleWizard.Result.performRefactoring(
             // When we're done with the write action, `Modifier.a.b.c` will become `SomeCssStyle.toModifier()`
             val cssStyleToModifierElementPtr = WriteAction.compute<SmartPsiElementPointer<PsiElement>, Throwable> {
                 // First, add imports
-                val existingImports = ktFile.importDirectives.mapNotNull { it.importPath?.pathStr }.toSet()
+                val existingImports = ktFile.importDirectives.mapNotNull { it.importedFqName }.toSet()
 
                 val importStrs = buildString {
                     imports()
-                        .filter { it.asString() !in existingImports }
+                        .filter { it !in existingImports }
                         .forEach { import -> appendLine("import ${import.asString()}") }
                 }
                 val dummyImports = psiFactory.createFile(importStrs).importList!!
