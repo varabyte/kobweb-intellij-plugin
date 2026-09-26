@@ -58,7 +58,7 @@ fun KtNamedFunction.isModifierExtension(): Boolean {
 context(kaSession: KaSession)
 fun KtNamedFunction.returnsModifier(): Boolean {
     kaSession.apply {
-        return this@returnsModifier.resolvedType == MODIFIER_CLASS_ID
+        return returnType.expandedSymbol?.classId == MODIFIER_CLASS_ID
     }
 }
 
