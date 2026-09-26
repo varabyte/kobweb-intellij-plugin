@@ -269,7 +269,7 @@ abstract class SimpleWizard<I, R>(
                     it.forEachIndexed { index, step ->
                         cardPanel.add(
                             FormBuilder.createFormBuilder()
-                                .addComponent(JBLabel("<html><h3>${step.headerText}</h3></html>"))
+                                .addComponent(JBLabel("<html><h3>${step.headerText}<br><hr></h3></html>"))
                                 .addComponentFillVertically(step.produceComponent(), 0)
                                 .panel,
                             index.toString()

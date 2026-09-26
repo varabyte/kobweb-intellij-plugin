@@ -4,7 +4,6 @@ package com.varabyte.kobweb.intellij.wizards.cssstyle
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.application.readAction
 import com.intellij.openapi.command.CommandProcessor
-import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.command.undo.BasicUndoableAction
 import com.intellij.openapi.command.undo.UndoManager
 import com.intellij.openapi.editor.Editor
@@ -20,14 +19,12 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.SmartPointerManager
 import com.intellij.psi.SmartPsiElementPointer
-import com.intellij.psi.codeStyle.CodeStyleManager
 import com.intellij.psi.impl.source.codeStyle.IndentHelper
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.util.findParentOfType
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.tabs.TabInfo
-import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.JBUI
 import com.varabyte.kobweb.intellij.util.compose.STYLE_PROPERTY_VALUE_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebModifierType
@@ -56,6 +53,7 @@ import javax.swing.JComponent
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 import kotlin.sequences.forEach
+import kotlin.text.appendLine
 
 /**
  * Extracted information about some target `Modifier.a(...).b(...).c(...)` chain.
@@ -172,7 +170,7 @@ class ExtractCssStyleWizard(
             current = PsiTreeUtil.getParentOfType(current, KtDotQualifiedExpression::class.java)
         }
 
-        val entries = chainedCalls.map { (funcDefn, callExpr, ) ->
+        val entries = chainedCalls.map { (funcDefn, callExpr) ->
             val funcCall = callExpr.resolveToCall()?.singleFunctionCallOrNull()
             val argMapping = funcCall?.argumentMapping ?: emptyMap()
 
@@ -262,6 +260,28 @@ class ExtractCssStyleWizard(
     }
 
     override fun createSteps(ctx: SimpleWizard<Input, Result>.StepContext): List<Step> {
+        val modifierDisplayText = run {
+            // IntelliJ may give us back text that looks like this, since the PSI symbol starts at the
+            // element itself, not the beginning of the line:
+            // ```
+            // Modifier.color(
+            //               when (ColorMode.current) {
+            //                 ColorMode.LIGHT -> Colors.Black
+            //                 ColorMode.DARK -> Colors.White
+            //               }
+            // ```
+            val indent = IndentHelper.getInstance()
+                .getIndent(input.modifierChainStart.containingKtFile, input.modifierChainStart.node)
+            input.modifierChainStart.getEntireDotQualifiedExpression().text
+                .lines()
+                .mapIndexed { i, line ->
+                    val toDrop = if (i == 0) 0 else {
+                        minOf(line.indexOfFirst { !it.isWhitespace() }, indent)
+                    }
+                    line.drop(toDrop)
+                }.joinToString("\n")
+        }
+
         return listOf(
             object : Step {
                 private val styleNameErrorValidator = input.modifierChainStart.containingKtFile.createStyleNameErrorValidator()
@@ -284,28 +304,6 @@ class ExtractCssStyleWizard(
                 }
 
                 override fun produceComponent(): JComponent {
-                    val modifierDisplayText = run {
-                        // IntelliJ may give us back text that looks like this, since the PSI symbol starts at the
-                        // element itself, not the beginning of the line:
-                        // ```
-                        // Modifier.color(
-                        //               when (ColorMode.current) {
-                        //                 ColorMode.LIGHT -> Colors.Black
-                        //                 ColorMode.DARK -> Colors.White
-                        //               }
-                        // ```
-                        val indent = IndentHelper.getInstance()
-                            .getIndent(input.modifierChainStart.containingKtFile, input.modifierChainStart.node)
-                        input.modifierChainStart.getEntireDotQualifiedExpression().text
-                            .lines()
-                            .mapIndexed { i, line ->
-                                val toDrop = if (i == 0) 0 else {
-                                    minOf(line.indexOfFirst { !it.isWhitespace() }, indent)
-                                }
-                                line.drop(toDrop)
-                            }.joinToString("\n")
-                    }
-
                     return ctx.utils.components.formBuilder()
                         .addComponent(JBLabel("Target for extraction:"))
                         .addComponentFillVertically(ctx.utils.components.kotlinCode(modifierDisplayText), 8)
@@ -344,7 +342,7 @@ class ExtractCssStyleWizard(
 
                 private val conciseChoice = TabInfo(ctx.utils.components.kotlinCode(
                     """
-                        CssStyle.base { 
+                        CssStyle.base {
                             Modifier...
                         }
                     """.trimIndent()
@@ -394,7 +392,7 @@ class ExtractCssStyleWizard(
                     """
                         // Style
                         CssStyle { /*...*/ }
-                        
+
                         // Inline Modifier
                         CssStyle.toModifier().id("hi").tabIndex(0)
                         //                    ^^^^^^^^^^^^^^^^^^^^
@@ -408,7 +406,7 @@ class ExtractCssStyleWizard(
                             Modifier.id("hi").tabIndex(0)
                             //       ^^^^^^^^^^^^^^^^^^^^
                         }) { /*...*/ }
-                        
+
                         // Inline Modifier
                         CssStyle.toModifier()
                     """.trimIndent()
@@ -451,7 +449,7 @@ class ExtractCssStyleWizard(
                 private val codeExample = ctx.utils.components.kotlinCode(
                     """
                         private fun produceTabIndex() = 0
-                        
+
                         @Composable
                         fun SomeWidget() {
                             val id = "my-id"
@@ -501,13 +499,16 @@ class ExtractCssStyleWizard(
                 }
 
                 override fun onEntering() {
-                    val result = ctx.data.toResult()
+                    val codeGen = ExtractCssCodeGenerator(ctx.data.toResult())
                     codeSummary.text = buildString {
-                        appendLine("// Style")
-                        result.appendCssStyleDeclarationInto(this)
+                        appendLine("// BEFORE ---------------------------------------")
+                        appendLine(modifierDisplayText)
                         appendLine()
+                        appendLine("// AFTER ----------------------------------------")
+                        appendLine("// CssStyle")
+                        codeGen.appendCssStyleDeclarationInto(this)
                         appendLine("// Inline Modifier")
-                        result.appendInlineModifierInto(this)
+                        codeGen.appendInlineModifierInto(this)
                     }
                 }
             }
@@ -517,140 +518,149 @@ class ExtractCssStyleWizard(
     override fun onFinished(data: Data): Result = data.toResult()
 }
 
-// The full names of StyleVariable names that will be associated with parameters that need them (i.e., because
+private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) {
+    // The full names of StyleVariable names that will be associated with parameters that need them (i.e., because
 // they are bound to a local value from the original scope). If no entry is found for the target parameter,
 // there is no declared style variable for it, and it should just copy its contents over as is.
-private fun ModifierChainInfo.Entry.associatedStyleVariableNames(styleName: String): Map<ModifierChainInfo.Entry.Parameter, String> {
-    if (this.webModifierType != WebModifierType.STYLE) return emptyMap()
-    // e.g. `Modifier.backgroundColor(colorVar)` + `val MyStyle = CssStyle { ... }`
-    //      --> MyStyle_BackgroundColorVar
-    val multiParameterModifier = parameters.size > 1
-    return parameters.filter { it.value != null && !it.value.isGlobal }.associateWith { param ->
-        buildString {
-            append(styleName)
-            append('_')
-            append(webModifier.name!!.capitalized())
-            if (multiParameterModifier) {
-                append(param.name.capitalized())
-            }
-            append("Var")
-        }
-    }
-}
-
-private fun ModifierChainInfo.extractStyleVariables(styleName: String): Map<ModifierChainInfo.Entry.Parameter, String> {
-    val self = this
-    return mutableMapOf<ModifierChainInfo.Entry.Parameter, String>().apply {
-        self.entries.forEach { entry ->
-            this.putAll(entry.associatedStyleVariableNames(styleName))
-        }
-    }
-}
-
-private fun ModifierChainInfo.Entry.toText(styleName: String) = buildString {
-    append(webModifier.name!!)
-    append('(')
-    val varNames = associatedStyleVariableNames(styleName)
-
-    append(parameters.filter { varNames.containsKey(it) || it.value != null }.joinToString(", ") { p ->
-        varNames[p]?.let { varName -> "${varName}.value()" } ?: p.value!!.text
-    })
-    append(')')
-}
-
-private fun ExtractCssStyleWizard.Result.imports(): List<FqName> {
-    val importsBuilder = mutableSetOf<String>()
-    importsBuilder.add("com.varabyte.kobweb.silk.style.CssStyle")
-    val styleVariables = modifierChainInfo.extractStyleVariables(styleName)
-    if (styleVariables.isNotEmpty()) {
-        importsBuilder.add("com.varabyte.kobweb.compose.css.StyleVariable")
-        styleVariables.forEach { (parameter, _) ->
-            parameter.type.imports.forEach { fqn ->
-                importsBuilder.add(fqn)
+    private fun ModifierChainInfo.Entry.associatedStyleVariableNames(styleName: String): Map<ModifierChainInfo.Entry.Parameter, String> {
+        if (this.webModifierType != WebModifierType.STYLE) return emptyMap()
+        // e.g. `Modifier.backgroundColor(colorVar)` + `val MyStyle = CssStyle { ... }`
+        //      --> MyStyle_BackgroundColorVar
+        val multiParameterModifier = parameters.size > 1
+        return parameters.filter { it.value != null && !it.value.isGlobal }.associateWith { param ->
+            buildString {
+                append(styleName)
+                append('_')
+                append(webModifier.name!!.capitalized())
+                if (multiParameterModifier) {
+                    append(param.name.capitalized())
+                }
+                append("Var")
             }
         }
     }
-    return importsBuilder.sorted().map { FqName(it) }
-}
 
-/**
- * Partition all attribute modifiers into those that should be extracted and those that should be left behind.
- * ```
- * val (attrModifiersToExtract, attrModifiersToLeaveBehind) = partitionAttributeModifiers()
- * ```
- */
-private fun ExtractCssStyleWizard.Result.partitionAttributeModifiers(): Pair<List<ModifierChainInfo.Entry>, List<ModifierChainInfo.Entry>> {
-    return modifierChainInfo.entries
-        .filter { it.webModifierType == WebModifierType.ATTRS }
-        .partition { extractAttributes && !it.hasParameterWithLocalValue() }
-}
+    private fun ModifierChainInfo.extractStyleVariables(styleName: String): Map<ModifierChainInfo.Entry.Parameter, String> {
+        val self = this
+        return mutableMapOf<ModifierChainInfo.Entry.Parameter, String>().apply {
+            self.entries.forEach { entry ->
+                this.putAll(entry.associatedStyleVariableNames(styleName))
+            }
+        }
+    }
 
-private fun ExtractCssStyleWizard.Result.appendCssStyleDeclarationInto(sb: StringBuilder) {
-    val (attrModifiersToExtract, attrModifiersToLeaveBehind) = partitionAttributeModifiers()
+    private fun ModifierChainInfo.Entry.toText(styleName: String) = buildString {
+        append(webModifier.name!!)
+        append('(')
+        val varNames = associatedStyleVariableNames(styleName)
 
-    // For now, we also include unknown web modifier types, because as long as a modifier isn't mutable attributes,
-    // it should be safe to put into a CssStyle. We reserve the right to change this behavior in the future, at
-    // which point this would become `it.webModifierType == STYLE`
-    val webModifiersToExtract = modifierChainInfo.entries.filter { it.webModifierType != WebModifierType.ATTRS } + attrModifiersToExtract
+        append(parameters.filter { varNames.containsKey(it) || it.value != null }.joinToString(", ") { p ->
+            varNames[p]?.let { varName -> "${varName}.value()" } ?: p.value!!.text
+        })
+        append(')')
+    }
 
-    val modifier = buildString {
-        append("Modifier")
-        webModifiersToExtract
-            .forEach { modifierEntry ->
+    private fun ExtractCssStyleWizard.Result.imports(): List<FqName> {
+        val importsBuilder = mutableSetOf<String>()
+        importsBuilder.add("com.varabyte.kobweb.silk.style.CssStyle")
+        val styleVariables = modifierChainInfo.extractStyleVariables(styleName)
+        if (styleVariables.isNotEmpty()) {
+            importsBuilder.add("com.varabyte.kobweb.compose.css.StyleVariable")
+            styleVariables.forEach { (parameter, _) ->
+                parameter.type.imports.forEach { fqn ->
+                    importsBuilder.add(fqn)
+                }
+            }
+        }
+        return importsBuilder.sorted().map { FqName(it) }
+    }
+
+    /**
+     * Partition all attribute modifiers into those that should be extracted and those that should be left behind.
+     * ```
+     * val (attrModifiersToExtract, attrModifiersToLeaveBehind) = partitionAttributeModifiers()
+     * ```
+     */
+    private fun ExtractCssStyleWizard.Result.partitionAttributeModifiers(): Pair<List<ModifierChainInfo.Entry>, List<ModifierChainInfo.Entry>> {
+        return modifierChainInfo.entries
+            .filter { it.webModifierType == WebModifierType.ATTRS }
+            .partition { extractAttributes && !it.hasParameterWithLocalValue() }
+    }
+
+    fun appendImportsInto(sb: StringBuilder, skipImports: Set<FqName>) = with(result) {
+        imports()
+            .filter { it !in skipImports }
+            .forEach { import -> sb.appendLine("import ${import.asString()}") }
+    }
+
+
+    fun appendCssStyleDeclarationInto(sb: StringBuilder) = with(result) {
+        val (attrModifiersToExtract, attrModifiersToLeaveBehind) = partitionAttributeModifiers()
+
+        // For now, we also include unknown web modifier types, because as long as a modifier isn't mutable attributes,
+        // it should be safe to put into a CssStyle. We reserve the right to change this behavior in the future, at
+        // which point this would become `it.webModifierType == STYLE`
+        val webModifiersToExtract = modifierChainInfo.entries.filter { it.webModifierType != WebModifierType.ATTRS } + attrModifiersToExtract
+
+        val modifier = buildString {
+            append("Modifier")
+            webModifiersToExtract
+                .forEach { modifierEntry ->
+                    append('.')
+                    append(modifierEntry.toText(styleName))
+                }
+        }
+
+        val extraModifierParam = if (attrModifiersToLeaveBehind.isNotEmpty()) {
+            buildString {
+                append("extraModifier = { Modifier")
+                attrModifiersToLeaveBehind.forEach { modifierEntry ->
+                    append('.')
+                    append(modifierEntry.toText(styleName))
+                }
+                append(" }")
+            }
+        } else null
+
+        with (sb) {
+            modifierChainInfo.extractStyleVariables(styleName).forEach { (parameter, varName) ->
+                appendLine("val $varName by StyleVariable<${parameter.type.rendered}>()")
+            }
+            append("val $styleName = CssStyle")
+            if (useConciseSyntax) {
+                append(".base")
+                extraModifierParam?.let { append("($it)") }
+                appendLine(" {")
+                appendLine("\t$modifier")
+                appendLine("}")
+            } else {
+                extraModifierParam?.let { append("($it)") }
+                appendLine(" {")
+                appendLine("\tbase {")
+                appendLine("\t\t$modifier")
+                appendLine("\t}")
+                appendLine("}")
+            }
+        }
+    }
+
+    fun appendInlineModifierInto(sb: StringBuilder) = with(result) {
+        val (_, inlineAttrModifiers) = partitionAttributeModifiers()
+
+        with (sb) {
+            append("$styleName.toModifier()")
+            inlineAttrModifiers.forEach { modifierEntry ->
                 append('.')
                 append(modifierEntry.toText(styleName))
             }
-    }
 
-    val extraModifierParam = if (attrModifiersToLeaveBehind.isNotEmpty()) {
-        buildString {
-            append("extraModifier = { Modifier")
-            attrModifiersToLeaveBehind.forEach { modifierEntry ->
-                append('.')
-                append(modifierEntry.toText(styleName))
+            modifierChainInfo.extractStyleVariables(styleName).forEach { (parameter, varName) ->
+                append(".setVariable(")
+                append(varName)
+                append(", ")
+                append(parameter.value!!.text)
+                append(")")
             }
-            append(" }")
-        }
-    } else null
-
-    with (sb) {
-        modifierChainInfo.extractStyleVariables(styleName).forEach { (parameter, varName) ->
-            appendLine("val $varName by StyleVariable<${parameter.type.rendered}>()")
-        }
-        append("val $styleName = CssStyle")
-        if (useConciseSyntax) {
-            append(".base")
-            extraModifierParam?.let { append("($it)") }
-            appendLine(" {")
-            appendLine("\t$modifier")
-            appendLine("}")
-        } else {
-            extraModifierParam?.let { append("($it)") }
-            appendLine(" {")
-            appendLine("\tbase {")
-            appendLine("\t\t$modifier")
-            appendLine("\t}")
-            appendLine("}")
-        }
-    }
-}
-
-private fun ExtractCssStyleWizard.Result.appendInlineModifierInto(sb: StringBuilder) {
-    val (_, inlineAttrModifiers) = partitionAttributeModifiers()
-
-    with (sb) {
-        append("$styleName.toModifier()")
-        inlineAttrModifiers.forEach { modifierEntry ->
-            append('.')
-            append(modifierEntry.toText(styleName))
-        }
-
-        modifierChainInfo.extractStyleVariables(styleName).forEach { (parameter, varName) ->
-            append(".setVariable(")
-            append(varName)
-            append(", ")
-            append(parameter.value!!.text)
-            append(")")
         }
     }
 }
@@ -662,6 +672,7 @@ fun ExtractCssStyleWizard.Result.performRefactoring(
     val ktFile = modifierChainStart.containingKtFile
     val project = modifierChainStart.project
     val psiFactory = KtPsiFactory(project)
+    val codeGen = ExtractCssCodeGenerator(this)
 
     val topLevelDeclaration =
         PsiTreeUtil.findFirstParent(modifierChainStart, /* strict = */true) { parent ->
@@ -679,9 +690,7 @@ fun ExtractCssStyleWizard.Result.performRefactoring(
                 val existingImports = ktFile.importDirectives.mapNotNull { it.importedFqName }.toSet()
 
                 val importStrs = buildString {
-                    imports()
-                        .filter { it !in existingImports }
-                        .forEach { import -> appendLine("import ${import.asString()}") }
+                    codeGen.appendImportsInto(this, existingImports)
                 }
                 val dummyImports = psiFactory.createFile(importStrs).importList!!
                 ktFile.importList?.apply {
@@ -692,7 +701,7 @@ fun ExtractCssStyleWizard.Result.performRefactoring(
 
                 // Next, handle the Modifier -> CssStyle extraction
                 val dummyFile = psiFactory.createFile(
-                    buildString { appendCssStyleDeclarationInto(this) }
+                    buildString { codeGen.appendCssStyleDeclarationInto(this) }
                 )
                 val anchor = topLevelDeclaration ?: ktFile.declarations.firstOrNull()
 
@@ -711,7 +720,7 @@ fun ExtractCssStyleWizard.Result.performRefactoring(
                 }
 
                 val replacementExpr = psiFactory.createExpression(
-                    buildString { appendInlineModifierInto(this) }
+                    buildString { codeGen.appendInlineModifierInto(this) }
                 )
                 SmartPointerManager.getInstance(project).createSmartPsiElementPointer(modifierChainStart.getEntireDotQualifiedExpression().replace(replacementExpr))
             }
