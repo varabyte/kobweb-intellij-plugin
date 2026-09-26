@@ -19,8 +19,6 @@ import com.varabyte.kobweb.intellij.wizards.cssstyle.performRefactoring
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.*
 
-// TODO: Create a settings page as a way to reconfigure options chosen here
-
 class ExtractCssStyleRefactorLineMarkerProvider : LineMarkerProviderDescriptor() {
 
     @Suppress("DialogTitleCapitalization")

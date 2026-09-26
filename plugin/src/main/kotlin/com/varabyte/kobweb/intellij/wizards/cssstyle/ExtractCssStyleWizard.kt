@@ -14,6 +14,7 @@ import com.intellij.openapi.fileEditor.TextEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.openapi.util.Key
+import com.intellij.openapi.util.KeyWithDefaultValue
 import com.intellij.platform.ide.progress.runWithModalProgressBlocking
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
@@ -26,6 +27,7 @@ import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.tabs.TabInfo
 import com.intellij.util.ui.JBUI
+import com.varabyte.kobweb.intellij.settings.KobwebAppSettingsService
 import com.varabyte.kobweb.intellij.util.compose.STYLE_PROPERTY_VALUE_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebModifierType
@@ -110,16 +112,29 @@ private object Keys {
             ReadOnlyProperty { _, _ -> createdKey }
         }
     }
+
+    fun <T> key(defaultValue: T): PropertyDelegateProvider<Any?, ReadOnlyProperty<Any?, Key<T>>> {
+        return PropertyDelegateProvider { _, property ->
+            val createdKey = KeyWithDefaultValue.create<T>(property.name, defaultValue)
+            ReadOnlyProperty { _, _ -> createdKey }
+        }
+    }
     val STYLE_NAME by key<String>()
     val MODIFIER_CHAIN_INFO by key<ModifierChainInfo>()
-    val EXTRACT_ATTRIBUTES by key<Boolean>()
     val USE_CONCISE_SYNTAX by key<Boolean>()
+    val EXTRACT_ATTRIBUTES by key<Boolean>()
+
+    val REMEMBER_SYNTAX_CHOICE by key(false)
+    val REMEMBER_EXTRACT_ATTRIBUTES_CHOICE by key(false)
+    val SKIP_ATTRIBUTE_WARNING by key(false)
 }
 
 private tailrec fun KtDotQualifiedExpression.getEntireDotQualifiedExpression(): KtDotQualifiedExpression {
     val parentExpr = parent as? KtDotQualifiedExpression
     return parentExpr?.getEntireDotQualifiedExpression() ?: this
 }
+
+private val appSettings = KobwebAppSettingsService.getInstance().state
 
 class ExtractCssStyleWizard(
     project: Project,
@@ -363,6 +378,8 @@ class ExtractCssStyleWizard(
                     addTab(relaxedChoice)
                 }
 
+                private val rememberCheckbox = ctx.utils.components.rememberCheckbox()
+
                 override fun produceComponent(): JComponent {
                     return ctx.utils.components.formBuilder()
                         .addComponent(JBLabel("Would you like to use a concise or relaxed CssStyle syntax?"))
@@ -370,19 +387,30 @@ class ExtractCssStyleWizard(
                         .addComponent(JBLabel(
                             "<html>The <b>concise</b> format is generally recommended as it reduces indentation, unless you plan to add <a href=\"https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Selectors\">additional selectors</a> soon (e.g., <code>hover</code>, <code>focus</code>, <code>link</code>).<br><br>(Do not stress too much about the decision, as you can easily refactor this later.)",
                         ))
-                        .addComponent(ctx.utils.components.rememberCheckbox())
+                        .addComponent(rememberCheckbox)
                         .panel
                 }
 
                 override val initialFocusedComponent = choices.component
 
                 init {
-                    ctx.data.putUserData(Keys.USE_CONCISE_SYNTAX, true)
+                    ctx.data.putUserData(
+                        Keys.USE_CONCISE_SYNTAX,
+                        when (appSettings.extractCssStyle.format) {
+                            KobwebAppSettingsService.ExtractCssStyle.Format.CONCISE,
+                            KobwebAppSettingsService.ExtractCssStyle.Format.ASK_ME -> true
+                            KobwebAppSettingsService.ExtractCssStyle.Format.RELAXED -> false
+                        }
+                    )
+                }
+
+                override fun shouldShow(): Boolean {
+                    return appSettings.extractCssStyle.format == KobwebAppSettingsService.ExtractCssStyle.Format.ASK_ME
                 }
 
                 override fun onNext() {
                     ctx.data.putUserData(Keys.USE_CONCISE_SYNTAX, choices.targetInfo == conciseChoice)
-                    // TODO: Save the result of "remember this choice for later" and apply in onFinished
+                    ctx.data.putUserData(Keys.REMEMBER_SYNTAX_CHOICE, rememberCheckbox.isSelected)
                 }
             },
             object : Step {
@@ -417,7 +445,22 @@ class ExtractCssStyleWizard(
                     addTab(extractChoice)
                 }
 
+                private val rememberCheckbox = ctx.utils.components.rememberCheckbox()
+
+                init {
+                    ctx.data.putUserData(
+                        Keys.EXTRACT_ATTRIBUTES,
+                        when (appSettings.extractCssStyle.attributeModifiersStrategy) {
+                            KobwebAppSettingsService.ExtractCssStyle.AttributeModifiersStrategy.EXTRACT -> true
+                            KobwebAppSettingsService.ExtractCssStyle.AttributeModifiersStrategy.INLINE,
+                            KobwebAppSettingsService.ExtractCssStyle.AttributeModifiersStrategy.ASK_ME -> false
+                        }
+                    )
+                }
+
                 override fun shouldShow(): Boolean {
+                    if (appSettings.extractCssStyle.attributeModifiersStrategy != KobwebAppSettingsService.ExtractCssStyle.AttributeModifiersStrategy.ASK_ME) return false
+
                     val modifierChainInfo = ctx.data.getUserData(Keys.MODIFIER_CHAIN_INFO) ?: return false
                     return modifierChainInfo.entries.any { it.webModifierType == WebModifierType.ATTRS }
                 }
@@ -428,19 +471,15 @@ class ExtractCssStyleWizard(
                             "<html>This modifier chain includes at least one attribute modifier. Would you like to keep attributes declared inline at this call site, or would you like to extract them as well, attaching them to the CssStyle?<br><br>(You can leave it inline if you're not sure.)</html>"
                         ))
                         .addComponentFillVertically(choices.component, 8)
-                        .addComponent(ctx.utils.components.rememberCheckbox())
+                        .addComponent(rememberCheckbox)
                         .panel
                 }
 
                 override val initialFocusedComponent = choices.component
 
-                init {
-                    ctx.data.putUserData(Keys.EXTRACT_ATTRIBUTES, false)
-                }
-
                 override fun onNext() {
                     ctx.data.putUserData(Keys.EXTRACT_ATTRIBUTES, choices.targetInfo == extractChoice)
-                    // TODO: Save the result of "remember this choice for later"
+                    ctx.data.putUserData(Keys.REMEMBER_EXTRACT_ATTRIBUTES_CHOICE, rememberCheckbox.isSelected)
                 }
             },
             object : Step {
@@ -465,7 +504,11 @@ class ExtractCssStyleWizard(
                     """.trimIndent()
                 )
 
+                private val doNotShowCheckbox = ctx.utils.components.doNotShowAgainCheckbox()
+
                 override fun shouldShow(): Boolean {
+                    if (!appSettings.extractCssStyle.showAttributeWarning) return false
+
                     val modifierChainInfo = ctx.data.getUserData(Keys.MODIFIER_CHAIN_INFO) ?: return false
                     val extractAttrModifiers = ctx.data.getUserData(Keys.EXTRACT_ATTRIBUTES) ?: return false
 
@@ -478,12 +521,12 @@ class ExtractCssStyleWizard(
                             "<html>This modifier chain includes at least one attribute modifier set to a local variable or method result, which means it cannot be extracted and will be left behind, inline.<br><br>This is probably fine!",
                         ))
                         .addComponentFillVertically(codeExample, 8)
-                        .addComponent(ctx.utils.components.doNotShowAgainCheckbox())
+                        .addComponent(doNotShowCheckbox)
                         .panel
                 }
 
                 override fun onNext() {
-                    // TODO: Save the result of "do not show again" and apply in onFinished
+                    ctx.data.putUserData(Keys.SKIP_ATTRIBUTE_WARNING, doNotShowCheckbox.isSelected)
                 }
             },
             object : Step {
@@ -515,7 +558,24 @@ class ExtractCssStyleWizard(
         )
     }
 
-    override fun onFinished(data: Data): Result = data.toResult()
+    override fun onFinished(data: Data): Result {
+        val result = data.toResult()
+        if (data.getUserData(Keys.REMEMBER_SYNTAX_CHOICE)!!) {
+            appSettings.extractCssStyle.format = if (result.useConciseSyntax) {
+                KobwebAppSettingsService.ExtractCssStyle.Format.CONCISE
+            } else KobwebAppSettingsService.ExtractCssStyle.Format.RELAXED
+        }
+        if (data.getUserData(Keys.REMEMBER_EXTRACT_ATTRIBUTES_CHOICE)!!) {
+            appSettings.extractCssStyle.attributeModifiersStrategy = if (result.extractAttributes) {
+                KobwebAppSettingsService.ExtractCssStyle.AttributeModifiersStrategy.EXTRACT
+            } else KobwebAppSettingsService.ExtractCssStyle.AttributeModifiersStrategy.INLINE
+        }
+        if (data.getUserData(Keys.SKIP_ATTRIBUTE_WARNING)!!) {
+            appSettings.extractCssStyle.showAttributeWarning = false
+        }
+
+        return result
+    }
 }
 
 private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) {
