@@ -13,8 +13,6 @@ import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.TextEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ValidationInfo
-import com.intellij.openapi.util.Key
-import com.intellij.openapi.util.KeyWithDefaultValue
 import com.intellij.platform.ide.progress.runWithModalProgressBlocking
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
@@ -29,6 +27,7 @@ import com.intellij.ui.tabs.TabInfo
 import com.intellij.util.ui.JBUI
 import com.varabyte.kobweb.intellij.settings.KobwebAppSettingsService
 import com.varabyte.kobweb.intellij.util.compose.STYLE_PROPERTY_VALUE_CLASS_ID
+import com.varabyte.kobweb.intellij.util.idea.key
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.style.CSS_STYLE_SUFFIX
@@ -52,8 +51,6 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.types.Variance
 import javax.swing.JComponent
-import kotlin.properties.PropertyDelegateProvider
-import kotlin.properties.ReadOnlyProperty
 import kotlin.sequences.forEach
 import kotlin.text.appendLine
 
@@ -103,22 +100,6 @@ class ModifierChainInfo(val entries: List<Entry>) {
 }
 
 private object Keys {
-    /**
-    * Creates and caches a Key<T> instance using the property's declared name.
-    */
-    fun <T> key(): PropertyDelegateProvider<Any?, ReadOnlyProperty<Any?, Key<T>>> {
-        return PropertyDelegateProvider { _, property ->
-            val createdKey = Key.create<T>(property.name)
-            ReadOnlyProperty { _, _ -> createdKey }
-        }
-    }
-
-    fun <T> key(defaultValue: T): PropertyDelegateProvider<Any?, ReadOnlyProperty<Any?, Key<T>>> {
-        return PropertyDelegateProvider { _, property ->
-            val createdKey = KeyWithDefaultValue.create<T>(property.name, defaultValue)
-            ReadOnlyProperty { _, _ -> createdKey }
-        }
-    }
     val STYLE_NAME by key<String>()
     val MODIFIER_CHAIN_INFO by key<ModifierChainInfo>()
     val USE_CONCISE_SYNTAX by key<Boolean>()
