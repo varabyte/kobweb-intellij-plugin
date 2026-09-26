@@ -5,7 +5,24 @@
     <depends>org.jetbrains.kotlin</depends>
     <depends>org.jetbrains.plugins.gradle</depends>
 
-    <!-- Extension points defined by the plugin. -->
+    <actions>
+        <group id="Kobweb.RefactorActionGroup"
+               text="Kobweb"
+               description="Kobweb framework refactorings"
+               popup="true">
+
+            <action id="Kobweb.ExtractCssStyle"
+                    class="com.varabyte.kobweb.intellij.actions.ExtractCssStyleAction"
+                    text="Extract CssStyle..."
+                    description="Extract inline Modifier chain into a CssStyle block"/>
+        </group>
+
+        <group id="Kobweb.RefactoringMenu">
+            <reference ref="Kobweb.RefactorActionGroup"/>
+            <add-to-group group-id="RefactoringMenu" anchor="last"/>
+        </group>
+    </actions>
+
     <extensions defaultExtensionNs="com.intellij">
         <projectConfigurable
                 instance="com.varabyte.kobweb.intellij.settings.KobwebSettingsConfigurable"
