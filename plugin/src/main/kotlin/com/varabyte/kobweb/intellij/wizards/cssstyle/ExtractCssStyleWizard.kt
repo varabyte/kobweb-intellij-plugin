@@ -580,16 +580,16 @@ class ExtractCssStyleWizard(
 
 private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) {
     // The full names of StyleVariable names that will be associated with parameters that need them (i.e., because
-// they are bound to a local value from the original scope). If no entry is found for the target parameter,
-// there is no declared style variable for it, and it should just copy its contents over as is.
-    private fun ModifierChainInfo.Entry.associatedStyleVariableNames(styleName: String): Map<ModifierChainInfo.Entry.Parameter, String> {
+    // they are bound to a local value from the original scope). If no entry is found for the target parameter,
+    // there is no declared style variable for it, and it should just copy its contents over as is.
+    private fun ModifierChainInfo.Entry.associatedStyleVariableNames(): Map<ModifierChainInfo.Entry.Parameter, String> {
         if (this.webModifierType != WebModifierType.STYLE) return emptyMap()
         // e.g. `Modifier.backgroundColor(colorVar)` + `val MyStyle = CssStyle { ... }`
         //      --> MyStyle_BackgroundColorVar
         val multiParameterModifier = parameters.size > 1
         return parameters.filter { it.value != null && !it.value.isGlobal }.associateWith { param ->
             buildString {
-                append(styleName)
+                append(result.styleName)
                 append('_')
                 append(webModifier.name!!.capitalized())
                 if (multiParameterModifier) {
@@ -600,19 +600,19 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
         }
     }
 
-    private fun ModifierChainInfo.extractStyleVariables(styleName: String): Map<ModifierChainInfo.Entry.Parameter, String> {
+    private fun ModifierChainInfo.extractStyleVariables(): Map<ModifierChainInfo.Entry.Parameter, String> {
         val self = this
         return mutableMapOf<ModifierChainInfo.Entry.Parameter, String>().apply {
             self.entries.forEach { entry ->
-                this.putAll(entry.associatedStyleVariableNames(styleName))
+                this.putAll(entry.associatedStyleVariableNames())
             }
         }
     }
 
-    private fun ModifierChainInfo.Entry.toText(styleName: String) = buildString {
+    private fun ModifierChainInfo.Entry.toText() = buildString {
         append(webModifier.name!!)
         append('(')
-        val varNames = associatedStyleVariableNames(styleName)
+        val varNames = associatedStyleVariableNames()
 
         append(parameters.filter { varNames.containsKey(it) || it.value != null }.joinToString(", ") { p ->
             varNames[p]?.let { varName -> "${varName}.value()" } ?: p.value!!.text
@@ -623,7 +623,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
     private fun ExtractCssStyleWizard.Result.imports(): List<FqName> {
         val importsBuilder = mutableSetOf<String>()
         importsBuilder.add("com.varabyte.kobweb.silk.style.CssStyle")
-        val styleVariables = modifierChainInfo.extractStyleVariables(styleName)
+        val styleVariables = modifierChainInfo.extractStyleVariables()
         if (styleVariables.isNotEmpty()) {
             importsBuilder.add("com.varabyte.kobweb.compose.css.StyleVariable")
             styleVariables.forEach { (parameter, _) ->
@@ -646,6 +646,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
             .filter { it.webModifierType == WebModifierType.ATTRS }
             .partition { extractAttributes && !it.hasParameterWithLocalValue() }
     }
+    private val partitionedAttributeModifiers = result.partitionAttributeModifiers()
 
     fun appendImportsInto(sb: StringBuilder, skipImports: Set<FqName>) = with(result) {
         imports()
@@ -655,35 +656,35 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
 
 
     fun appendCssStyleDeclarationInto(sb: StringBuilder) = with(result) {
-        val (attrModifiersToExtract, attrModifiersToLeaveBehind) = partitionAttributeModifiers()
+        val (attrModifiersToExtract, _) = partitionedAttributeModifiers
 
         // For now, we also include unknown web modifier types, because as long as a modifier isn't mutable attributes,
         // it should be safe to put into a CssStyle. We reserve the right to change this behavior in the future, at
         // which point this would become `it.webModifierType == STYLE`
-        val webModifiersToExtract = modifierChainInfo.entries.filter { it.webModifierType != WebModifierType.ATTRS } + attrModifiersToExtract
+        val styleModifiersToExtract = modifierChainInfo.entries.filter { it.webModifierType != WebModifierType.ATTRS }
 
         val modifier = buildString {
             append("Modifier")
-            webModifiersToExtract
+            styleModifiersToExtract
                 .forEach { modifierEntry ->
                     append('.')
-                    append(modifierEntry.toText(styleName))
+                    append(modifierEntry.toText())
                 }
         }
 
-        val extraModifierParam = if (attrModifiersToLeaveBehind.isNotEmpty()) {
+        val extraModifierParam = if (attrModifiersToExtract.isNotEmpty()) {
             buildString {
                 append("extraModifier = { Modifier")
-                attrModifiersToLeaveBehind.forEach { modifierEntry ->
+                attrModifiersToExtract.forEach { modifierEntry ->
                     append('.')
-                    append(modifierEntry.toText(styleName))
+                    append(modifierEntry.toText())
                 }
                 append(" }")
             }
         } else null
 
         with (sb) {
-            modifierChainInfo.extractStyleVariables(styleName).forEach { (parameter, varName) ->
+            modifierChainInfo.extractStyleVariables().forEach { (parameter, varName) ->
                 appendLine("val $varName by StyleVariable<${parameter.type.rendered}>()")
             }
             append("val $styleName = CssStyle")
@@ -705,16 +706,16 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
     }
 
     fun appendInlineModifierInto(sb: StringBuilder) = with(result) {
-        val (_, inlineAttrModifiers) = partitionAttributeModifiers()
+        val (_, inlineAttrModifiers) = partitionedAttributeModifiers
 
         with (sb) {
             append("$styleName.toModifier()")
             inlineAttrModifiers.forEach { modifierEntry ->
                 append('.')
-                append(modifierEntry.toText(styleName))
+                append(modifierEntry.toText())
             }
 
-            modifierChainInfo.extractStyleVariables(styleName).forEach { (parameter, varName) ->
+            modifierChainInfo.extractStyleVariables().forEach { (parameter, varName) ->
                 append(".setVariable(")
                 append(varName)
                 append(", ")
