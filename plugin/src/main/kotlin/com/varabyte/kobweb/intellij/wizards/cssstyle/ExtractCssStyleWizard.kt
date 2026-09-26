@@ -134,8 +134,6 @@ private tailrec fun KtDotQualifiedExpression.getEntireDotQualifiedExpression(): 
     return parentExpr?.getEntireDotQualifiedExpression() ?: this
 }
 
-private val appSettings = KobwebAppSettingsService.getInstance().state
-
 class ExtractCssStyleWizard(
     project: Project,
     input: Input
@@ -275,6 +273,7 @@ class ExtractCssStyleWizard(
     }
 
     override fun createSteps(ctx: SimpleWizard<Input, Result>.StepContext): List<Step> {
+        val appSettings = KobwebAppSettingsService.getInstance().state
         val modifierDisplayText = run {
             // IntelliJ may give us back text that looks like this, since the PSI symbol starts at the
             // element itself, not the beginning of the line:
@@ -559,6 +558,7 @@ class ExtractCssStyleWizard(
     }
 
     override fun onFinished(data: Data): Result {
+        val appSettings = KobwebAppSettingsService.getInstance().state
         val result = data.toResult()
         if (data.getUserData(Keys.REMEMBER_SYNTAX_CHOICE)!!) {
             appSettings.extractCssStyle.format = if (result.useConciseSyntax) {
