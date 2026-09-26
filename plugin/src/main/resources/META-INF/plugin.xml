@@ -7,6 +7,12 @@
 
     <!-- Extension points defined by the plugin. -->
     <extensions defaultExtensionNs="com.intellij">
+        <projectConfigurable
+                instance="com.varabyte.kobweb.intellij.settings.KobwebSettingsConfigurable"
+                id="com.varabyte.kobweb.settings.framework"
+                displayName="Kobweb"
+                parentId="language"/>
+
         <spellchecker.bundledDictionaryProvider implementation="com.varabyte.kobweb.intellij.spellcheck.KobwebBundledDictionaryProvider" />
 
         <postStartupActivity implementation="com.varabyte.kobweb.intellij.startup.KobwebPostStartupProjectActivity" />
