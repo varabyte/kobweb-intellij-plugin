@@ -1,62 +1,32 @@
 package com.varabyte.kobweb.intellij.lineMarkers
 
 import com.intellij.codeInsight.daemon.LineMarkerInfo
-import com.intellij.codeInsight.daemon.LineMarkerProvider
+import com.intellij.codeInsight.daemon.LineMarkerProviderDescriptor
 import com.intellij.openapi.actionSystem.ActionToolbar
 import com.intellij.openapi.actionSystem.CommonDataKeys
-import com.intellij.openapi.application.WriteAction
-import com.intellij.openapi.application.readAction
-import com.intellij.openapi.command.CommandProcessor
-import com.intellij.openapi.command.undo.BasicUndoableAction
-import com.intellij.openapi.command.undo.UndoManager
 import com.intellij.openapi.editor.Editor
-import com.intellij.openapi.editor.RangeMarker
-import com.intellij.openapi.editor.ScrollType
-import com.intellij.openapi.fileEditor.FileEditorManager
-import com.intellij.openapi.fileEditor.TextEditor
-import com.intellij.openapi.ui.Messages
-import com.intellij.openapi.util.TextRange
-import com.intellij.platform.ide.progress.runWithModalProgressBlocking
-import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
-import com.intellij.psi.SmartPointerManager
-import com.intellij.psi.SmartPsiElementPointer
 import com.intellij.psi.impl.source.tree.LeafPsiElement
 import com.intellij.psi.util.PsiTreeUtil
-import com.intellij.psi.util.findParentOfType
-import com.varabyte.kobweb.intellij.wizards.cssstyle.ExtractCssStyleWizard
-import com.varabyte.kobweb.intellij.wizards.cssstyle.ModifierChainInfo
-import com.varabyte.kobweb.intellij.util.compose.STYLE_PROPERTY_VALUE_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.MODIFIER_CLASS_ID
-import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebModifierType
-import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierCompanion
 import com.varabyte.kobweb.intellij.util.kobweb.project.KobwebLineMarkerInfo
-import com.varabyte.kobweb.intellij.util.kobweb.style.createStyleNameErrorValidator
 import com.varabyte.kobweb.intellij.util.kobweb.style.styleSingletonCallableId
 import com.varabyte.kobweb.intellij.util.kobweb.style.styleSingletonClassId
-import com.varabyte.kobweb.intellij.util.text.truncate
+import com.varabyte.kobweb.intellij.util.ux.UxGlobals
+import com.varabyte.kobweb.intellij.wizards.cssstyle.ExtractCssStyleWizard
 import com.varabyte.kobweb.intellij.wizards.cssstyle.performRefactoring
-import org.gradle.configurationcache.extensions.capitalized
-import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
-import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.analysis.api.renderer.types.impl.KaTypeRendererForSource
-import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
-import org.jetbrains.kotlin.analysis.api.resolution.symbol
-import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KaDeclarationSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KaPackageSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.isTopLevel
-import org.jetbrains.kotlin.analysis.api.types.symbol
-import org.jetbrains.kotlin.idea.references.mainReference
-import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.*
-import org.jetbrains.kotlin.types.Variance
 
 // TODO: Create a settings page as a way to reconfigure options chosen here
 
-class ExtractCssStyleRefactorLineMarkerProvider : LineMarkerProvider {
+class ExtractCssStyleRefactorLineMarkerProvider : LineMarkerProviderDescriptor() {
+
+    @Suppress("DialogTitleCapitalization")
+    override fun getName() = "Extract CssStyle"
+    override fun getIcon() = UxGlobals.gutterIcon
+
     override fun getLineMarkerInfo(element: PsiElement): LineMarkerInfo<*>? {
         if (element !is LeafPsiElement) return null // The docs for this class say it should ideally point at leaf elements
         val parent = element.parent ?: return null
