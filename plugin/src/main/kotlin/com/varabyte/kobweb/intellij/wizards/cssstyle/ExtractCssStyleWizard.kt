@@ -42,9 +42,13 @@ import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.renderer.types.impl.KaTypeRendererForSource
 import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaClassKind
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaDeclarationSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPackageSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.isLocal
 import org.jetbrains.kotlin.analysis.api.symbols.isTopLevel
 import org.jetbrains.kotlin.analysis.api.types.symbol
 import org.jetbrains.kotlin.idea.references.mainReference
@@ -187,19 +191,23 @@ class ExtractCssStyleWizard(
                                 val refSymbol = ref.mainReference.resolveToSymbol() ?: return@all true
                                 if (refSymbol is KaDeclarationSymbol && refSymbol.isTopLevel) return@all true
 
-                                var containerSymbol = refSymbol.containingSymbol
+                                var containerSymbol: KaSymbol? = refSymbol.containingSymbol
 
                                 while (containerSymbol != null) {
                                     when (containerSymbol) {
                                         is KaPackageSymbol -> return@all true
-                                        is KaClassSymbol if containerSymbol.classKind.isObject -> {
-                                            if (containerSymbol.isTopLevel) return@all true
+                                        is KaNamedClassSymbol -> {
+                                            // If we're a property declared inside a companion object, we can abort early
+                                            if (containerSymbol.classKind == KaClassKind.COMPANION_OBJECT) return@all true
+                                            if (containerSymbol.isLocal) return@all false
+                                            // If we're a nested class, we must also verify parent containers
                                             containerSymbol = containerSymbol.containingSymbol
                                         }
+
+                                        // Any local variables, local functions, or inner classes bounded to an instance/local context
                                         else -> return@all false
                                     }
                                 }
-
                                 true
                             }
 
