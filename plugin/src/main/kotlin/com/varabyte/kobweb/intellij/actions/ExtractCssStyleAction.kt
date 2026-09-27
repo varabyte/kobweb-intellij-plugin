@@ -10,10 +10,11 @@ import com.intellij.psi.impl.source.tree.LeafPsiElement
 import com.intellij.psi.util.PsiTreeUtil
 import com.varabyte.kobweb.intellij.actions.ExtractCssStyleUtils.handleExtractCssStyle
 import com.varabyte.kobweb.intellij.util.idea.key
-import com.varabyte.kobweb.intellij.util.kobweb.modifier.MODIFIER_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierCompanion
 import com.varabyte.kobweb.intellij.util.kobweb.style.styleSingletonCallableId
 import com.varabyte.kobweb.intellij.util.kobweb.style.styleSingletonClassId
+import com.varabyte.kobweb.intellij.util.psi.getEntireDotQualifiedExpression
+import com.varabyte.kobweb.intellij.util.psi.getRootReceiverExpression
 import com.varabyte.kobweb.intellij.wizards.cssstyle.ExtractCssStyleWizard
 import com.varabyte.kobweb.intellij.wizards.cssstyle.performRefactoring
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -39,17 +40,24 @@ object ExtractCssStyleUtils {
         return false
     }
 
-    fun toInlineModifierChain(element: PsiElement): KtDotQualifiedExpression? {
+    /**
+     * Convert [element] to a [KtDotQualifiedExpression] representing a `Modifier` chain.
+     *
+     * @param allowAnyElementInChain If true, any element inside the modifier chain can be specified. Otherwise, _only_
+     *   the initial `Modifier` element is allowed.
+     */
+    fun toInlineModifierChain(element: PsiElement, allowAnyElementInChain: Boolean = false): KtDotQualifiedExpression? {
         val element = if (element is LeafPsiElement) element.parent else element
-        val namedExpression = element as? KtNameReferenceExpression ?: return null
-        // Early quick check abort to avoid potentially unnecessary analyze
-        if (namedExpression.text != MODIFIER_CLASS_ID.shortClassName.identifier) return null
 
         // Get the element as the first item of a modifier chain
-        val modifierChainStart = PsiTreeUtil.getParentOfType(element, KtDotQualifiedExpression::class.java) ?: return null
-        // Should never happen but think of this like an assertion that we ARE the first in the chain
-        if (modifierChainStart.receiverExpression != element) return null
+        val modifierChainStart = PsiTreeUtil.getParentOfType(element, KtDotQualifiedExpression::class.java)
+            ?.getEntireDotQualifiedExpression()
+            ?: return null
 
+        val namedExpression = modifierChainStart.getRootReceiverExpression() as? KtNameReferenceExpression ?: return null
+        if (!allowAnyElementInChain && element != namedExpression) return null
+
+        // We've done quick early abort checks so far -- let's do a type safe check to really make sure
         analyze(namedExpression) {
             if (!namedExpression.isModifierCompanion()) return null
         }
@@ -94,6 +102,6 @@ class ExtractCssStyleAction : AnAction() {
         val offset = editor.caretModel.offset
         val element = psiFile.findElementAt(offset) ?: return null
 
-        return ExtractCssStyleUtils.toInlineModifierChain(element)
+        return ExtractCssStyleUtils.toInlineModifierChain(element, allowAnyElementInChain = true)
     }
 }

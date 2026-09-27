@@ -10,7 +10,6 @@ import com.varabyte.kobweb.intellij.actions.ExtractCssStyleUtils
 import com.varabyte.kobweb.intellij.util.kobweb.project.KobwebLineMarkerInfo
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import com.varabyte.kobweb.intellij.wizards.cssstyle.ExtractCssStyleWizard
-import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 
 class ExtractCssStyleRefactorLineMarkerProvider : LineMarkerProviderDescriptor() {
 
@@ -20,10 +19,7 @@ class ExtractCssStyleRefactorLineMarkerProvider : LineMarkerProviderDescriptor()
 
     override fun getLineMarkerInfo(element: PsiElement): LineMarkerInfo<*>? {
         if (element !is LeafPsiElement) return null // The docs for this class say it should ideally point at leaf elements
-        val parent = element.parent ?: return null
-        val namedExpression = parent as? KtNameReferenceExpression ?: return null
-
-        val modifierChainStart = ExtractCssStyleUtils.toInlineModifierChain(namedExpression) ?: return null
+        val modifierChainStart = ExtractCssStyleUtils.toInlineModifierChain(element) ?: return null
 
         return KobwebLineMarkerInfo(
             element,

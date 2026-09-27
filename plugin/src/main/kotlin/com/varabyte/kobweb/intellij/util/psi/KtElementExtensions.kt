@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtDeclaration
+import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtProperty
 
@@ -36,6 +37,23 @@ private fun KtDeclaration.hasAnyAnnotation(vararg classIds: ClassId): Boolean {
         val annotations = this@hasAnyAnnotation.symbol.annotations
         return classIds.any { it in annotations }
     }
+}
+
+/** Given any element inside a [KtDotQualifiedExpression], return the first item in the list */
+tailrec fun KtDotQualifiedExpression.getEntireDotQualifiedExpression(): KtDotQualifiedExpression {
+    val parentExpr = parent as? KtDotQualifiedExpression
+    return parentExpr?.getEntireDotQualifiedExpression() ?: this
+}
+
+/**
+ * Returns the leading expression of a [KtDotQualifiedExpression] chain.
+ *
+ * For example, the expression `Modifier` in the chain `Modifier.a().b().c()`
+ *
+ * This works no matter which part of the dot qualified expression you call this method on.
+ */
+tailrec fun KtDotQualifiedExpression.getRootReceiverExpression(): KtExpression {
+    return (this.receiverExpression as? KtDotQualifiedExpression)?.getRootReceiverExpression() ?: this.receiverExpression
 }
 
 /**

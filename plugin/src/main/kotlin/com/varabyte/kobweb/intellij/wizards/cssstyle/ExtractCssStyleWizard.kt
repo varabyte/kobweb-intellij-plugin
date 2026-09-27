@@ -33,6 +33,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.style.CSS_STYLE_SUFFIX
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleNameWarningValidator
 import com.varabyte.kobweb.intellij.util.kobweb.style.createStyleNameErrorValidator
+import com.varabyte.kobweb.intellij.util.psi.getEntireDotQualifiedExpression
 import com.varabyte.kobweb.intellij.wizards.SimpleWizard
 import org.gradle.configurationcache.extensions.capitalized
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
@@ -51,8 +52,6 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.types.Variance
 import javax.swing.JComponent
-import kotlin.sequences.forEach
-import kotlin.text.appendLine
 
 /**
  * Extracted information about some target `Modifier.a(...).b(...).c(...)` chain.
@@ -110,11 +109,6 @@ private object Keys {
     val SKIP_ATTRIBUTE_WARNING by key(false)
 }
 
-private tailrec fun KtDotQualifiedExpression.getEntireDotQualifiedExpression(): KtDotQualifiedExpression {
-    val parentExpr = parent as? KtDotQualifiedExpression
-    return parentExpr?.getEntireDotQualifiedExpression() ?: this
-}
-
 class ExtractCssStyleWizard(
     project: Project,
     input: Input
@@ -152,16 +146,16 @@ class ExtractCssStyleWizard(
     context(kaSession: KaSession)
     private fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaSession) {
         val chainedCalls = mutableListOf<Pair<KtNamedFunction, KtCallExpression>>()
-        var current: KtDotQualifiedExpression? = this@toModifierChainInfo
-        while (current != null) {
+        var current: KtExpression? = this@toModifierChainInfo
+        while (current is KtDotQualifiedExpression) {
             val callExpression = (current.selectorExpression as? KtCallExpression)
             val namedFun = callExpression
                 ?.resolveToCall()
                 ?.singleFunctionCallOrNull()
                 ?.symbol?.psi
                     as? KtNamedFunction
-            if (namedFun != null) { chainedCalls.add(namedFun to callExpression) }
-            current = PsiTreeUtil.getParentOfType(current, KtDotQualifiedExpression::class.java)
+            if (namedFun != null) { chainedCalls.add(0, namedFun to callExpression) }
+            current = current.receiverExpression
         }
 
         val entries = chainedCalls.map { (funcDefn, callExpr) ->
@@ -267,7 +261,7 @@ class ExtractCssStyleWizard(
             // ```
             val indent = IndentHelper.getInstance()
                 .getIndent(input.modifierChainStart.containingKtFile, input.modifierChainStart.node)
-            input.modifierChainStart.getEntireDotQualifiedExpression().text
+            input.modifierChainStart.text
                 .lines()
                 .mapIndexed { i, line ->
                     val toDrop = if (i == 0) 0 else {
