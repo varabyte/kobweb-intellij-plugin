@@ -637,16 +637,17 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
 
         fun createModifier(indent: String) = buildString {
             append("${indent}Modifier")
-            if (styleModifiersToExtract.isNotEmpty()) {
-                appendLine()
-                styleModifiersToExtract
-                    .forEach { modifierEntry ->
+            val putModifiersOnNewLines = styleModifiersToExtract.size > 1
+            styleModifiersToExtract
+                .forEach { modifierEntry ->
+                    if (putModifiersOnNewLines) {
+                        appendLine()
                         append(indent)
                         append('\t')
-                        append('.')
-                        append(modifierEntry.toText())
                     }
-            }
+                    append('.')
+                    append(modifierEntry.toText())
+                }
         }
 
         val extraModifierParam = if (attrModifiersToExtract.isNotEmpty()) {
