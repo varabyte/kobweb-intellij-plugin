@@ -1,7 +1,6 @@
 package com.varabyte.kobweb.intellij.wizards
 
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.fileTypes.FileTypeManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.InputValidatorEx
@@ -9,25 +8,20 @@ import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.NlsContexts.DialogTitle
 import com.intellij.openapi.util.UserDataHolderBase
-import com.intellij.ui.EditorTextField
-import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.tabs.JBTabs
 import com.intellij.ui.tabs.JBTabsFactory
 import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.JBUI
+import com.varabyte.kobweb.intellij.util.idea.swing.KotlinCodeTextField
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Dimension
 import java.awt.event.ActionEvent
 import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
-import javax.swing.Action
-import javax.swing.JComponent
-import javax.swing.JPanel
-import javax.swing.ScrollPaneConstants
-import javax.swing.SwingUtilities
+import javax.swing.*
 import javax.swing.text.JTextComponent
 
 /**
@@ -114,30 +108,8 @@ abstract class SimpleWizard<I, R>(
                 }
             }
 
-            fun kotlinCode(code: String = ""): EditorTextField {
-                val kotlinFileType = FileTypeManager.getInstance().getFileTypeByExtension("kt")
-
-                return EditorTextField(
-                    code,
-                    project,
-                    kotlinFileType,
-                ).apply {
-                    isViewer = true
-                    border = JBUI.Borders.customLine(JBColor.border(), 1)
-
-                    setDisposedWith(disposable)
-                    @Suppress("UsePropertyAccessSyntax") // Bad suggestion, causes a compile error
-                    setOneLineMode(false)
-                    setFontInheritedFromLAF(false) // Use editor font
-
-                    addSettingsProvider { editor ->
-                        editor.contentComponent.border = JBUI.Borders.empty(8)
-                        editor.scrollPane.apply {
-                            horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED
-                            verticalScrollBarPolicy = ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
-                        }
-                    }
-                }
+            fun kotlinCode(code: String = "") = KotlinCodeTextField(code, project).apply {
+                setDisposedWith(disposable)
             }
 
             fun rememberCheckbox(): JBCheckBox {
