@@ -11,6 +11,7 @@ import com.intellij.ui.JBColor
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierChainingExtension
+import com.varabyte.kobweb.intellij.util.psi.resolveToKtNamedFunction
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.idea.references.mainReference
@@ -31,23 +32,12 @@ private val ATTR_MODIFIER_KEY = TextAttributesKey.createTextAttributesKey(
     }
 )
 
-/**
- * Convert a call expression (which is text that is function-shaped) to an actual backing function.
- */
-private fun KtCallExpression.resolveToKtNamedFunction(): KtNamedFunction? {
-    val refExpr = calleeExpression as? KtNameReferenceExpression ?: return null
-    return analyze(refExpr) {
-        val symbol = refExpr.mainReference.resolveToSymbol() as? KaNamedFunctionSymbol
-        symbol?.psi as? KtNamedFunction
-    }
-}
-
 class AttrModifierFunctionAnnotator : Annotator {
     override fun annotate(element: PsiElement, holder: AnnotationHolder) {
         val callExpression = element as? KtCallExpression ?: return
-        val function = element.resolveToKtNamedFunction() ?: return
-        analyze(function) {
-            if (!function.isModifierChainingExtension()) return
+        val function = analyze(callExpression) {
+            element.resolveToKtNamedFunction()
+                ?.takeIf { it.isModifierChainingExtension() }?: return
         }
         val modifierType = function.getWebModifierType()
         if (modifierType == WebModifierType.ATTRS) {

@@ -10,7 +10,9 @@ import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationValue
 import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.daemon.common.trimQuotes
+import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
@@ -19,6 +21,8 @@ import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtExpression
+import org.jetbrains.kotlin.psi.KtNameReferenceExpression
+import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtProperty
 
 /**
@@ -120,4 +124,14 @@ fun KtCallExpression.resolveToCallableId(): CallableId? = with(kaSession) {
     val functionCall = resolveToCall()?.singleFunctionCallOrNull() ?: return@with null
     val symbol = functionCall.symbol
     return symbol.callableId
+}
+
+/**
+ * Convert a call expression (which is text that is function-shaped) to an actual backing function.
+ */
+context(kaSession: KaSession)
+fun KtCallExpression.resolveToKtNamedFunction(): KtNamedFunction? = with(kaSession) {
+    val refExpr = calleeExpression as? KtNameReferenceExpression ?: return null
+    val symbol = refExpr.mainReference.resolveToSymbol() as? KaNamedFunctionSymbol
+    symbol?.psi as? KtNamedFunction
 }

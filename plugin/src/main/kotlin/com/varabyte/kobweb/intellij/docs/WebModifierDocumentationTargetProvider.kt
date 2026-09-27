@@ -7,9 +7,11 @@ import com.varabyte.kobweb.intellij.util.kobweb.isUsedInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierChainingExtension
+import com.varabyte.kobweb.intellij.util.psi.resolveToKtNamedFunction
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.idea.k2.codeinsight.quickDoc.KotlinPsiDocumentationTargetProvider
-import org.jetbrains.kotlin.idea.testIntegration.framework.KotlinPsiBasedTestFramework.Companion.asKtNamedFunction
+import org.jetbrains.kotlin.psi.KtCallExpression
+import org.jetbrains.kotlin.psi.KtNamedFunction
 
 // In a few cases, Kobweb may have taken some liberties with their chosen names, e.g., for clarity or to mimic
 // Jetpack Compose or to avoid conflicts with Kotlin keywords.
@@ -46,8 +48,7 @@ class WebModifierDocumentationTargetProvider : PsiDocumentationTargetProvider {
     }
 
     private fun webDocumentationTargetsFor(element: PsiElement): List<DocumentationTarget> {
-        val function = element.asKtNamedFunction() ?: return emptyList()
-
+        val function  = element as? KtNamedFunction ?: return emptyList()
         analyze(function) {
             if (!function.isModifierChainingExtension()) return emptyList()
         }
