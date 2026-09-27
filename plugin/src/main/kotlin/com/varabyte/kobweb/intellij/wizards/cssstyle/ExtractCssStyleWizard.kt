@@ -635,13 +635,18 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
         // which point this would become `it.webModifierType == STYLE`
         val styleModifiersToExtract = modifierChainInfo.entries.filter { it.webModifierType != WebModifierType.ATTRS }
 
-        val modifier = buildString {
-            append("Modifier")
-            styleModifiersToExtract
-                .forEach { modifierEntry ->
-                    append('.')
-                    append(modifierEntry.toText())
-                }
+        fun createModifier(indent: String) = buildString {
+            append("${indent}Modifier")
+            if (styleModifiersToExtract.isNotEmpty()) {
+                appendLine()
+                styleModifiersToExtract
+                    .forEach { modifierEntry ->
+                        append(indent)
+                        append('\t')
+                        append('.')
+                        append(modifierEntry.toText())
+                    }
+            }
         }
 
         val extraModifierParam = if (attrModifiersToExtract.isNotEmpty()) {
@@ -664,13 +669,13 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
                 append(".base")
                 extraModifierParam?.let { append("($it)") }
                 appendLine(" {")
-                appendLine("\t$modifier")
+                appendLine(createModifier(indent = "\t"))
                 append("}")
             } else {
                 extraModifierParam?.let { append("($it)") }
                 appendLine(" {")
                 appendLine("\tbase {")
-                appendLine("\t\t$modifier")
+                appendLine(createModifier(indent = "\t\t"))
                 appendLine("\t}")
                 append("}")
             }
@@ -682,19 +687,28 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
 
         return buildString {
             append("$styleName.toModifier()")
+            appendLine()
+
             inlineAttrModifiers.forEach { modifierEntry ->
+                append('\t')
                 append('.')
-                append(modifierEntry.toText())
+                appendLine(modifierEntry.toText())
             }
 
             modifierChainInfo.extractStyleVariables().forEach { (parameter, varName) ->
+                append('\t')
                 append(".setVariable(")
                 append(varName)
                 append(", ")
                 append(parameter.value!!.text)
-                append(")")
+                appendLine(")")
             }
         }.split("\n")
+            .also {
+                // We always add a final empty newline at the end, but it shouldn't be returned as a line
+                check(it.last().isEmpty())
+            }
+            .dropLast(1)
     }
 }
 
