@@ -40,7 +40,7 @@ class KobwebSettingsConfigurable : BoundConfigurable("Kobweb"), SearchableConfig
                                     """.trimIndent()
                             }
                         radioButton("Ask me", KobwebAppSettingsService.ExtractCssStyle.Format.ASK_ME)
-                    }
+                    }.comment("Mouse over options to see a code example")
                 }.bind(appState.extractCssStyle::format)
 
                 buttonsGroup("Default attribute modifier strategy:") {
@@ -55,6 +55,7 @@ class KobwebSettingsConfigurable : BoundConfigurable("Kobweb"), SearchableConfig
                                     
                                     // Inline
                                     CssStyle.toModifier().id("hi")
+                                    //                    ^^^^^^^^
                                     </pre>
                                     """.trimIndent()
                             }
@@ -66,6 +67,7 @@ class KobwebSettingsConfigurable : BoundConfigurable("Kobweb"), SearchableConfig
                                     // Style
                                     CssStyle.base(extraModifier = {
                                         Modifier.id("hi")
+                                        //       ^^^^^^^^
                                     }) { ... }
                                     
                                     // Inline
@@ -74,7 +76,7 @@ class KobwebSettingsConfigurable : BoundConfigurable("Kobweb"), SearchableConfig
                                     """.trimIndent()
                             }
                         radioButton("Ask me", KobwebAppSettingsService.ExtractCssStyle.AttributeModifiersStrategy.ASK_ME)
-                    }
+                    }.comment("Mouse over options to see a code example")
                 }.bind(appState.extractCssStyle::attributeModifiersStrategy)
 
                 row {
