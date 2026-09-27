@@ -9,7 +9,8 @@
         <group id="Kobweb.RefactorActionGroup"
                text="Kobweb"
                description="Kobweb framework refactorings"
-               popup="true">
+               popup="true"
+               icon="/assets/icons/kobweb16.svg">
 
             <action id="Kobweb.ExtractCssStyle"
                     class="com.varabyte.kobweb.intellij.actions.ExtractCssStyleAction"
