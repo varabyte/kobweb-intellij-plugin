@@ -1,5 +1,13 @@
 package com.varabyte.kobweb.intellij.util.text
 
+import java.util.Locale
+
+fun String.capitalized(): String {
+    return this.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+}
+
+// region Camel case utils
+
 // Copied from Kobweb:
 // https://github.com/varabyte/kobweb/blob/4646ef660dd44b74397968beacc332c06b02ddfd/common/kobweb-common/src/main/kotlin/com/varabyte/kobweb/common/text/StringUtils.kt
 
@@ -57,3 +65,5 @@ fun String.camelCaseToKebabCase(): String = splitCamelCase().joinToString("-") {
  * will be converted to "ABC_EXAMPLES" (not "EXAMPLE_A_B_C" and "A_B_C_EXAMPLE").
  */
 fun String.camelCaseToScreamingSnakeCase(): String = splitCamelCase().joinToString("_") { it.uppercase() }
+
+// endregion

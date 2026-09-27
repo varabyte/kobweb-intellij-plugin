@@ -34,8 +34,8 @@ import com.varabyte.kobweb.intellij.util.kobweb.style.CSS_STYLE_SUFFIX
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleNameWarningValidator
 import com.varabyte.kobweb.intellij.util.kobweb.style.createStyleNameErrorValidator
 import com.varabyte.kobweb.intellij.util.psi.getEntireDotQualifiedExpression
+import com.varabyte.kobweb.intellij.util.text.capitalized
 import com.varabyte.kobweb.intellij.wizards.SimpleWizard
-import org.gradle.configurationcache.extensions.capitalized
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
