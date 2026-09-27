@@ -504,13 +504,13 @@ class ExtractCssStyleWizard(
                 }
             },
             object : Step {
-                override val headerText = "Summary"
+                override val headerText = "Preview"
 
                 private val codeSummary = ctx.utils.components.kotlinCode()
 
                 override fun produceComponent(): JComponent {
                     return ctx.utils.components.formBuilder()
-                        .addComponent(JBLabel("<html>On pressing <b>Finish</b>, the following code will be generated:<html>"))
+                        .addComponent(JBLabel("<html>On pressing <b>Finish</b>, your code will be changed as follows:<html>"))
                         .addComponentFillVertically(codeSummary, 8)
                         .panel
                 }
@@ -518,14 +518,12 @@ class ExtractCssStyleWizard(
                 override fun onEntering() {
                     val codeGen = ExtractCssCodeGenerator(ctx.data.toResult())
                     codeSummary.text = buildString {
-                        appendLine("// BEFORE ---------------------------------------")
-                        appendLine(modifierDisplayText)
-                        appendLine()
-                        appendLine("// AFTER ----------------------------------------")
                         appendLine("// CssStyle")
-                        codeGen.appendCssStyleDeclarationInto(this)
+                        codeGen.cssStyleLines().forEach { line -> appendLine("+$line") }
+                        appendLine()
                         appendLine("// Inline Modifier")
-                        codeGen.appendInlineModifierInto(this)
+                        modifierDisplayText.split("\n").forEach { line -> appendLine("-$line") }
+                        codeGen.inlineModifierLines().forEach { line -> appendLine("+$line") }
                     }
                 }
             }
@@ -623,14 +621,13 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
     }
     private val partitionedAttributeModifiers = result.partitionAttributeModifiers()
 
-    fun appendImportsInto(sb: StringBuilder, skipImports: Set<FqName>) = with(result) {
+    fun importLines(skipImports: Set<FqName>): List<String> = with(result) {
         imports()
             .filter { it !in skipImports }
-            .forEach { import -> sb.appendLine("import ${import.asString()}") }
+            .map { "import ${it.asString()}" }
     }
 
-
-    fun appendCssStyleDeclarationInto(sb: StringBuilder) = with(result) {
+    fun cssStyleLines(): List<String> = with(result) {
         val (attrModifiersToExtract, _) = partitionedAttributeModifiers
 
         // For now, we also include unknown web modifier types, because as long as a modifier isn't mutable attributes,
@@ -658,7 +655,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
             }
         } else null
 
-        with (sb) {
+        return buildString {
             modifierChainInfo.extractStyleVariables().forEach { (parameter, varName) ->
                 appendLine("val $varName by StyleVariable<${parameter.type.rendered}>()")
             }
@@ -668,22 +665,22 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
                 extraModifierParam?.let { append("($it)") }
                 appendLine(" {")
                 appendLine("\t$modifier")
-                appendLine("}")
+                append("}")
             } else {
                 extraModifierParam?.let { append("($it)") }
                 appendLine(" {")
                 appendLine("\tbase {")
                 appendLine("\t\t$modifier")
                 appendLine("\t}")
-                appendLine("}")
+                append("}")
             }
-        }
+        }.split("\n")
     }
 
-    fun appendInlineModifierInto(sb: StringBuilder) = with(result) {
+    fun inlineModifierLines(): List<String> = with(result) {
         val (_, inlineAttrModifiers) = partitionedAttributeModifiers
 
-        with (sb) {
+        return buildString {
             append("$styleName.toModifier()")
             inlineAttrModifiers.forEach { modifierEntry ->
                 append('.')
@@ -697,7 +694,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
                 append(parameter.value!!.text)
                 append(")")
             }
-        }
+        }.split("\n")
     }
 }
 
@@ -725,9 +722,7 @@ fun ExtractCssStyleWizard.Result.performRefactoring(
                 // First, add imports
                 val existingImports = ktFile.importDirectives.mapNotNull { it.importedFqName }.toSet()
 
-                val importStrs = buildString {
-                    codeGen.appendImportsInto(this, existingImports)
-                }
+                val importStrs = codeGen.importLines(skipImports = existingImports).joinToString("\n")
                 val dummyImports = psiFactory.createFile(importStrs).importList!!
                 ktFile.importList?.apply {
                     dummyImports.imports.forEach { add(it) }
@@ -736,9 +731,7 @@ fun ExtractCssStyleWizard.Result.performRefactoring(
                 }
 
                 // Next, handle the Modifier -> CssStyle extraction
-                val dummyFile = psiFactory.createFile(
-                    buildString { codeGen.appendCssStyleDeclarationInto(this) }
-                )
+                val dummyFile = psiFactory.createFile(codeGen.cssStyleLines().joinToString("\n"))
                 val anchor = topLevelDeclaration ?: ktFile.declarations.firstOrNull()
 
                 for (declaration in dummyFile.declarations) {
@@ -750,14 +743,7 @@ fun ExtractCssStyleWizard.Result.performRefactoring(
                     }
                 }
 
-                tailrec fun KtDotQualifiedExpression.getEntireDotQualifiedExpression(): KtDotQualifiedExpression {
-                    val parentExpr = parent as? KtDotQualifiedExpression
-                    return parentExpr?.getEntireDotQualifiedExpression() ?: this
-                }
-
-                val replacementExpr = psiFactory.createExpression(
-                    buildString { codeGen.appendInlineModifierInto(this) }
-                )
+                val replacementExpr = psiFactory.createExpression(codeGen.inlineModifierLines().joinToString("\n"))
                 SmartPointerManager.getInstance(project).createSmartPsiElementPointer(modifierChainStart.getEntireDotQualifiedExpression().replace(replacementExpr))
             }
 
