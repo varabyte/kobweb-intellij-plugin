@@ -461,8 +461,6 @@ class ExtractCssStyleWizard(
 
                 private val codeExample = ctx.utils.components.kotlinCode(
                     """
-                        private fun produceTabIndex() = 0
-
                         @Composable
                         fun SomeWidget() {
                             val id = "my-id"
@@ -472,8 +470,6 @@ class ExtractCssStyleWizard(
                             MyStyle.toModifier()
                                 .id(id)
                                 //  ^^
-                                .tabIndex(produceTabIndex())
-                                //        ^^^^^^^^^^^^^^^^^
                         }
                     """.trimIndent()
                 )
@@ -492,7 +488,7 @@ class ExtractCssStyleWizard(
                 override fun produceComponent(): JComponent {
                     return ctx.utils.components.formBuilder()
                         .addComponent(JBLabel(
-                            "<html>This modifier chain includes at least one attribute modifier set to a local variable or method result, which means it cannot be extracted and will be left behind, inline.<br><br>This is probably fine!",
+                            "<html>This modifier chain includes at least one attribute modifier set to a value tied to the local scope, which means it cannot be extracted and will be left behind, inline.<br><br>This is probably fine!",
                         ))
                         .addComponentFillVertically(codeExample, 8)
                         .addComponent(doNotShowCheckbox)
