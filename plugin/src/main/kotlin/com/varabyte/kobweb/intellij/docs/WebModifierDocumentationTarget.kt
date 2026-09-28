@@ -1,5 +1,6 @@
 package com.varabyte.kobweb.intellij.docs
 
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.intellij.documentation.mdn.*
@@ -47,10 +48,17 @@ private object MdnDocFetcher {
 
                 val rootNode = objectMapper.readTree(responseJson)
 
+                fun JsonNode.isProse() = path("type").asText() == "prose"
+                fun JsonNode.id() = path("value").path("id").asText().takeIf { it != "null" }
+                val body = rootNode.path("doc").path("body")
+                val proseEntries = body.asSequence().filter { it.isProse() }
 
-                val docHtml = rootNode.path("doc").path("body").firstOrNull {
-                    it.path("type").asText() == "prose" && it.path("value").path("id").asText() == "description"
-                }?.let { node -> node.path("value").path("content").asText().takeIf { it.isNotBlank() } }
+                // Use the "description" section, if present. Otherwise, just use the first section, which acts as a
+                // short summary.
+                val docHtml = (
+                        proseEntries.firstOrNull { it.id() == "description" }
+                            ?: proseEntries.firstOrNull()
+                        )?.let { node -> node.path("value").path("content").asText().takeIf { it.isNotBlank() } }
 
                 docHtml
             } catch (_: Exception) {
@@ -93,6 +101,7 @@ class WebModifierDocumentationTarget(private val webName: WebName, val element: 
                 val webNameStr = webName.asString()
                 getHtmlMdnAttributeDocumentation(MdnApiNamespace.Html, tagName = null, webName.asString()) ?: when {
                     webNameStr.startsWith("aria-") -> getHtmlAriaDocumentation(webNameStr)
+                    webNameStr == "data" || webNameStr.startsWith("data-") -> getHtmlDataAttributeDocumentation(webNameStr)
                     else -> null
                 }
             }
@@ -157,6 +166,9 @@ class WebModifierDocumentationTarget(private val webName: WebName, val element: 
 
     private fun getHtmlAriaDocumentation(name: String) =
         createFallbackHtmlDocumentation(name, "Web/Accessibility/ARIA/Attributes/$name")
+
+    private fun getHtmlDataAttributeDocumentation(name: String) =
+        createFallbackHtmlDocumentation(name, "Web/HTML/How_to/Use_data_attributes")
 
     override fun createPointer(): Pointer<out DocumentationTarget> = Pointer.hardPointer(this)
 }

@@ -15,6 +15,8 @@ import org.jetbrains.kotlin.psi.KtNamedFunction
 // special-cases.
 private val WEB_MODIFIER_NAME_OVERRIDES: Map<String, List<WebName>> = mapOf(
     "classNames" to listOf(WebName.Attribute("class")),
+    "dataAttr" to listOf(WebName.Attribute("data")),
+    "dataAttrs" to listOf(WebName.Attribute("data")),
 )
 
 /**
