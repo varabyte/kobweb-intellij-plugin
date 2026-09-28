@@ -4,25 +4,17 @@ import com.intellij.platform.backend.documentation.DocumentationTarget
 import com.intellij.platform.backend.documentation.PsiDocumentationTargetProvider
 import com.intellij.psi.PsiElement
 import com.varabyte.kobweb.intellij.util.kobweb.isUsedInReadableKobwebProject
-import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebModifierType
-import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebModifierType
+import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebName
+import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebNames
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierChainingExtension
-import com.varabyte.kobweb.intellij.util.psi.resolveToKtNamedFunction
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.idea.k2.codeinsight.quickDoc.KotlinPsiDocumentationTargetProvider
-import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
 
-// In a few cases, Kobweb may have taken some liberties with their chosen names, e.g., for clarity or to mimic
-// Jetpack Compose or to avoid conflicts with Kotlin keywords.
-private val WEB_MODIFIER_NAME_OVERRIDES: Map<String, List<String>> = mapOf(
-    "classNames" to listOf("class"),
-    "fillMaxWidth" to listOf("width"),
-    "fillMaxHeight" to listOf("height"),
-    "fillMaxSize" to listOf("width", "height"),
-    "size" to listOf("width", "height"),
-    "minSize" to listOf("minWidth", "minHeight"),
-    "maxSize" to listOf("maxWidth", "maxHeight"),
+// Although our plugin is usually good at surfacing styles and properties, we may occasionally need to intercept some
+// special-cases.
+private val WEB_MODIFIER_NAME_OVERRIDES: Map<String, List<WebName>> = mapOf(
+    "classNames" to listOf(WebName.Attribute("class")),
 )
 
 /**
@@ -53,15 +45,8 @@ class WebModifierDocumentationTargetProvider : PsiDocumentationTargetProvider {
             if (!function.isModifierChainingExtension()) return emptyList()
         }
 
-        val webModifierType = function.getWebModifierType().takeUnless { it == WebModifierType.UNKNOWN } ?: return emptyList()
+        val webNames = WEB_MODIFIER_NAME_OVERRIDES[function.name] ?: function.getWebNames()
 
-        fun String.nameOverrides(): List<String> = WEB_MODIFIER_NAME_OVERRIDES[this] ?: listOf(this)
-        val propertyNames = function.name?.nameOverrides() ?: return emptyList()
-
-        return when (webModifierType) {
-            WebModifierType.STYLE -> propertyNames.map { propertyName -> StyleModifierDocumentationTarget(propertyName, element) }
-            WebModifierType.ATTRS -> propertyNames.map { propertyName -> AttrsModifierDocumentationTarget(propertyName, element) }
-            else -> error("Unexpected modifier type: $webModifierType") // We should have early aborted before this point
-        }
+        return webNames.map { webName -> WebModifierDocumentationTarget(webName, function) }
     }
 }
