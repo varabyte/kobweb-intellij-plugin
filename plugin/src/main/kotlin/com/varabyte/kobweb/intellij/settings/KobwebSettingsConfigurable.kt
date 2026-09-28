@@ -12,11 +12,13 @@ import com.intellij.ui.dsl.builder.bind
 import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.panel
 import com.varabyte.kobweb.intellij.util.idea.swing.KotlinCodeTextField
+import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.JComponent
 
-class KobwebSettingsConfigurable(private val project: Project) : BoundConfigurable("Kobweb"), SearchableConfigurable {
+class KobwebSettingsConfigurable(private val project: Project)
+    : BoundConfigurable(UxGlobals.FAMILY_NAME), SearchableConfigurable {
     override fun createPanel(): DialogPanel {
         val appState = KobwebAppSettingsService.getInstance().state
 

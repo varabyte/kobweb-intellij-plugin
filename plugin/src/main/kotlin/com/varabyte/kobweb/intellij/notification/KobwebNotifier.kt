@@ -6,9 +6,10 @@ import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.Project
+import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 
 private val notificationGroup by lazy {
-    NotificationGroupManager.getInstance().getNotificationGroup("Kobweb")
+    NotificationGroupManager.getInstance().getNotificationGroup(UxGlobals.FAMILY_NAME)
 }
 
 /**
