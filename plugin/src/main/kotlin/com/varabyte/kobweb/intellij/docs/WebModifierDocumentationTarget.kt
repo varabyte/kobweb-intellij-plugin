@@ -127,7 +127,9 @@ class WebModifierDocumentationTarget(private val webName: WebName, val element: 
         return object : MdnSymbolDocumentation {
             override val name: String = name
             override val url: String = url
-            // We have to stub out apiStatus, an issue due to us targeting older IDEs. Since we never call it, it's OK.
+            // We have to stub out apiStatus, an issue due to this plugin being compatible with older IDEs. Since we
+            // never call it, it's OK. If we ever bump up our minimum version later, we might be able to update this
+            // (but it doesn't really matter).
             override val apiStatus get() = error("not defined")
             override val description = docsContent
 
