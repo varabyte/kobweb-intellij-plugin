@@ -84,6 +84,6 @@ class WebModifierDocumentationTargetProvider : PsiDocumentationTargetProvider {
 
     private fun KtNamedFunction.createDocumentationTargets(): List<WebModifierDocumentationTarget> {
         val webNames = WEB_MODIFIER_NAME_OVERRIDES[name] ?: getWebNames()
-        return webNames.map { webName -> WebModifierDocumentationTarget(webName, this) }
+        return webNames.map { webName -> WebModifierDocumentationTarget(webName, this) }.distinct()
     }
 }

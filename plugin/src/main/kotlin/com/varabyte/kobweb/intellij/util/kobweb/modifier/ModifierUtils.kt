@@ -29,6 +29,13 @@ enum class WebModifierType { ATTRS, STYLE, UNKNOWN }
 
 sealed class WebName(private val name: String) {
     fun asString() = name
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        return (other is WebName && this.javaClass == other.javaClass && name == other.name)
+    }
+    override fun hashCode(): Int {
+        return arrayOf(javaClass, name).contentHashCode()
+    }
 
     sealed class Css(name: String) : WebName(name)
     class StyleProperty(name: String) : Css(name)
