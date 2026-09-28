@@ -5,6 +5,8 @@ import com.varabyte.kobweb.intellij.project.KobwebProject
 import javax.swing.Icon
 
 object UxGlobals {
+    const val FAMILY_NAME = "Kobweb"
+
     val gutterIcon: Icon by lazy {
         IconLoader.getIcon("/assets/icons/kobweb16.svg", KobwebProject::class.java)
     }

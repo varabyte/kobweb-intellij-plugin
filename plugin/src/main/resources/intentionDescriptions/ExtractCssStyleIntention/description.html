@@ -1,0 +1,17 @@
+<html lang="en">
+<body>
+This action will open a wizard that will walk you through converting this inline modifier into a CssStyle.
+<pre><code>
+// Introduced at the top level
+val ExtractedStyle = CssStyle {
+    Modifier
+        .color(Colors.Magenta)
+        .padding(1.cssRem)
+}
+
+// Which replaces your modifier chain
+ExtractedStyle.toModifier()
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>

@@ -6,7 +6,7 @@ import com.intellij.openapi.actionSystem.ActionToolbar
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
-import com.varabyte.kobweb.intellij.actions.ExtractCssStyleUtils
+import com.varabyte.kobweb.intellij.util.features.ExtractCssStyleUtils
 import com.varabyte.kobweb.intellij.util.kobweb.project.KobwebLineMarkerInfo
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import com.varabyte.kobweb.intellij.wizards.cssstyle.ExtractCssStyleWizard

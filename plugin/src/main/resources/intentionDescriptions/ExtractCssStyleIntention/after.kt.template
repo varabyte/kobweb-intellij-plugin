@@ -1,0 +1,5 @@
+val ExtractedStyle = CssStyle {
+    <spot>Modifier.backgroundColor(Colors.Magenta)</spot>
+}
+
+<spot>ExtractedStyle.toModifier()</spot>

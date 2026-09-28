@@ -60,6 +60,12 @@
                 level="ERROR"
                 implementationClass="com.varabyte.kobweb.intellij.inspections.PrivateStyleSingletonsInspection"/>
 
+        <intentionAction>
+            <className>com.varabyte.kobweb.intellij.intentions.ExtractCssStyleIntention</className>
+            <category>Kobweb</category>
+            <language>kotlin</language>
+        </intentionAction>
+
         <colorProvider implementation="com.varabyte.kobweb.intellij.colors.KobwebColorProvider" />
         <annotator language="kotlin" implementationClass="com.varabyte.kobweb.intellij.annotations.AttrModifierFunctionAnnotator"/>
 
