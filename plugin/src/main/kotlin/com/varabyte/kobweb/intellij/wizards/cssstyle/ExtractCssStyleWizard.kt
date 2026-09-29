@@ -29,6 +29,7 @@ import com.varabyte.kobweb.intellij.util.compose.STYLE_PROPERTY_VALUE_CLASS_ID
 import com.varabyte.kobweb.intellij.util.idea.key
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebModifierType
+import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierChainingExtension
 import com.varabyte.kobweb.intellij.util.kobweb.style.CSS_STYLE_SUFFIX
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleNameWarningValidator
 import com.varabyte.kobweb.intellij.util.kobweb.style.createStyleNameErrorValidator
@@ -51,8 +52,11 @@ import javax.swing.JComponent
 
 /**
  * Extracted information about some target `Modifier.a(...).b(...).c(...)` chain.
+ *
+ * @param chainTerminator A final function on the chain which does not itself return a modifier. In other words, it ends
+ *    the chain. We need to record it so we can make sure we put it back after our refactoring is complete.
  */
-class ModifierChainInfo(val entries: List<Entry>) {
+class ModifierChainInfo(val entries: List<Entry>, val chainTerminator: KtCallExpression?) {
     class Entry(
         val webModifier: KtNamedFunction,
         val webModifierType: WebModifierType,
@@ -143,6 +147,7 @@ class ExtractCssStyleWizard(
     private fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaSession) {
         val chainedCalls = mutableListOf<Pair<KtNamedFunction, KtCallExpression>>()
         var current: KtExpression? = this@toModifierChainInfo
+        var chainTerminator: KtCallExpression? = null
         while (current is KtDotQualifiedExpression) {
             val callExpression = (current.selectorExpression as? KtCallExpression)
             val namedFun = callExpression
@@ -150,7 +155,15 @@ class ExtractCssStyleWizard(
                 ?.singleFunctionCallOrNull()
                 ?.symbol?.psi
                     as? KtNamedFunction
-            if (namedFun != null) { chainedCalls.add(0, namedFun to callExpression) }
+
+            if (namedFun != null) {
+                if (!namedFun.isModifierChainingExtension()) {
+                    check(chainTerminator == null) { "There should only ever be at most one non-Modifier function in a Modifier chain (which, if present, terminates it!)"}
+                    chainTerminator = callExpression
+                } else {
+                    chainedCalls.add(0, namedFun to callExpression)
+                }
+            }
             current = current.receiverExpression
         }
 
@@ -244,7 +257,7 @@ class ExtractCssStyleWizard(
             )
         }
 
-        return ModifierChainInfo(entries)
+        return ModifierChainInfo(entries, chainTerminator)
     }
 
     override fun createSteps(ctx: SimpleWizard<Input, Result>.StepContext): List<Step> {
@@ -682,23 +695,36 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
     fun inlineModifierLines(): List<String> = with(result) {
         val (_, inlineAttrModifiers) = partitionedAttributeModifiers
 
+        val chainedCalls = buildList {
+            inlineAttrModifiers.forEach { modifierEntry -> add(modifierEntry.toText()) }
+            modifierChainInfo.extractStyleVariables().forEach { (parameter, varName) ->
+                add(buildString {
+                    append("setVariable(")
+                    append(varName)
+                    append(", ")
+                    append(parameter.value!!.text)
+                    append(')')
+                })
+            }
+            modifierChainInfo.chainTerminator?.let { chainTerminator -> add(chainTerminator.text) }
+        }
+
         return buildString {
             append("$styleName.toModifier()")
-            appendLine()
 
-            inlineAttrModifiers.forEach { modifierEntry ->
-                append('\t')
-                append('.')
-                appendLine(modifierEntry.toText())
-            }
-
-            modifierChainInfo.extractStyleVariables().forEach { (parameter, varName) ->
-                append('\t')
-                append(".setVariable(")
-                append(varName)
-                append(", ")
-                append(parameter.value!!.text)
-                appendLine(")")
+            if (chainedCalls.size > 1) {
+                appendLine()
+                chainedCalls.forEach { call ->
+                    append('\t')
+                    append('.')
+                    appendLine(call)
+                }
+            } else {
+                chainedCalls.firstOrNull()?.let { call ->
+                    append('.')
+                    append(call)
+                }
+                appendLine()
             }
         }.split("\n")
             .also {
