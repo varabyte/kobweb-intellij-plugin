@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
+import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 
@@ -22,18 +23,17 @@ object ExtractCssStyleUtils {
     // An inline modifier chain exists in the user's normal code; ignore modifier chains declared inside
     // special CssStyle, CssStyleVariant, and Keyframes classes.
     private fun isModifierChainInsideExcludedContext(element: PsiElement): Boolean {
+        if (element !is KtElement) return false // Required so we can call analyze
         var curr: PsiElement? = element.parent
-        while (curr != null && curr !is KtFile) {
-            if (curr is KtCallExpression) {
-                analyze(curr) {
+        analyze(element) {
+            while (curr != null && curr !is KtFile) {
+                if (curr is KtCallExpression) {
                     if (curr.styleSingletonCallableId != null) return true
-                }
-            } else if (curr is KtClass) {
-                analyze(curr) {
+                } else if (curr is KtClass) {
                     if (curr.expressionType?.styleSingletonClassId != null) return true
                 }
+                curr = curr.parent
             }
-            curr = curr.parent
         }
         return false
     }
