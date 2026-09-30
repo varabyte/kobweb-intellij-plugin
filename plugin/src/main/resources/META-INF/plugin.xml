@@ -65,6 +65,16 @@
             <category>Kobweb</category>
             <language>kotlin</language>
         </intentionAction>
+        <intentionAction>
+            <className>com.varabyte.kobweb.intellij.intentions.ConvertToConciseCssStyleFormatIntention</className>
+            <category>Kobweb</category>
+            <language>kotlin</language>
+        </intentionAction>
+        <intentionAction>
+            <className>com.varabyte.kobweb.intellij.intentions.ConvertToRelaxedCssStyleFormatIntention</className>
+            <category>Kobweb</category>
+            <language>kotlin</language>
+        </intentionAction>
 
         <colorProvider implementation="com.varabyte.kobweb.intellij.colors.KobwebColorProvider" />
         <annotator language="kotlin" implementationClass="com.varabyte.kobweb.intellij.annotations.AttrModifierFunctionAnnotator"/>

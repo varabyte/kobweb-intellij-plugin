@@ -34,7 +34,6 @@ abstract class CacheDerivedPsiElementIntentionAction<E: PsiElement>(private val 
     }
 
     final override fun getFamilyName(): String = UxGlobals.FAMILY_NAME
-    final override fun startInWriteAction(): Boolean = false
 
     /**
      * Attempt to create the derivative element.
@@ -42,7 +41,7 @@ abstract class CacheDerivedPsiElementIntentionAction<E: PsiElement>(private val 
      * If it can't be created, then this means the action will be treated as unavailable.
      */
     protected abstract fun PsiElement.tryDerivingElement(): E?
-    protected abstract fun handleElementIsInvoked(editor: Editor, element: E)
+    protected abstract fun handleElementIsInvoked(project: Project, editor: Editor, element: E)
 
     open fun handleElementIsAvailable(element: E) {}
 
@@ -83,7 +82,7 @@ abstract class CacheDerivedPsiElementIntentionAction<E: PsiElement>(private val 
 
     final override fun invoke(project: Project, editor: Editor, element: PsiElement) {
         val derived = getCachedDerivedElement(editor, element)
-        derived?.let { handleElementIsInvoked(editor, it) }
+        derived?.let { handleElementIsInvoked(project, editor, it) }
         editor.removeUserData(cacheKey)
     }
 }

@@ -1,6 +1,7 @@
 package com.varabyte.kobweb.intellij.intentions
 
 import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
 import com.varabyte.kobweb.intellij.util.features.ExtractCssStyleUtils
 import com.varabyte.kobweb.intellij.util.idea.intentions.CacheDerivedPsiElementIntentionAction
@@ -11,12 +12,13 @@ private val DERIVED_MODIFIER_CHAIN_KEY by CacheDerivedPsiElementIntentionAction.
 
 class ExtractCssStyleIntention : CacheDerivedPsiElementIntentionAction<KtDotQualifiedExpression>(DERIVED_MODIFIER_CHAIN_KEY) {
     override fun getText(): String = ExtractCssStyleWizard.TITLE
+    override fun startInWriteAction(): Boolean = false // We open a wizard which will handle write action behavior
 
     override fun PsiElement.tryDerivingElement(): KtDotQualifiedExpression? {
         return ExtractCssStyleUtils.toInlineModifierChain(this, allowAnyElementInChain = true)
     }
 
-    override fun handleElementIsInvoked(editor: Editor, element: KtDotQualifiedExpression) {
+    override fun handleElementIsInvoked(project: Project, editor: Editor, element: KtDotQualifiedExpression) {
         ExtractCssStyleUtils.handleExtractCssStyle(editor, element)
     }
 }
