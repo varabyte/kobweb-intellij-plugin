@@ -143,7 +143,7 @@ class WebModifierDocumentationTarget(private val webName: WebName, val element: 
             override val description = docsContent
 
             override val sections = emptyMap<String, String>()
-            override val footnote: String = "By <a href='https://developer.mozilla.org/'>Mozilla Contributors</a>, " +
+            override val footnote: String = "By <a href='$url/contributors.txt'>Mozilla Contributors</a>, " +
                     "<a href='https://creativecommons.org/licenses/by-sa/2.5/'>CC BY-SA 2.5</a>"
 
             override fun getDocumentation(withDefinition: Boolean) = getDocumentation(withDefinition, null)
@@ -165,7 +165,7 @@ class WebModifierDocumentationTarget(private val webName: WebName, val element: 
     }
 
     private fun getHtmlAriaDocumentation(name: String) =
-        createFallbackHtmlDocumentation(name, "Web/Accessibility/ARIA/Attributes/$name")
+        createFallbackHtmlDocumentation(name, "Web/Accessibility/ARIA/Reference/Attributes/$name")
 
     private fun getHtmlDataAttributeDocumentation(name: String) =
         createFallbackHtmlDocumentation(name, "Web/HTML/How_to/Use_data_attributes")
