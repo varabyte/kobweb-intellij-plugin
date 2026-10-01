@@ -1,5 +1,6 @@
 package com.varabyte.kobweb.intellij.quickfixes
 
+import com.intellij.codeInsight.intention.LowPriorityAction
 import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.codeInspection.ProblemDescriptor
 import com.intellij.codeInspection.util.IntentionName
@@ -8,7 +9,7 @@ import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.psi.KtNamedDeclaration
 
-class AddUnderscorePrefixQuickFix(private val targetName: String) : LocalQuickFix {
+class AddUnderscorePrefixQuickFix(private val targetName: String) : LocalQuickFix, LowPriorityAction {
     init {
         require(!targetName.startsWith("_")) { "Underscore quick fix target name should not itself start with an underscore: `$targetName`"}
     }

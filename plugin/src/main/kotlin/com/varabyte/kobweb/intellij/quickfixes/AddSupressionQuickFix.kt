@@ -1,5 +1,6 @@
 package com.varabyte.kobweb.intellij.quickfixes
 
+import com.intellij.codeInsight.intention.LowPriorityAction
 import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.codeInspection.ProblemDescriptor
 import com.intellij.openapi.project.Project
@@ -7,7 +8,7 @@ import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.psi.KtModifierListOwner
 import org.jetbrains.kotlin.psi.KtPsiFactory
 
-class AddSuppressionQuickFix(private val suppressKey: String) : LocalQuickFix {
+class AddSuppressionQuickFix(private val suppressKey: String) : LocalQuickFix, LowPriorityAction {
     override fun getFamilyName() = "Annotate with @Suppress(\"$suppressKey\")"
 
     override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
