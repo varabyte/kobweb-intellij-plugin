@@ -1,0 +1,41 @@
+<html lang="en">
+<body>
+Reports the use of attribute modifiers (like <code>Modifier.id("example")</code>) inside <code>CssStyle</code>
+definitions.
+
+These will cause runtime exceptions if left in place, so you should consider moving them out of the CssStyle entirely or
+into the `extraModifier` argument that `CssStyle` blocks can take.
+<pre><code>
+// Not OK
+val MyStyle = CssStyle {
+    base {
+        Modifier
+            .color(Colors.Magenta)
+            .id("my-id") // <-- Attribute modifier!
+    }
+}
+
+MyStyle.toModifier()
+
+// OK #1
+val MyStyle = CssStyle(extraModifier = { Modifier.id("my-id") }) {
+    base {
+        Modifier
+            .color(Colors.Magenta)
+    }
+}
+
+MyStyle.toModifier()
+
+// OK #2
+val MyStyle = CssStyle {
+    base {
+        Modifier.color(Colors.Magenta)
+    }
+}
+
+MyStyle.toModifier().id("my-id")
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>

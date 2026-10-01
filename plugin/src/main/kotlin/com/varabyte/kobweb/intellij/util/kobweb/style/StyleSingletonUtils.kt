@@ -15,7 +15,7 @@ import org.jetbrains.kotlin.psi.*
 
 private val SILK_STYLE_PACKAGE = FqName("com.varabyte.kobweb.silk.style")
 private val SILK_STYLE_ANIMATION_PACKAGE = SILK_STYLE_PACKAGE.child(Name.identifier("animation"))
-private val CSS_STYLE_CLASS_ID = ClassId(SILK_STYLE_PACKAGE, Name.identifier("CssStyle"))
+val CSS_STYLE_CLASS_ID = ClassId(SILK_STYLE_PACKAGE, Name.identifier("CssStyle"))
 private val CSS_STYLE_COMPANION_CLASS_ID = ClassId(SILK_STYLE_PACKAGE, Name.identifier("CssStyle.Companion"))
 private val CSS_STYLE_SCOPE_CLASS_ID = ClassId(SILK_STYLE_PACKAGE, Name.identifier("StyleScope"))
 
