@@ -29,7 +29,7 @@ class AttributeModifierInCssStyleInspection : LocalInspectionTool() {
                     val function = expression.calleeExpression?.mainReference?.resolve() as? KtNamedFunction ?: return
                     if (function.getWebModifierType() != WebModifierType.ATTRS) return
 
-                    CssStyleBlock.detect(expression)
+                    CssStyleBlock.findContaining(expression)
                         ?.takeUnless { block ->
                             // One exception: attribute modifiers are allowed inside the extra modifier argument
                             block.extraModifierArg?.anyDescendantOfType<KtCallExpression> { it == expression } == true
