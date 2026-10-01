@@ -3,6 +3,8 @@ package com.varabyte.kobweb.intellij.inspections
 import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElementVisitor
+import com.varabyte.kobweb.intellij.quickfixes.DeleteAttrModifierQuickFix
+import com.varabyte.kobweb.intellij.quickfixes.MoveAttrModifierToExtraModifierQuickFix
 import com.varabyte.kobweb.intellij.util.kobweb.isDeclaredInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebModifierType
@@ -25,10 +27,12 @@ class AttributeModifierInCssStyleInspection : LocalInspectionTool() {
             override fun visitCallExpression(expression: KtCallExpression) {
                 super.visitCallExpression(expression)
 
-                val cssStyleBlock = analyze(expression) {
+                val attrModifierFunction = analyze(expression) {
                     val function = expression.calleeExpression?.mainReference?.resolve() as? KtNamedFunction ?: return
                     if (function.getWebModifierType() != WebModifierType.ATTRS) return
-
+                    function
+                }
+                val cssStyleBlock = analyze(expression) {
                     CssStyleBlock.findContaining(expression)
                         ?.takeUnless { block ->
                             // One exception: attribute modifiers are allowed inside the extra modifier argument
@@ -49,6 +53,8 @@ class AttributeModifierInCssStyleInspection : LocalInspectionTool() {
                         """.trimIndent()
                 }
 
+                // name should always be set but just in case...
+                val attrModifierName = attrModifierFunction.name ?: expression.text
                 holder.registerProblem(
                     expression,
                     buildString {
@@ -65,7 +71,10 @@ class AttributeModifierInCssStyleInspection : LocalInspectionTool() {
                         append("or you can remove it entirely, adding it where you convert this style into a modifier using <code>toModifier()</code>.")
 
                         append("</html>")
-                    }
+                    },
+
+                    MoveAttrModifierToExtraModifierQuickFix(attrModifierName, cssStyleBlock),
+                    DeleteAttrModifierQuickFix(attrModifierName),
                 )
 
             }

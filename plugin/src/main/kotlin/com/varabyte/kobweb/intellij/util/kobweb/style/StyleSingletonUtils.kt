@@ -90,7 +90,7 @@ sealed class CssStyleBlock {
             return symbol.callableId in CSS_STYLE_BASE_CALLABLE_IDS
         }
 
-        // Check for "CssStyle { base { ... } }" format
+        // Check for "CssStyle.base { ... }" format
         context(kaSession: KaSession)
         fun KtExpression.isCssStyleReceiver(): Boolean = with(kaSession) {
             val nameRef = this@isCssStyleReceiver as? KtNameReferenceExpression ?: return false
@@ -98,7 +98,7 @@ sealed class CssStyleBlock {
             return symbol.classId == CSS_STYLE_COMPANION_CLASS_ID
         }
 
-        // Check for "CssStyle.base { ... }" format
+        // Check for "CssStyle { base { ... } }" format
         context(kaSession: KaSession)
         fun KtCallExpression.isCssStyleCall(): Boolean = with(kaSession) {
             val callee = calleeExpression as? KtNameReferenceExpression ?: return false
