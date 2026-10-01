@@ -1,15 +1,12 @@
 package com.varabyte.kobweb.intellij.quickfixes
 
-import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo
-import com.intellij.codeInspection.LocalQuickFix
-import com.intellij.codeInspection.ProblemDescriptor
-import com.intellij.codeInspection.util.IntentionFamilyName
-import com.intellij.codeInspection.util.IntentionName
+import com.intellij.modcommand.ModPsiUpdater
 import com.intellij.openapi.project.Project
 import com.varabyte.kobweb.intellij.inspections.AttributeModifierInCssStyleInspection
 import com.varabyte.kobweb.intellij.util.kobweb.style.CssStyleBlock
+import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.idea.codeinsight.api.applicable.inspections.KotlinModCommandQuickFix
 import org.jetbrains.kotlin.psi.KtCallExpression
-import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtLambdaExpression
 import org.jetbrains.kotlin.psi.KtPsiFactory
 
@@ -18,37 +15,20 @@ import org.jetbrains.kotlin.psi.KtPsiFactory
  *
  * See also: [AttributeModifierInCssStyleInspection].
  */
-class MoveAttrModifierToExtraModifierQuickFix(private val attrModifierName: String, private val cssStyleBlock: CssStyleBlock) : LocalQuickFix {
+class MoveAttrModifierToExtraModifierQuickFix(private val attrModifierName: String) : KotlinModCommandQuickFix<KtCallExpression>() {
     override fun getFamilyName() = "Move attribute modifiers to their CssStyle 'extraModifier' arguments."
     override fun getName() = "Move '$attrModifierName' to CssStyle 'extraModifier' argument."
 
-    override fun generatePreview(
+    override fun applyFix(
         project: Project,
-        previewDescriptor: ProblemDescriptor
-    ): IntentionPreviewInfo {
-        val previewStr = when (cssStyleBlock) {
-            is CssStyleBlock.Concise ->
-                """
-                    Cssstyle.base(
-                        extraModifier = { Modifier.$attrModifierName(...) }
-                    )
-                """.trimIndent()
-            is CssStyleBlock.Relaxed ->
-                """
-                    Cssstyle(extraModifier = {
-                        Modifier.$attrModifierName(...)
-                    }) {
-                        base { ... }
-                    }
-                """.trimIndent()
-        }
+        element: KtCallExpression,
+        updater: ModPsiUpdater
+    ) {
+        val callExpression = element // for readability
 
-        return IntentionPreviewInfo.Html("<pre><code>$previewStr</code></pre>")
-    }
-
-    override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
-        val callExpression = descriptor.psiElement as? KtCallExpression
-            ?: return
+        val cssStyleBlock = analyze(callExpression) {
+            CssStyleBlock.findContaining(callExpression)
+        } ?: return
 
         val psiFactory = KtPsiFactory(project)
 
@@ -65,7 +45,7 @@ class MoveAttrModifierToExtraModifierQuickFix(private val attrModifierName: Stri
         } ?: run {
             // If here, no extraModifier arg exists yet.
             val targetCallExpression = when (cssStyleBlock) {
-                // Change `CssStyle.base { ... }` to `CssStyle.base(extraModifier = { Modifier... })` n.text} }) { ... }"
+                // Change `CssStyle.base { ... }` to `CssStyle.base(extraModifier = { Modifier... })`
                 is CssStyleBlock.Concise -> cssStyleBlock.baseCall
                 is CssStyleBlock.Relaxed -> cssStyleBlock.rootExpression
             }
@@ -76,7 +56,6 @@ class MoveAttrModifierToExtraModifierQuickFix(private val attrModifierName: Stri
         }
 
         // At this point we've made a copy of the original attribute modifier, so it is now safe to delete it.
-        val deleteFix = DeleteAttrModifierQuickFix(attrModifierName)
-        deleteFix.applyFix(project, descriptor)
+        DeleteAttrModifierQuickFix.removeCallExpression(callExpression)
     }
 }

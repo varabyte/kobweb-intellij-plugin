@@ -73,7 +73,7 @@ class AttributeModifierInCssStyleInspection : LocalInspectionTool() {
                         append("</html>")
                     },
 
-                    MoveAttrModifierToExtraModifierQuickFix(attrModifierName, cssStyleBlock),
+                    MoveAttrModifierToExtraModifierQuickFix(attrModifierName),
                     DeleteAttrModifierQuickFix(attrModifierName),
                 )
 
