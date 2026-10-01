@@ -63,25 +63,23 @@ val KtCallExpression.styleSingletonCallableId: CallableId? get() {
 // Class which represents a `CssStyle(extraModifiers = { Modifier }) { base { ... } }` block
 sealed class CssStyleBlock {
     abstract val rootExpression: PsiElement
-    abstract val baseCall: KtCallExpression?
-    abstract val extraModifierArgs: KtValueArgumentList?
+    abstract val baseCall: KtCallExpression
+    abstract val extraModifierArg: KtValueArgument?
 
-    val bodyText: String? get() = baseCall?.lambdaArguments?.firstOrNull()?.getLambdaExpression()?.bodyExpression?.text
+    val bodyText: String? get() = baseCall.lambdaArguments.firstOrNull()?.getLambdaExpression()?.bodyExpression?.text
 
     data class Concise(
         override val rootExpression: KtDotQualifiedExpression,
-        override val baseCall: KtCallExpression?,
-    ) : CssStyleBlock() {
-        override val extraModifierArgs = baseCall?.valueArgumentList
-    }
+        override val baseCall: KtCallExpression,
+        override val extraModifierArg: KtValueArgument?,
+    ) : CssStyleBlock()
 
     data class Relaxed(
         override val rootExpression: KtCallExpression,
-        override val baseCall: KtCallExpression?,
+        override val baseCall: KtCallExpression,
+        override val extraModifierArg: KtValueArgument?,
         val otherCalls: List<KtCallExpression>,
-    ) : CssStyleBlock() {
-        override val extraModifierArgs = rootExpression.valueArgumentList
-    }
+    ) : CssStyleBlock()
 
     companion object {
         // Check if this is the "base" in "CssStyle.base { ... }" or "CssStyle { base { ... } }"
@@ -112,15 +110,20 @@ sealed class CssStyleBlock {
         fun detect(fromElement: PsiElement): CssStyleBlock? = with(kaSession) {
             var current: PsiElement? = fromElement
 
+            fun KtCallExpression.findExtraModifierArg(): KtValueArgument? = valueArgumentList?.arguments?.firstOrNull()
+
             while (current != null && current !is KtFile) {
                 // Is this the "CssStyle.base { ... }" format?
                 val dotExpr = current as? KtDotQualifiedExpression
                 if (dotExpr != null && dotExpr.receiverExpression.isCssStyleReceiver()) {
-                    val baseCall = dotExpr.selectorExpression as? KtCallExpression
-                    return Concise(
-                        rootExpression = dotExpr,
-                        baseCall = baseCall?.takeIf { it.isBaseCall() }
-                    )
+                    val baseCall = (dotExpr.selectorExpression as? KtCallExpression)?.takeIf { it.isBaseCall() }
+                    if (baseCall != null) {
+                        return Concise(
+                            rootExpression = dotExpr,
+                            baseCall = baseCall,
+                            extraModifierArg = baseCall.findExtraModifierArg()
+                        )
+                    }
                 }
 
                 // Is this the "CssStyle { base { ... } }" format?
@@ -130,11 +133,15 @@ sealed class CssStyleBlock {
                     if (lambdaBody != null) {
                         val topLevelCalls = lambdaBody.statements.filterIsInstance<KtCallExpression>()
                         val (baseCall, otherCalls) = topLevelCalls.partition { it.isBaseCall() }
-                        return Relaxed(
-                            rootExpression = callExpr,
-                            baseCall = baseCall.firstOrNull(),
-                            otherCalls = otherCalls,
-                        )
+                            .let { it.first.singleOrNull() to it.second }
+                        if (baseCall != null) {
+                            return Relaxed(
+                                rootExpression = callExpr,
+                                extraModifierArg = callExpr.findExtraModifierArg(),
+                                baseCall = baseCall,
+                                otherCalls = otherCalls,
+                            )
+                        }
                     }
                 }
 

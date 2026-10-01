@@ -10,6 +10,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.style.CssStyleBlock
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtPsiFactory
+import org.jetbrains.kotlin.psi.KtValueArgument
 
 private val STYLE_KIND_KEY by key<CssStyleBlock>()
 
@@ -35,6 +36,8 @@ abstract class CssStyleFormatBaseIntention(cacheKey: Key<Pair<PsiElement, KtName
         element.putUserData(STYLE_KIND_KEY, cssStyleFormat)
         return element
     }
+
+    protected fun KtValueArgument.wrapInParentheses() = "($text)"
 
     protected abstract fun CssStyleBlock.createReplacementCode(): String
 

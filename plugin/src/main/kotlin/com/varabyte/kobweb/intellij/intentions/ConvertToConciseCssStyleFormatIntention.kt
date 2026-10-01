@@ -16,11 +16,11 @@ class ConvertToConciseCssStyleFormatIntention : CssStyleFormatBaseIntention(DERI
 
     override fun CssStyleBlock.createReplacementCode(): String {
         // Transform: `CssStyle(...) { base { ... } }` to `CssStyle.base(...) { ... }`
-        val argListStr = extraModifierArgs?.text.orEmpty()
+        val argStr = extraModifierArg?.wrapInParentheses().orEmpty()
         val bodyStr = bodyText.orEmpty()
 
         return """
-            CssStyle.base$argListStr {
+            CssStyle.base$argStr {
                 $bodyStr
             }
             """.trimIndent()
