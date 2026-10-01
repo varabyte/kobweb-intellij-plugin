@@ -5,7 +5,7 @@ import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiElementVisitor
 import com.varabyte.kobweb.intellij.quickfixes.MovePropertyToTopLevelQuickFix
-import com.varabyte.kobweb.intellij.util.kobweb.isUsedInWritableKobwebProject
+import com.varabyte.kobweb.intellij.util.kobweb.isDeclaredInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.style.styleSingletonClassId
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.name.ClassId
@@ -16,11 +16,11 @@ class TopLevelStyleSingletonsInspection : LocalInspectionTool() {
         holder: ProblemsHolder,
         isOnTheFly: Boolean
     ): PsiElementVisitor {
+        if (!holder.file.isDeclaredInWritableKobwebProject()) return KtVisitorVoid.EMPTY_VISITOR
+
         return object : KtVisitorVoid() {
             override fun visitProperty(property: KtProperty) {
                 super.visitProperty(property)
-
-                if (!property.isUsedInWritableKobwebProject()) return
 
                 val nameIdentifier = property.nameIdentifier ?: return
 
