@@ -8,7 +8,7 @@ import com.varabyte.kobweb.intellij.quickfixes.MoveAttrModifierToExtraModifierQu
 import com.varabyte.kobweb.intellij.util.kobweb.isDeclaredInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebModifierType
-import com.varabyte.kobweb.intellij.util.kobweb.style.CssStyleBlock
+import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.psi.KtCallExpression
@@ -33,7 +33,7 @@ class AttributeModifierInCssStyleInspection : LocalInspectionTool() {
                     function
                 }
                 val cssStyleBlock = analyze(expression) {
-                    CssStyleBlock.containing(expression)
+                    StyleSheetBlock.Style.containing(expression)
                         ?.takeUnless { block ->
                             // One exception: attribute modifiers are allowed inside the extra modifier argument
                             block.extraModifierArg?.anyDescendantOfType<KtCallExpression> { it == expression } == true
@@ -43,9 +43,9 @@ class AttributeModifierInCssStyleInspection : LocalInspectionTool() {
                 }
 
                 val suggestedFix = when (cssStyleBlock) {
-                    is CssStyleBlock.Concise ->
+                    is StyleSheetBlock.Style.Concise ->
                         "CssStyle.base(extraModifier = { Modifier.${expression.text} })"
-                    is CssStyleBlock.Relaxed ->
+                    is StyleSheetBlock.Style.Relaxed ->
                         """
                         CssStyle(extraModifier = { Modifier.${expression.text} }) {
                             base { ... }

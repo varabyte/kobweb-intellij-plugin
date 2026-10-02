@@ -3,7 +3,7 @@ package com.varabyte.kobweb.intellij.quickfixes
 import com.intellij.modcommand.ModPsiUpdater
 import com.intellij.openapi.project.Project
 import com.varabyte.kobweb.intellij.inspections.AttributeModifierInCssStyleInspection
-import com.varabyte.kobweb.intellij.util.kobweb.style.CssStyleBlock
+import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.idea.codeinsight.api.applicable.inspections.KotlinModCommandQuickFix
 import org.jetbrains.kotlin.psi.KtCallExpression
@@ -27,7 +27,7 @@ class MoveAttrModifierToExtraModifierQuickFix(private val attrModifierName: Stri
         val callExpression = element // for readability
 
         val cssStyleBlock = analyze(callExpression) {
-            CssStyleBlock.containing(callExpression)
+            StyleSheetBlock.Style.containing(callExpression)
         } ?: return
 
         val psiFactory = KtPsiFactory(project)
@@ -44,11 +44,7 @@ class MoveAttrModifierToExtraModifierQuickFix(private val attrModifierName: Stri
             modifierChainExpr.replace(psiFactory.createExpression("${modifierChainExpr.text}.${callExpression.text}"))
         } ?: run {
             // If here, no extraModifier arg exists yet.
-            val targetCallExpression = when (cssStyleBlock) {
-                // Change `CssStyle.base { ... }` to `CssStyle.base(extraModifier = { Modifier... })`
-                is CssStyleBlock.Concise -> cssStyleBlock.baseCall
-                is CssStyleBlock.Relaxed -> cssStyleBlock.rootExpression
-            }
+            val targetCallExpression = cssStyleBlock.extraModifierFunc
 
             val extraModifierArg = psiFactory.createArgument("extraModifier = { Modifier.${callExpression.text} }")
             val callArgument = psiFactory.createCallArguments("(${extraModifierArg.text})")

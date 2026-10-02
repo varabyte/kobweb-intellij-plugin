@@ -63,27 +63,7 @@ val KtCallExpression.styleSheetSingletonCallableId: CallableId? get() {
     return resolveToCallableId()?.takeIf { it in STYLE_SINGLETON_CALLABLE_IDS }
 }
 
-// Class which represents a `CssStyle(extraModifiers = { Modifier }) { base { ... } }` block
-sealed class CssStyleBlock {
-    abstract val rootExpression: PsiElement
-    abstract val baseCall: KtCallExpression
-    abstract val extraModifierArg: KtValueArgument?
-
-    val bodyText: String? get() = baseCall.lambdaArguments.firstOrNull()?.getLambdaExpression()?.bodyExpression?.text
-
-    data class Concise(
-        override val rootExpression: KtDotQualifiedExpression,
-        override val baseCall: KtCallExpression,
-        override val extraModifierArg: KtValueArgument?,
-    ) : CssStyleBlock()
-
-    data class Relaxed(
-        override val rootExpression: KtCallExpression,
-        override val baseCall: KtCallExpression,
-        override val extraModifierArg: KtValueArgument?,
-        val otherCalls: List<KtCallExpression>,
-    ) : CssStyleBlock()
-
+sealed interface StyleSheetBlock {
     companion object {
         // Check if this is the "base" in "CssStyle.base { ... }" or "CssStyle { base { ... } }"
         context(kaSession: KaSession)
@@ -110,7 +90,7 @@ sealed class CssStyleBlock {
         }
 
         context(kaSession: KaSession)
-        fun containing(fromElement: PsiElement): CssStyleBlock? = with(kaSession) {
+        fun containing(fromElement: PsiElement): StyleSheetBlock? = with(kaSession) {
             var current: PsiElement? = fromElement
 
             fun KtCallExpression.findExtraModifierArg(): KtValueArgument? = valueArgumentList?.arguments?.firstOrNull()
@@ -121,7 +101,8 @@ sealed class CssStyleBlock {
                 if (dotExpr != null && dotExpr.receiverExpression.isCssStyleReceiver()) {
                     val baseCall = (dotExpr.selectorExpression as? KtCallExpression)?.takeIf { it.isBaseCall() }
                     if (baseCall != null) {
-                        return Concise(
+                        return Style.Concise(
+                            type = Style.Type.DEFINITION,
                             rootExpression = dotExpr,
                             baseCall = baseCall,
                             extraModifierArg = baseCall.findExtraModifierArg()
@@ -138,8 +119,10 @@ sealed class CssStyleBlock {
                         val (baseCall, otherCalls) = topLevelCalls.partition { it.isBaseCall() }
                             .let { it.first.singleOrNull() to it.second }
                         if (baseCall != null) {
-                            return Relaxed(
+                            return Style.Relaxed(
+                                type = Style.Type.DEFINITION,
                                 rootExpression = callExpr,
+                                extraModifierFunc = callExpr,
                                 extraModifierArg = callExpr.findExtraModifierArg(),
                                 baseCall = baseCall,
                                 otherCalls = otherCalls,
@@ -154,4 +137,61 @@ sealed class CssStyleBlock {
             return null
         }
     }
+
+    val rootExpression: PsiElement
+
+    // Class which represents styles that gets associated with a class name, i.e., `CssStyle`, `CssStyleVariant`, or
+    // `SomeStyle.extendedBy`
+    sealed interface Style : StyleSheetBlock {
+        companion object {
+            context(kaSession: KaSession)
+            fun containing(fromElement: PsiElement): Style? {
+                return StyleSheetBlock.containing(fromElement)?.let { it as? Style }
+            }
+        }
+
+        enum class Type {
+            /**
+             * e.g. `CssStyle { base { ... } }`
+             */
+            DEFINITION,
+
+            /**
+             * e.g. `SomeStyle.extendedBy { base { ... } }`
+             */
+            EXTENSION,
+
+            /**
+             * e.g. `SomeStyle.addVariant { base { ... } }`
+             */
+            VARIANT,
+        }
+
+        val type: Type
+        val baseCall: KtCallExpression
+        // The function that accepts the extraModifier argument. This may be the same as `baseCall` or `rootExpression`
+        val extraModifierFunc: KtCallExpression
+        val extraModifierArg: KtValueArgument?
+
+        val bodyText: String? get() = baseCall.lambdaArguments.firstOrNull()?.getLambdaExpression()?.bodyExpression?.text
+
+        class Concise(
+            override val type: Type,
+            override val rootExpression: PsiElement,
+            override val baseCall: KtCallExpression,
+            override val extraModifierArg: KtValueArgument?,
+        ) : Style {
+            override val extraModifierFunc: KtCallExpression = baseCall
+        }
+
+        class Relaxed(
+            override val type: Type,
+            override val rootExpression: PsiElement,
+            override val baseCall: KtCallExpression,
+            override val extraModifierFunc: KtCallExpression,
+            override val extraModifierArg: KtValueArgument?,
+            val otherCalls: List<KtCallExpression>,
+        ) : Style
+    }
 }
+
