@@ -7,7 +7,7 @@ import com.varabyte.kobweb.intellij.quickfixes.AddSuppressionQuickFix
 import com.varabyte.kobweb.intellij.quickfixes.AddUnderscorePrefixQuickFix
 import com.varabyte.kobweb.intellij.quickfixes.MakePublicQuickFix
 import com.varabyte.kobweb.intellij.util.kobweb.isDeclaredInWritableKobwebProject
-import com.varabyte.kobweb.intellij.util.kobweb.style.styleSingletonClassId
+import com.varabyte.kobweb.intellij.util.kobweb.style.styleSheetSingletonClassId
 import com.varabyte.kobweb.intellij.util.psi.isSuppressedWith
 import com.varabyte.kobweb.intellij.util.text.camelCaseToScreamingSnakeCase
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -30,7 +30,7 @@ class PrivateStyleSingletonsInspection : LocalInspectionTool() {
                 val nameIdentifier = property.nameIdentifier ?: return
 
                 val matchingClassId: ClassId = analyze(property) {
-                    property.initializer?.expressionType?.styleSingletonClassId ?: return
+                    property.initializer?.expressionType?.styleSheetSingletonClassId ?: return
                 }
 
                 val suppressKey = "PRIVATE_${matchingClassId.shortClassName.identifier.camelCaseToScreamingSnakeCase()}"

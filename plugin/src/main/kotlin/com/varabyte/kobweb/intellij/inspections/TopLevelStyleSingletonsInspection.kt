@@ -6,7 +6,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiElementVisitor
 import com.varabyte.kobweb.intellij.quickfixes.MovePropertyToTopLevelQuickFix
 import com.varabyte.kobweb.intellij.util.kobweb.isDeclaredInWritableKobwebProject
-import com.varabyte.kobweb.intellij.util.kobweb.style.styleSingletonClassId
+import com.varabyte.kobweb.intellij.util.kobweb.style.styleSheetSingletonClassId
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.psi.*
@@ -25,7 +25,7 @@ class TopLevelStyleSingletonsInspection : LocalInspectionTool() {
                 val nameIdentifier = property.nameIdentifier ?: return
 
                 val matchingClassId: ClassId? = analyze(property) {
-                    property.initializer?.expressionType?.styleSingletonClassId ?: return@analyze null
+                    property.initializer?.expressionType?.styleSheetSingletonClassId ?: return@analyze null
                 }
 
                 if (matchingClassId == null) return

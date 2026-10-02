@@ -5,8 +5,8 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
 import com.intellij.psi.util.PsiTreeUtil
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierCompanion
-import com.varabyte.kobweb.intellij.util.kobweb.style.styleSingletonCallableId
-import com.varabyte.kobweb.intellij.util.kobweb.style.styleSingletonClassId
+import com.varabyte.kobweb.intellij.util.kobweb.style.styleSheetSingletonCallableId
+import com.varabyte.kobweb.intellij.util.kobweb.style.styleSheetSingletonClassId
 import com.varabyte.kobweb.intellij.util.psi.getEntireDotQualifiedExpression
 import com.varabyte.kobweb.intellij.util.psi.getRootReceiverExpression
 import com.varabyte.kobweb.intellij.wizards.cssstyle.ExtractCssStyleWizard
@@ -28,9 +28,9 @@ object ExtractCssStyleUtils {
         analyze(element) {
             while (curr != null && curr !is KtFile) {
                 if (curr is KtCallExpression) {
-                    if (curr.styleSingletonCallableId != null) return true
+                    if (curr.styleSheetSingletonCallableId != null) return true
                 } else if (curr is KtClass) {
-                    if (curr.expressionType?.styleSingletonClassId != null) return true
+                    if (curr.expressionType?.styleSheetSingletonClassId != null) return true
                 }
                 curr = curr.parent
             }

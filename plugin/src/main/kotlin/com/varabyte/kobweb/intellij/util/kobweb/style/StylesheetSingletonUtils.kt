@@ -13,6 +13,9 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.*
 
+// This file containts utilities to help with Kobweb's top-level singleton properties that read style modifiers and put
+// their values into the site's stylesheet.
+
 private val SILK_STYLE_PACKAGE = FqName("com.varabyte.kobweb.silk.style")
 private val SILK_STYLE_ANIMATION_PACKAGE = SILK_STYLE_PACKAGE.child(Name.identifier("animation"))
 val CSS_STYLE_CLASS_ID = ClassId(SILK_STYLE_PACKAGE, Name.identifier("CssStyle"))
@@ -51,12 +54,12 @@ private val CSS_STYLE_BASE_CALLABLE_IDS = setOf(CSS_STYLE_BASE_EXTENSION_CALLABL
  * object) so that the generated `main` function can find and register them at startup.
  */
 context(kaSession: KaSession)
-val KaType.styleSingletonClassId: ClassId? get() = with(kaSession) {
+val KaType.styleSheetSingletonClassId: ClassId? get() = with(kaSession) {
     expandedSymbol?.classId?.takeIf { it in STYLE_SINGLETON_CLASS_IDS }
 }
 
 context(kaSession: KaSession)
-val KtCallExpression.styleSingletonCallableId: CallableId? get() {
+val KtCallExpression.styleSheetSingletonCallableId: CallableId? get() {
     return resolveToCallableId()?.takeIf { it in STYLE_SINGLETON_CALLABLE_IDS }
 }
 
