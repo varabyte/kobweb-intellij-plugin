@@ -65,25 +65,25 @@ val KtCallExpression.styleSheetSingletonCallableId: CallableId? get() {
 
 sealed interface StyleSheetBlock {
     companion object {
-        // Check if this is the "base" in "CssStyle.base { ... }" or "CssStyle { base { ... } }"
+        /** Check if this is the "base" in "CssStyle.base { ... }" or "CssStyle { base { ... } }" */
         context(kaSession: KaSession)
-        fun KtCallExpression.isBaseCall(): Boolean = with(kaSession) {
+        private fun KtCallExpression.isBaseCall(): Boolean = with(kaSession) {
             val callee = calleeExpression as? KtNameReferenceExpression ?: return false
             val symbol = callee.mainReference.resolveToSymbol() as? KaCallableSymbol ?: return false
             return symbol.callableId in CSS_STYLE_BASE_CALLABLE_IDS
         }
 
-        // Check for "CssStyle.base { ... }" format
+        /** Check for "CssStyle.base { ... }" format */
         context(kaSession: KaSession)
-        fun KtExpression.isCssStyleReceiver(): Boolean = with(kaSession) {
+        private fun KtExpression.isCssStyleReceiver(): Boolean = with(kaSession) {
             val nameRef = this@isCssStyleReceiver as? KtNameReferenceExpression ?: return false
             val symbol = nameRef.mainReference.resolveToSymbol() as? KaClassSymbol ?: return false
             return symbol.classId == CSS_STYLE_COMPANION_CLASS_ID
         }
 
-        // Check for "CssStyle { base { ... } }" format
+        /** Check for "CssStyle { base { ... } }" format */
         context(kaSession: KaSession)
-        fun KtCallExpression.isCssStyleCall(): Boolean = with(kaSession) {
+        private fun KtCallExpression.isCssStyleCall(): Boolean = with(kaSession) {
             val callee = calleeExpression as? KtNameReferenceExpression ?: return false
             val symbol = callee.mainReference.resolveToSymbol() as? KaCallableSymbol ?: return false
             return symbol.callableId == CSS_STYLE_CALLABLE_ID
