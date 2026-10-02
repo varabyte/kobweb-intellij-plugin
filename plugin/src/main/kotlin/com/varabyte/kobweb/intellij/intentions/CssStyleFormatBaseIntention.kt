@@ -31,7 +31,7 @@ abstract class CssStyleFormatBaseIntention(cacheKey: Key<Pair<PsiElement, KtName
         if (element.getReferencedName() !in CONTEXT_KEYWORDS) return null
 
         val cssStyleFormat = analyze(element) {
-            CssStyleBlock.findContaining(element)?.takeIf { acceptCssBlock(it) } ?: return null
+            CssStyleBlock.containing(element)?.takeIf { acceptCssBlock(it) } ?: return null
         }
         element.putUserData(STYLE_KIND_KEY, cssStyleFormat)
         return element

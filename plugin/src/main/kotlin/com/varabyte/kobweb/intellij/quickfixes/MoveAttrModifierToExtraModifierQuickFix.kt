@@ -27,7 +27,7 @@ class MoveAttrModifierToExtraModifierQuickFix(private val attrModifierName: Stri
         val callExpression = element // for readability
 
         val cssStyleBlock = analyze(callExpression) {
-            CssStyleBlock.findContaining(callExpression)
+            CssStyleBlock.containing(callExpression)
         } ?: return
 
         val psiFactory = KtPsiFactory(project)

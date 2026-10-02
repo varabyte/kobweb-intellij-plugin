@@ -33,7 +33,7 @@ class AttributeModifierInCssStyleInspection : LocalInspectionTool() {
                     function
                 }
                 val cssStyleBlock = analyze(expression) {
-                    CssStyleBlock.findContaining(expression)
+                    CssStyleBlock.containing(expression)
                         ?.takeUnless { block ->
                             // One exception: attribute modifiers are allowed inside the extra modifier argument
                             block.extraModifierArg?.anyDescendantOfType<KtCallExpression> { it == expression } == true

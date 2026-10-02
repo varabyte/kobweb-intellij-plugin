@@ -107,7 +107,7 @@ sealed class CssStyleBlock {
         }
 
         context(kaSession: KaSession)
-        fun findContaining(fromElement: PsiElement): CssStyleBlock? = with(kaSession) {
+        fun containing(fromElement: PsiElement): CssStyleBlock? = with(kaSession) {
             var current: PsiElement? = fromElement
 
             fun KtCallExpression.findExtraModifierArg(): KtValueArgument? = valueArgumentList?.arguments?.firstOrNull()
