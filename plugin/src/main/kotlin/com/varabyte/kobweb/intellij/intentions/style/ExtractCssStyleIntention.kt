@@ -1,4 +1,4 @@
-package com.varabyte.kobweb.intellij.intentions
+package com.varabyte.kobweb.intellij.intentions.style
 
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project

@@ -68,17 +68,17 @@
                 implementationClass="com.varabyte.kobweb.intellij.inspections.AttributeModifierInCssStyleInspection"/>
 
         <intentionAction>
-            <className>com.varabyte.kobweb.intellij.intentions.ExtractCssStyleIntention</className>
+            <className>com.varabyte.kobweb.intellij.intentions.style.ExtractCssStyleIntention</className>
             <category>Kobweb</category>
             <language>kotlin</language>
         </intentionAction>
         <intentionAction>
-            <className>com.varabyte.kobweb.intellij.intentions.ConvertToConciseCssStyleFormatIntention</className>
+            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertToConciseCssStyleFormatIntention</className>
             <category>Kobweb</category>
             <language>kotlin</language>
         </intentionAction>
         <intentionAction>
-            <className>com.varabyte.kobweb.intellij.intentions.ConvertToRelaxedCssStyleFormatIntention</className>
+            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertToRelaxedCssStyleFormatIntention</className>
             <category>Kobweb</category>
             <language>kotlin</language>
         </intentionAction>

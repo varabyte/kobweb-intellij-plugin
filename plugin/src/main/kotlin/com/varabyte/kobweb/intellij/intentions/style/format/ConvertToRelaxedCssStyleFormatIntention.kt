@@ -1,4 +1,4 @@
-package com.varabyte.kobweb.intellij.intentions
+package com.varabyte.kobweb.intellij.intentions.style.format
 
 import com.varabyte.kobweb.intellij.util.idea.intentions.CacheDerivedPsiElementIntentionAction
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
