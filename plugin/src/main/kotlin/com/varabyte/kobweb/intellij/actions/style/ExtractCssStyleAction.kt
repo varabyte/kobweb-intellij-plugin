@@ -1,4 +1,4 @@
-package com.varabyte.kobweb.intellij.actions
+package com.varabyte.kobweb.intellij.actions.style
 
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction

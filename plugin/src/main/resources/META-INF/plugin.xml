@@ -13,7 +13,7 @@
                icon="/assets/icons/kobweb16.svg">
 
             <action id="Kobweb.ExtractCssStyle"
-                    class="com.varabyte.kobweb.intellij.actions.ExtractCssStyleAction"
+                    class="com.varabyte.kobweb.intellij.actions.style.ExtractCssStyleAction"
                     text="Extract CssStyle..."
                     description="Extract inline Modifier chain into a CssStyle block"/>
         </group>
