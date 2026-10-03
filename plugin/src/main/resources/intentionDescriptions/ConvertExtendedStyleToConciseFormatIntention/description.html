@@ -1,16 +1,16 @@
 <html lang="en">
 <body>
-This action will convert your CssStyle to use a more concise notation, reducing indentation.
+This action will convert your CssStyle declaration to use a more concise notation, reducing indentation.
 <pre><code>
 // Before
-CssStyle {
+SomeStyle.extendedBy {
     base {
         Modifier
     }
 }
 
 // After
-CssStyle.base {
+SomeStyle.extendedByBase {
     Modifier
 }
 </code></pre>

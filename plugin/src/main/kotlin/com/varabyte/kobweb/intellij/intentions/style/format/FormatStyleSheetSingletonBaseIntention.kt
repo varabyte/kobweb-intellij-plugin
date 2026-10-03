@@ -8,15 +8,16 @@ import com.varabyte.kobweb.intellij.util.idea.intentions.CacheDerivedPsiElementI
 import com.varabyte.kobweb.intellij.util.idea.key
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
 import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.idea.base.psi.imports.addImport
+import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtPsiFactory
 import org.jetbrains.kotlin.psi.KtValueArgument
 
 private val CSS_STYLE_FORMAT_KEY by key<StyleSheetBlock.Style>()
 
-private val CONTEXT_KEYWORDS = setOf("base", "CssStyle")
-
-abstract class CssStyleFormatBaseIntention(cacheKey: Key<Pair<PsiElement, KtNameReferenceExpression>>)
+abstract class FormatStyleSheetSingletonBaseIntention(cacheKey: Key<Pair<PsiElement, KtNameReferenceExpression>>)
     : CacheDerivedPsiElementIntentionAction<KtNameReferenceExpression>(cacheKey) {
 
     abstract fun acceptCssBlock(cssStyleBlock: StyleSheetBlock.Style): Boolean
@@ -28,7 +29,6 @@ abstract class CssStyleFormatBaseIntention(cacheKey: Key<Pair<PsiElement, KtName
             ?: this.prevSibling as? KtNameReferenceExpression
             ?: this.parent as? KtNameReferenceExpression
             ?: return null
-        if (element.getReferencedName() !in CONTEXT_KEYWORDS) return null
 
         val cssStyleFormat = analyze(element) {
             StyleSheetBlock.Style.containing(element)?.takeIf { acceptCssBlock(it) } ?: return null
@@ -39,13 +39,19 @@ abstract class CssStyleFormatBaseIntention(cacheKey: Key<Pair<PsiElement, KtName
 
     protected fun KtValueArgument.wrapInParentheses() = "($text)"
 
+    protected open val imports: List<FqName> = emptyList()
+
     protected abstract fun StyleSheetBlock.Style.createReplacementCode(): String
 
     final override fun handleElementIsInvoked(project: Project, editor: Editor, element: KtNameReferenceExpression) {
         val cssStyleBlock = element.getStyleBlock() ?: return
+        val containingFile = element.containingFile as? KtFile ?: return
         val factory = KtPsiFactory(project)
+
+        if (imports.isNotEmpty()) {
+            imports.forEach { import -> containingFile.addImport(import) }
+        }
         val newExpr = factory.createExpression(cssStyleBlock.createReplacementCode().trim())
         cssStyleBlock.rootExpression.replace(newExpr)
     }
-
 }

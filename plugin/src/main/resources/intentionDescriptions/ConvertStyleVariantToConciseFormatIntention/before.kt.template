@@ -1,0 +1,5 @@
+SomeStyle.addVariant {
+    <spot>base</spot> {
+        Modifier
+    }
+}

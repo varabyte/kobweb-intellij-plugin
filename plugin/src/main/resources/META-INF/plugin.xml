@@ -73,12 +73,32 @@
             <language>kotlin</language>
         </intentionAction>
         <intentionAction>
-            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertToConciseCssStyleFormatIntention</className>
+            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertStyleDefinitionToConciseFormatIntention</className>
             <category>Kobweb</category>
             <language>kotlin</language>
         </intentionAction>
         <intentionAction>
-            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertToRelaxedCssStyleFormatIntention</className>
+            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertStyleDefinitionToRelaxedFormatIntention</className>
+            <category>Kobweb</category>
+            <language>kotlin</language>
+        </intentionAction>
+        <intentionAction>
+            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertExtendedStyleToConciseFormatIntention</className>
+            <category>Kobweb</category>
+            <language>kotlin</language>
+        </intentionAction>
+        <intentionAction>
+            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertExtendedStyleToRelaxedFormatIntention</className>
+            <category>Kobweb</category>
+            <language>kotlin</language>
+        </intentionAction>
+        <intentionAction>
+            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertStyleVariantToConciseFormatIntention</className>
+            <category>Kobweb</category>
+            <language>kotlin</language>
+        </intentionAction>
+        <intentionAction>
+            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertStyleVariantToRelaxedFormatIntention</className>
             <category>Kobweb</category>
             <language>kotlin</language>
         </intentionAction>
