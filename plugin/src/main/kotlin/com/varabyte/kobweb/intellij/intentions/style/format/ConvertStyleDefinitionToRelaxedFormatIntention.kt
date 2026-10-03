@@ -15,11 +15,15 @@ class ConvertStyleDefinitionToRelaxedFormatIntention : FormatStyleSheetSingleton
 
     override fun StyleSheetBlock.Style.createReplacementCode(): String {
         // Transform: `CssStyle.base(...) { ... }` to `CssStyle(...) { base { ... } }`
+
+        // It's pretty rare, but you can have type arguments in your base method, as in CssStyle.base<T>, at which point
+        // you need to move them to CssStyle<T> after converting.
+        val typeArgs = baseCall.typeArgumentList?.text.orEmpty()
         val argStr = extraModifierArg?.wrapInParentheses().orEmpty()
         val bodyStr = bodyText.orEmpty()
 
         return """
-            $rootName$argStr {
+            $rootName$typeArgs$argStr {
                 base {
                     $bodyStr
                 }

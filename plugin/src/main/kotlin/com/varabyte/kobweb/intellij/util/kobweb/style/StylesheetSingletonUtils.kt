@@ -88,7 +88,7 @@ sealed interface StyleSheetBlock {
         }
     }
 
-    val rootExpression: PsiElement
+    val rootExpression: KtExpression
 
     // Class which represents styles that gets associated with a class name, i.e., `CssStyle`, `CssStyleVariant`, or
     // `SomeStyle.extendedBy`
@@ -360,7 +360,7 @@ sealed interface StyleSheetBlock {
         class Relaxed(
             override val type: Type,
             override val rootName: String,
-            override val rootExpression: PsiElement,
+            override val rootExpression: KtExpression,
             override val baseCall: KtCallExpression,
             override val extraModifierFunc: KtCallExpression,
             override val extraModifierArg: KtValueArgument?,
