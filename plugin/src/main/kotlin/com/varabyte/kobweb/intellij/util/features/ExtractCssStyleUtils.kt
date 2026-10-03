@@ -5,39 +5,16 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
 import com.intellij.psi.util.PsiTreeUtil
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierCompanion
-import com.varabyte.kobweb.intellij.util.kobweb.style.styleSheetSingletonCallableId
-import com.varabyte.kobweb.intellij.util.kobweb.style.styleSheetSingletonClassId
+import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
 import com.varabyte.kobweb.intellij.util.psi.getEntireDotQualifiedExpression
 import com.varabyte.kobweb.intellij.util.psi.getRootReceiverExpression
 import com.varabyte.kobweb.intellij.wizards.cssstyle.ExtractCssStyleWizard
 import com.varabyte.kobweb.intellij.wizards.cssstyle.performRefactoring
 import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.psi.KtCallExpression
-import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
-import org.jetbrains.kotlin.psi.KtElement
-import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 
 object ExtractCssStyleUtils {
-    // An inline modifier chain exists in the user's normal code; ignore modifier chains declared inside
-    // special CssStyle, CssStyleVariant, and Keyframes classes.
-    private fun isModifierChainInsideExcludedContext(element: PsiElement): Boolean {
-        if (element !is KtElement) return false // Required so we can call analyze
-        var curr: PsiElement? = element.parent
-        analyze(element) {
-            while (curr != null && curr !is KtFile) {
-                if (curr is KtCallExpression) {
-                    if (curr.styleSheetSingletonCallableId != null) return true
-                } else if (curr is KtClass) {
-                    if (curr.expressionType?.styleSheetSingletonClassId != null) return true
-                }
-                curr = curr.parent
-            }
-        }
-        return false
-    }
-
     /**
      * Convert [element] to a [KtDotQualifiedExpression] representing a `Modifier` chain.
      *
@@ -58,9 +35,11 @@ object ExtractCssStyleUtils {
         // We've done quick early abort checks so far -- let's do a type safe check to really make sure
         analyze(namedExpression) {
             if (!namedExpression.isModifierCompanion()) return null
-        }
 
-        if (isModifierChainInsideExcludedContext(modifierChainStart)) return null
+            // An inline modifier chain exists in the user's normal code; ignore modifier chains declared inside
+            // special CssStyle, CssStyleVariant, and Keyframes classes.
+            if (StyleSheetBlock.containing(namedExpression) != null) return null
+        }
 
         return modifierChainStart
     }

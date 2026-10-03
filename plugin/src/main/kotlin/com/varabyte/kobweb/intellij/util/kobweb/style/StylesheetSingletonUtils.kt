@@ -1,7 +1,6 @@
 package com.varabyte.kobweb.intellij.util.kobweb.style
 
 import com.intellij.psi.PsiElement
-import com.varabyte.kobweb.intellij.util.psi.resolveToCallableId
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
@@ -39,16 +38,6 @@ val ADD_VARIANT_BASE_CALLABLE_ID = CallableId(SILK_STYLE_PACKAGE, Name.identifie
 val EXTENDED_BY_CALLABLE_ID = CallableId(SILK_STYLE_PACKAGE, Name.identifier("extendedBy"))
 val EXTENDED_BY_BASE_CALLABLE_ID = CallableId(SILK_STYLE_PACKAGE, Name.identifier("extendedByBase"))
 
-private val STYLE_SINGLETON_CALLABLE_IDS = setOf(
-    CSS_STYLE_CALLABLE_ID,
-    CSS_STYLE_BASE_EXTENSION_CALLABLE_ID,
-    CSS_STYLE_SCOPE_BASE_CALLABLE_ID,
-    ADD_VARIANT_CALLABLE_ID,
-    ADD_VARIANT_BASE_CALLABLE_ID,
-    EXTENDED_BY_CALLABLE_ID,
-    EXTENDED_BY_BASE_CALLABLE_ID,
-)
-
 private val CSS_STYLE_BASE_CALLABLE_IDS = setOf(CSS_STYLE_BASE_EXTENSION_CALLABLE_ID, CSS_STYLE_SCOPE_BASE_CALLABLE_ID)
 
 /**
@@ -60,11 +49,6 @@ private val CSS_STYLE_BASE_CALLABLE_IDS = setOf(CSS_STYLE_BASE_EXTENSION_CALLABL
 context(kaSession: KaSession)
 val KaType.styleSheetSingletonClassId: ClassId? get() = with(kaSession) {
     expandedSymbol?.classId?.takeIf { it in STYLE_SINGLETON_CLASS_IDS }
-}
-
-context(kaSession: KaSession)
-val KtCallExpression.styleSheetSingletonCallableId: CallableId? get() {
-    return resolveToCallableId()?.takeIf { it in STYLE_SINGLETON_CALLABLE_IDS }
 }
 
 private class StyleBlockTopLevelCalls(
