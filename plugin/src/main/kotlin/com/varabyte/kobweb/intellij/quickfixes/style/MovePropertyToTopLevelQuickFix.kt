@@ -1,4 +1,4 @@
-package com.varabyte.kobweb.intellij.quickfixes
+package com.varabyte.kobweb.intellij.quickfixes.style
 
 import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.codeInspection.ProblemDescriptor
@@ -6,7 +6,7 @@ import com.intellij.codeInspection.util.IntentionFamilyName
 import com.intellij.codeInspection.util.IntentionName
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
-import com.varabyte.kobweb.intellij.inspections.TopLevelStyleSingletonsInspection
+import com.varabyte.kobweb.intellij.inspections.style.TopLevelStyleSingletonsInspection
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPsiFactory

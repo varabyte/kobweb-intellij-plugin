@@ -1,10 +1,10 @@
-package com.varabyte.kobweb.intellij.inspections
+package com.varabyte.kobweb.intellij.inspections.style
 
 import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiElementVisitor
-import com.varabyte.kobweb.intellij.quickfixes.MovePropertyToTopLevelQuickFix
+import com.varabyte.kobweb.intellij.quickfixes.style.MovePropertyToTopLevelQuickFix
 import com.varabyte.kobweb.intellij.util.kobweb.isDeclaredInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.style.styleSheetSingletonClassId
 import org.jetbrains.kotlin.analysis.api.analyze

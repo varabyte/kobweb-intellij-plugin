@@ -1,10 +1,10 @@
-package com.varabyte.kobweb.intellij.inspections
+package com.varabyte.kobweb.intellij.inspections.style
 
 import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElementVisitor
-import com.varabyte.kobweb.intellij.quickfixes.DeleteAttrModifierQuickFix
-import com.varabyte.kobweb.intellij.quickfixes.MoveAttrModifierToExtraModifierQuickFix
+import com.varabyte.kobweb.intellij.quickfixes.style.DeleteAttrModifierQuickFix
+import com.varabyte.kobweb.intellij.quickfixes.style.MoveAttrModifierToExtraModifierQuickFix
 import com.varabyte.kobweb.intellij.util.kobweb.isDeclaredInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebModifierType

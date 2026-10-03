@@ -1,4 +1,4 @@
-package com.varabyte.kobweb.intellij.inspections
+package com.varabyte.kobweb.intellij.inspections.style
 
 import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.ProblemsHolder

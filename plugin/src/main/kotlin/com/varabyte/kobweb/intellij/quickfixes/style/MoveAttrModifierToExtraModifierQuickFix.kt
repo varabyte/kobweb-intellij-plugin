@@ -1,8 +1,8 @@
-package com.varabyte.kobweb.intellij.quickfixes
+package com.varabyte.kobweb.intellij.quickfixes.style
 
 import com.intellij.modcommand.ModPsiUpdater
 import com.intellij.openapi.project.Project
-import com.varabyte.kobweb.intellij.inspections.AttributeModifierInCssStyleInspection
+import com.varabyte.kobweb.intellij.inspections.style.AttributeModifierInCssStyleInspection
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.idea.codeinsight.api.applicable.inspections.KotlinModCommandQuickFix

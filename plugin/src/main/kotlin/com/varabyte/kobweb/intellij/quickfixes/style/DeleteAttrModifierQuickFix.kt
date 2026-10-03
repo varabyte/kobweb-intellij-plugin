@@ -1,9 +1,9 @@
-package com.varabyte.kobweb.intellij.quickfixes
+package com.varabyte.kobweb.intellij.quickfixes.style
 
 import com.intellij.codeInsight.intention.LowPriorityAction
 import com.intellij.modcommand.ModPsiUpdater
 import com.intellij.openapi.project.Project
-import com.varabyte.kobweb.intellij.inspections.AttributeModifierInCssStyleInspection
+import com.varabyte.kobweb.intellij.inspections.style.AttributeModifierInCssStyleInspection
 import org.jetbrains.kotlin.idea.codeinsight.api.applicable.inspections.KotlinModCommandQuickFix
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
