@@ -3,7 +3,7 @@ package com.varabyte.kobweb.intellij.quickfixes.style
 import com.intellij.codeInsight.intention.LowPriorityAction
 import com.intellij.modcommand.ModPsiUpdater
 import com.intellij.openapi.project.Project
-import com.varabyte.kobweb.intellij.inspections.style.AttributeModifierInCssStyleInspection
+import com.varabyte.kobweb.intellij.inspections.style.AttributeModifierInStyleSheetBlockInspection
 import org.jetbrains.kotlin.idea.codeinsight.api.applicable.inspections.KotlinModCommandQuickFix
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
@@ -11,7 +11,7 @@ import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 /**
  * A quick fix to help move attribute modifiers out of the core of CssStyle blocks.
  *
- * See also: [AttributeModifierInCssStyleInspection].
+ * See also: [AttributeModifierInStyleSheetBlockInspection].
  */
 class DeleteAttrModifierQuickFix(private val attrModifierName: String) : KotlinModCommandQuickFix<KtCallExpression>(), LowPriorityAction {
     companion object {

@@ -16,7 +16,7 @@ import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtVisitorVoid
 import org.jetbrains.kotlin.psi.psiUtil.anyDescendantOfType
 
-class AttributeModifierInCssStyleInspection : LocalInspectionTool() {
+class AttributeModifierInStyleSheetBlockInspection : LocalInspectionTool() {
     override fun buildVisitor(
         holder: ProblemsHolder,
         isOnTheFly: Boolean
@@ -33,16 +33,15 @@ class AttributeModifierInCssStyleInspection : LocalInspectionTool() {
                     function
                 }
                 val cssStyleBlock = analyze(expression) {
-                    StyleSheetBlock.Style.containing(expression)
+                    StyleSheetBlock.containing(expression)
                         ?.takeUnless { block ->
+                            block is StyleSheetBlock.Style &&
                             // One exception: attribute modifiers are allowed inside the extra modifier argument
                             block.extraModifierArg?.anyDescendantOfType<KtCallExpression> { it == expression } == true
-                        }
-
-                        ?: return
+                        } ?: return
                 }
 
-                val suggestedFix = when (cssStyleBlock) {
+                val styleExtraModifierSuggestedFix = when (cssStyleBlock) {
                     is StyleSheetBlock.Style.Concise ->
                         "CssStyle.base(extraModifier = { Modifier.${expression.text} })"
                     is StyleSheetBlock.Style.Relaxed ->
@@ -51,30 +50,39 @@ class AttributeModifierInCssStyleInspection : LocalInspectionTool() {
                             base { ... }
                         }
                         """.trimIndent()
+                    else -> null // Non-style stylesheet blocks don't
                 }
 
-                // name should always be set but just in case...
+                // name should always be set but use a fallback just in case...
                 val attrModifierName = attrModifierFunction.name ?: expression.text
+                val applicableQuickFixes = buildList {
+                    if (styleExtraModifierSuggestedFix != null) {
+                        add(MoveAttrModifierToExtraModifierQuickFix(attrModifierName))
+                    }
+                    add(DeleteAttrModifierQuickFix(attrModifierName))
+                }
+
                 holder.registerProblem(
                     expression,
                     buildString {
                         append("<html>")
-                        appendLine("Attribute modifiers are not allowed in CssStyle declarations and will result in an exception when your site runs.")
-                        appendLine()
+                        append("Attribute modifiers are not allowed in stylesheet declarations and will result in an exception when your site runs.")
 
-                        appendLine("You can move this modifier to the <code>extraModifier</code> argument, like so:")
+                        if (styleExtraModifierSuggestedFix != null) {
+                            appendLine()
+                            appendLine()
+                            appendLine("You can move this modifier to the <code>extraModifier</code> argument, like so:")
 
-                        append("<pre><code>")
-                        append(suggestedFix)
-                        append("</code></pre> ")
+                            append("<pre><code>")
+                            append(styleExtraModifierSuggestedFix)
+                            append("</code></pre> ")
 
-                        append("or you can remove it entirely, adding it where you convert this style into a modifier using <code>toModifier()</code>.")
+                            append("or you can remove it entirely, adding it where you convert this style into a modifier using <code>toModifier()</code>.")
+                        }
 
                         append("</html>")
                     },
-
-                    MoveAttrModifierToExtraModifierQuickFix(attrModifierName),
-                    DeleteAttrModifierQuickFix(attrModifierName),
+                    *applicableQuickFixes.toTypedArray()
                 )
 
             }

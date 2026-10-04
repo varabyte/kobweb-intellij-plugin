@@ -74,6 +74,10 @@ sealed interface StyleSheetBlock {
 
     val rootExpression: KtExpression
 
+    class Keyframes(override val rootExpression: KtExpression) : StyleSheetBlock {
+        // TODO: Implement this and update `StyleSheetBlock.containing`
+    }
+
     // Class which represents styles that gets associated with a class name, i.e., `CssStyle`, `CssStyleVariant`, or
     // `SomeStyle.extendedBy`
     sealed interface Style : StyleSheetBlock {

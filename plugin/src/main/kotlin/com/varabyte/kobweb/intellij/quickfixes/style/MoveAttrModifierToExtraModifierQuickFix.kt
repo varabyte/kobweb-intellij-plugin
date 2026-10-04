@@ -2,7 +2,7 @@ package com.varabyte.kobweb.intellij.quickfixes.style
 
 import com.intellij.modcommand.ModPsiUpdater
 import com.intellij.openapi.project.Project
-import com.varabyte.kobweb.intellij.inspections.style.AttributeModifierInCssStyleInspection
+import com.varabyte.kobweb.intellij.inspections.style.AttributeModifierInStyleSheetBlockInspection
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.idea.codeinsight.api.applicable.inspections.KotlinModCommandQuickFix
@@ -13,7 +13,7 @@ import org.jetbrains.kotlin.psi.KtPsiFactory
 /**
  * A quick fix to help move attribute modifiers out of the core of CssStyle blocks.
  *
- * See also: [AttributeModifierInCssStyleInspection].
+ * See also: [AttributeModifierInStyleSheetBlockInspection].
  */
 class MoveAttrModifierToExtraModifierQuickFix(private val attrModifierName: String) : KotlinModCommandQuickFix<KtCallExpression>() {
     override fun getFamilyName() = "Move attribute modifiers to their CssStyle 'extraModifier' arguments."
