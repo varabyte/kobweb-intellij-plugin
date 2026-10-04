@@ -186,7 +186,7 @@ sealed interface StyleSheetBlock {
         val extraModifierFunc: KtCallExpression
         val extraModifierArg: KtValueArgument?
 
-        val bodyText: String? get() = baseCall?.lambdaArguments?.firstOrNull()?.getLambdaExpression()?.bodyExpression?.text
+        val baseBodyText: String? get() = baseCall?.lambdaArguments?.firstOrNull()?.getLambdaExpression()?.bodyExpression?.text
 
         /**
          * e.g. `CssStyle { base { ... } }`

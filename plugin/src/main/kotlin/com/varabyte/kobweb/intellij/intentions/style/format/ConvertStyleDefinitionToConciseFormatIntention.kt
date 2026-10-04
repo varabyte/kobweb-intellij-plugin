@@ -1,10 +1,10 @@
 package com.varabyte.kobweb.intellij.intentions.style.format
 
 import com.varabyte.kobweb.intellij.util.idea.intentions.CacheDerivedPsiElementIntentionAction
+import com.varabyte.kobweb.intellij.util.kobweb.modifier.MODIFIER_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.style.CSS_STYLE_BASE_EXTENSION_CALLABLE_ID
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
 import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 
 private val DERIVED_RELAXED_STYLE_DEFINITION_KEY by CacheDerivedPsiElementIntentionAction.key<KtNameReferenceExpression>()
@@ -17,7 +17,10 @@ class ConvertStyleDefinitionToConciseFormatIntention : FormatStyleSheetSingleton
 ) {
     override fun getText() = "Convert to concise CssStyle format"
 
-    override val imports: List<FqName> = listOf(CSS_STYLE_BASE_EXTENSION_CALLABLE_ID.asSingleFqName())
+    override val imports: List<FqName> = listOf(
+        CSS_STYLE_BASE_EXTENSION_CALLABLE_ID.asSingleFqName(),
+        MODIFIER_CLASS_ID.asSingleFqName(),
+    )
     override fun StyleSheetBlock.Style.Definition.Relaxed.createReplacementCode(): String {
         // Transform: `CssStyle(...) { base { ... } }` to `CssStyle.base(...) { ... }`
 
@@ -25,7 +28,7 @@ class ConvertStyleDefinitionToConciseFormatIntention : FormatStyleSheetSingleton
         // you need to move them to CssStyle.base<T> after converting.
         val typeArgs = rootExpression.typeArgumentList?.text.orEmpty()
         val argStr = extraModifierArg?.wrapInParentheses().orEmpty()
-        val bodyStr = bodyText.orEmpty()
+        val bodyStr = baseBodyText ?: MODIFIER_CLASS_ID.shortClassName.asString()
 
         return """
             $rootName.${CSS_STYLE_BASE_EXTENSION_CALLABLE_ID.callableName.asString()}$typeArgs$argStr {

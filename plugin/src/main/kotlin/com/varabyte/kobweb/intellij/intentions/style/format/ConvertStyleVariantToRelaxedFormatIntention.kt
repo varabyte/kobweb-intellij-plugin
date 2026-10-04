@@ -19,7 +19,7 @@ class ConvertStyleVariantToRelaxedFormatIntention : FormatStyleSheetSingletonBas
     override fun StyleSheetBlock.Style.Variant.Concise.createReplacementCode(): String {
         // Transform: `CssStyle.base(...) { ... }` to `CssStyle(...) { base { ... } }`
         val argStr = extraModifierArg?.wrapInParentheses().orEmpty()
-        val bodyStr = bodyText.orEmpty()
+        val bodyStr = baseBodyText.orEmpty()
 
         return """
             $rootName.${ADD_VARIANT_CALLABLE_ID.callableName.asString()}$argStr {

@@ -21,7 +21,7 @@ class ConvertStyleDefinitionToRelaxedFormatIntention : FormatStyleSheetSingleton
         // you need to move them to CssStyle<T> after converting.
         val typeArgs = baseCall.typeArgumentList?.text.orEmpty()
         val argStr = extraModifierArg?.wrapInParentheses().orEmpty()
-        val bodyStr = bodyText.orEmpty()
+        val bodyStr = baseBodyText.orEmpty()
 
         return """
             $rootName$typeArgs$argStr {

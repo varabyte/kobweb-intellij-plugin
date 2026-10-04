@@ -1,6 +1,7 @@
 package com.varabyte.kobweb.intellij.intentions.style.format
 
 import com.varabyte.kobweb.intellij.util.idea.intentions.CacheDerivedPsiElementIntentionAction
+import com.varabyte.kobweb.intellij.util.kobweb.modifier.MODIFIER_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.style.EXTENDED_BY_BASE_CALLABLE_ID
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
 import org.jetbrains.kotlin.name.FqName
@@ -16,11 +17,14 @@ class ConvertExtendedStyleToConciseFormatIntention : FormatStyleSheetSingletonBa
 ) {
     override fun getText() = "Convert to concise CssStyle format"
 
-    override val imports: List<FqName> = listOf(EXTENDED_BY_BASE_CALLABLE_ID.asSingleFqName())
+    override val imports: List<FqName> = listOf(
+        EXTENDED_BY_BASE_CALLABLE_ID.asSingleFqName(),
+        MODIFIER_CLASS_ID.asSingleFqName(),
+    )
     override fun StyleSheetBlock.Style.Extended.Relaxed.createReplacementCode(): String {
         // Transform: `CssStyle.addVariant(...) { base { ... } }` to `CssStyle.addVariantBase(...) { ... }`
         val argStr = extraModifierArg?.wrapInParentheses().orEmpty()
-        val bodyStr = bodyText.orEmpty()
+        val bodyStr = baseBodyText ?: MODIFIER_CLASS_ID.shortClassName.asString()
 
         return """
             $rootName.${EXTENDED_BY_BASE_CALLABLE_ID.callableName.asString()}$argStr {
