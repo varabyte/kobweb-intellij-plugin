@@ -172,12 +172,21 @@ sealed interface StyleSheetBlock {
         }
 
         val rootName: String
-        val baseCall: KtCallExpression
+        // We expect the base call is almost always non-null, but it can be potentially missing from a style definition.
+        // For example, maybe it's a style that only defines a psuedo-selector, like `hover`. Or maybe it's extending
+        // another CssStyle which already provides its own functional base block. It's even technically legitimate to
+        // create a totally empty CssStyle just so it generates a classname, now that I think about it (not that I'd
+        // recommend it)
+        //
+        // Note that only relaxed formats might be missing one; it will always be non-null for concise format, e.g.
+        // CssStyle.base { ... }, as the whole point of the concise format is for styles that ONLY provide a base block.
+        val baseCall: KtCallExpression?
+
         // The function that accepts the extraModifier argument. This may be the same as `baseCall` or `rootExpression`
         val extraModifierFunc: KtCallExpression
         val extraModifierArg: KtValueArgument?
 
-        val bodyText: String? get() = baseCall.lambdaArguments.firstOrNull()?.getLambdaExpression()?.bodyExpression?.text
+        val bodyText: String? get() = baseCall?.lambdaArguments?.firstOrNull()?.getLambdaExpression()?.bodyExpression?.text
 
         /**
          * e.g. `CssStyle { base { ... } }`
@@ -219,7 +228,7 @@ sealed interface StyleSheetBlock {
 
             class Relaxed(
                 override val rootExpression: KtCallExpression,
-                override val baseCall: KtCallExpression,
+                override val baseCall: KtCallExpression?,
                 override val extraModifierFunc: KtCallExpression,
                 override val extraModifierArg: KtValueArgument?,
                 val otherCalls: List<KtCallExpression>,
@@ -242,15 +251,13 @@ sealed interface StyleSheetBlock {
                                 val topLevelCalls = lambdaBody.statements.filterIsInstance<KtCallExpression>()
                                 val (baseCall, otherCalls) = topLevelCalls.partition { it.isBaseCall() }
                                     .let { it.first.singleOrNull() to it.second }
-                                if (baseCall != null) {
-                                    return Relaxed(
-                                        rootExpression = callExpr,
-                                        extraModifierFunc = callExpr,
-                                        extraModifierArg = callExpr.findExtraModifierArg(),
-                                        baseCall = baseCall,
-                                        otherCalls = otherCalls,
-                                    )
-                                }
+                                return Relaxed(
+                                    rootExpression = callExpr,
+                                    extraModifierFunc = callExpr,
+                                    extraModifierArg = callExpr.findExtraModifierArg(),
+                                    baseCall = baseCall,
+                                    otherCalls = otherCalls,
+                                )
                             }
                         }
                         return null
@@ -315,7 +322,7 @@ sealed interface StyleSheetBlock {
 
             class Relaxed(
                 override val rootExpression: KtDotQualifiedExpression,
-                override val baseCall: KtCallExpression,
+                override val baseCall: KtCallExpression?,
                 override val extraModifierFunc: KtCallExpression,
                 override val extraModifierArg: KtValueArgument?,
                 val otherCalls: List<KtCallExpression>,
@@ -330,15 +337,13 @@ sealed interface StyleSheetBlock {
                     internal fun tryConvert(dotExpr: KtDotQualifiedExpression): Relaxed? {
                         dotExpr.getExtendedByCall()?.let { addVariantCall ->
                             addVariantCall.findTopLevelCallsInsideLambda()?.let { topLevelCalls ->
-                                topLevelCalls.baseCall?.let { baseCall ->
-                                    return Relaxed(
-                                        rootExpression = dotExpr,
-                                        extraModifierFunc = addVariantCall,
-                                        extraModifierArg = addVariantCall.findExtraModifierArg(),
-                                        baseCall = baseCall,
-                                        otherCalls = topLevelCalls.otherCalls,
-                                    )
-                                }
+                                return Relaxed(
+                                    rootExpression = dotExpr,
+                                    extraModifierFunc = addVariantCall,
+                                    extraModifierArg = addVariantCall.findExtraModifierArg(),
+                                    baseCall = topLevelCalls.baseCall,
+                                    otherCalls = topLevelCalls.otherCalls,
+                                )
                             }
                         }
 
@@ -405,7 +410,7 @@ sealed interface StyleSheetBlock {
 
             class Relaxed(
                 override val rootExpression: KtDotQualifiedExpression,
-                override val baseCall: KtCallExpression,
+                override val baseCall: KtCallExpression?,
                 override val extraModifierFunc: KtCallExpression,
                 override val extraModifierArg: KtValueArgument?,
                 val otherCalls: List<KtCallExpression>,
@@ -420,15 +425,13 @@ sealed interface StyleSheetBlock {
                     internal fun tryConvert(dotExpr: KtDotQualifiedExpression): Relaxed? {
                         dotExpr.getAddVariantCall()?.let { addVariantCall ->
                             addVariantCall.findTopLevelCallsInsideLambda()?.let { topLevelCalls ->
-                                topLevelCalls.baseCall?.let { baseCall ->
-                                    return Relaxed(
-                                        rootExpression = dotExpr,
-                                        extraModifierFunc = addVariantCall,
-                                        extraModifierArg = addVariantCall.findExtraModifierArg(),
-                                        baseCall = baseCall,
-                                        otherCalls = topLevelCalls.otherCalls,
-                                    )
-                                }
+                                return Relaxed(
+                                    rootExpression = dotExpr,
+                                    extraModifierFunc = addVariantCall,
+                                    extraModifierArg = addVariantCall.findExtraModifierArg(),
+                                    baseCall = topLevelCalls.baseCall,
+                                    otherCalls = topLevelCalls.otherCalls,
+                                )
                             }
                         }
                         return null
