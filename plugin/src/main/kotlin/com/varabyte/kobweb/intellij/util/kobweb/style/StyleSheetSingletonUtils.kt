@@ -16,7 +16,7 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.*
 
-// This file containts utilities to help with Kobweb's top-level singleton properties that read style modifiers and put
+// This file contains utilities to help with Kobweb's top-level singleton properties that read style modifiers and put
 // their values into the site's stylesheet.
 
 private val SILK_STYLE_PACKAGE = FqName("com.varabyte.kobweb.silk.style")
