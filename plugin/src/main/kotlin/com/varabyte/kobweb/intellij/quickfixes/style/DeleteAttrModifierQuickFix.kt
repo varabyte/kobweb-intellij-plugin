@@ -32,8 +32,8 @@ class DeleteAttrModifierQuickFix(private val attrModifierName: String) : KotlinM
         }
     }
 
-    override fun getFamilyName() = "Delete attribute modifiers from their CssStyle blocks."
-    override fun getName() = "Delete the '$attrModifierName' attribute modifier from this CssStyle block."
+    override fun getFamilyName() = "Delete attribute modifiers."
+    override fun getName() = "Delete the '$attrModifierName' attribute modifier."
 
     override fun applyFix(
         project: Project,

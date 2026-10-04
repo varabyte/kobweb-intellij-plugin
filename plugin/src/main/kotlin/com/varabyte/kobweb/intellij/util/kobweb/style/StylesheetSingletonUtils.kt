@@ -1,9 +1,11 @@
 package com.varabyte.kobweb.intellij.util.kobweb.style
 
 import com.intellij.psi.PsiElement
+import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock.Style.*
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaConstructorSymbol
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.idea.codeinsight.utils.ConvertLambdaToReferenceUtils.getCallReferencedName
@@ -59,23 +61,57 @@ private class StyleBlockTopLevelCalls(
 
 sealed interface StyleSheetBlock {
     companion object {
+        context(_: KaSession)
+        private fun tryConvert(element: PsiElement): StyleSheetBlock? {
+            val dotExpr = element as? KtDotQualifiedExpression
+            if (dotExpr != null) {
+                Definition.Concise.tryConvert(dotExpr)?.let { return it }
+                Extended.Concise.tryConvert(dotExpr)?.let { return it }
+                Extended.Relaxed.tryConvert(dotExpr)?.let { return it }
+                Variant.Relaxed.tryConvert(dotExpr)?.let { return it }
+                Variant.Concise.tryConvert(dotExpr)?.let { return it }
+            }
+
+            val callExpr = element as? KtCallExpression
+            if (callExpr != null) {
+                Definition.Relaxed.tryConvert(callExpr)?.let { return it }
+                Keyframes.tryConvert(callExpr)?.let { return it }
+            }
+            return null
+        }
+
         context(kaSession: KaSession)
         fun containing(fromElement: PsiElement): StyleSheetBlock? = with(kaSession) {
             var current: PsiElement? = fromElement
 
             while (current != null && current !is KtFile) {
-                Style.tryConvert(current)?.let { return it }
+                tryConvert(current)?.let { return it }
                 current = current.parent
             }
-
             return null
         }
     }
 
     val rootExpression: KtExpression
 
-    class Keyframes(override val rootExpression: KtExpression) : StyleSheetBlock {
-        // TODO: Implement this and update `StyleSheetBlock.containing`
+    class Keyframes(override val rootExpression: KtCallExpression) : StyleSheetBlock {
+        companion object {
+            /** Check for "Keyframes { ... }" */
+            // Here, KtCallExpression is the constructor call for the "Keyframes" class
+            context(kaSession: KaSession)
+            private fun KtCallExpression.isKeyframesCall(): Boolean = with(kaSession) {
+                val callee = calleeExpression as? KtNameReferenceExpression ?: return false
+                val symbol = callee.mainReference.resolveToSymbol() as? KaConstructorSymbol ?: return false
+                return symbol.containingClassId == KEYFRAMES_CLASS_ID
+            }
+
+            context(_: KaSession)
+            internal fun tryConvert(callExpr: KtCallExpression): Keyframes? {
+                return if (callExpr.isKeyframesCall()) {
+                    Keyframes(callExpr)
+                } else null
+            }
+        }
     }
 
     // Class which represents styles that gets associated with a class name, i.e., `CssStyle`, `CssStyleVariant`, or
@@ -128,25 +164,6 @@ sealed interface StyleSheetBlock {
 
             private fun KtDotQualifiedExpression.getRootName() = (receiverExpression as KtNameReferenceExpression).getReferencedName()
             private fun KtCallExpression.getRootName() = (getCallReferencedName()!!)
-
-            context(_: KaSession)
-            internal fun tryConvert(element: PsiElement): Style? {
-                val dotExpr = element as? KtDotQualifiedExpression
-                if (dotExpr != null) {
-                    Definition.Concise.tryConvert(dotExpr)?.let { return it }
-                    Extended.Concise.tryConvert(dotExpr)?.let { return it }
-                    Extended.Relaxed.tryConvert(dotExpr)?.let { return it }
-                    Variant.Relaxed.tryConvert(dotExpr)?.let { return it }
-                    Variant.Concise.tryConvert(dotExpr)?.let { return it }
-                }
-
-                val callExpr = element as? KtCallExpression
-                if (callExpr != null) {
-                    Definition.Relaxed.tryConvert(callExpr)?.let { return it }
-                }
-
-                return null
-            }
 
             context(_: KaSession)
             fun containing(fromElement: PsiElement): Style? {
