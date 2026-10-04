@@ -211,10 +211,8 @@ sealed interface StyleSheetBlock {
                     if (dotExpr.receiverExpression.isCssStyleReceiver()) {
                         val baseCall = (dotExpr.selectorExpression as? KtCallExpression)?.takeIf { it.isBaseCall() }
                         if (baseCall != null) {
-                            return Concise(
-                                type = Type.DEFINITION,
+                            return Definition.Concise(
                                 rootExpression = dotExpr,
-                                rootName = dotExpr.getRootName(),
                                 baseCall = baseCall,
                                 extraModifierArg = baseCall.findExtraModifierArg()
                             )
@@ -224,10 +222,8 @@ sealed interface StyleSheetBlock {
                         dotExpr.getExtendedByCall()?.let { addVariantCall ->
                             addVariantCall.findTopLevelCallsInsideLambda()?.let { topLevelCalls ->
                                 topLevelCalls.baseCall?.let { baseCall ->
-                                    return Relaxed(
-                                        type = Type.EXTENDED,
+                                    return Extended.Relaxed(
                                         rootExpression = dotExpr,
-                                        rootName = dotExpr.getRootName(),
                                         extraModifierFunc = addVariantCall,
                                         extraModifierArg = addVariantCall.findExtraModifierArg(),
                                         baseCall = baseCall,
@@ -239,9 +235,7 @@ sealed interface StyleSheetBlock {
 
                         // Is this the "SomeStyle.extendedByBase { ... } }" format?
                         dotExpr.getExtendedByBaseCall()?.let { addVariantBaseCall ->
-                            return Concise(
-                                type = Type.EXTENDED,
-                                rootName = dotExpr.getRootName(),
+                            return Extended.Concise(
                                 rootExpression = dotExpr,
                                 baseCall = addVariantBaseCall,
                                 extraModifierArg = addVariantBaseCall.findExtraModifierArg(),
@@ -252,10 +246,8 @@ sealed interface StyleSheetBlock {
                         dotExpr.getAddVariantCall()?.let { addVariantCall ->
                             addVariantCall.findTopLevelCallsInsideLambda()?.let { topLevelCalls ->
                                 topLevelCalls.baseCall?.let { baseCall ->
-                                    return Relaxed(
-                                        type = Type.VARIANT,
+                                    return Variant.Relaxed(
                                         rootExpression = dotExpr,
-                                        rootName = dotExpr.getRootName(),
                                         extraModifierFunc = addVariantCall,
                                         extraModifierArg = addVariantCall.findExtraModifierArg(),
                                         baseCall = baseCall,
@@ -267,10 +259,8 @@ sealed interface StyleSheetBlock {
 
                         // Is this the "SomeStyle.addVariantBase { ... } }" format?
                         dotExpr.getAddVariantBaseCall()?.let { addVariantBaseCall ->
-                            return Concise(
-                                type = Type.VARIANT,
+                            return Variant.Concise(
                                 rootExpression = dotExpr,
-                                rootName = dotExpr.getRootName(),
                                 baseCall = addVariantBaseCall,
                                 extraModifierArg = addVariantBaseCall.findExtraModifierArg(),
                             )
@@ -287,9 +277,7 @@ sealed interface StyleSheetBlock {
                         val (baseCall, otherCalls) = topLevelCalls.partition { it.isBaseCall() }
                             .let { it.first.singleOrNull() to it.second }
                         if (baseCall != null) {
-                            return Relaxed(
-                                type = Type.DEFINITION,
-                                rootName = callExpr.getRootName(),
+                            return Definition.Relaxed(
                                 rootExpression = callExpr,
                                 extraModifierFunc = callExpr,
                                 extraModifierArg = callExpr.findExtraModifierArg(),
@@ -309,24 +297,6 @@ sealed interface StyleSheetBlock {
             }
         }
 
-        enum class Type {
-            /**
-             * e.g. `CssStyle { base { ... } }`
-             */
-            DEFINITION,
-
-            /**
-             * e.g. `SomeStyle.extendedBy { base { ... } }`
-             */
-            EXTENDED,
-
-            /**
-             * e.g. `SomeStyle.addVariant { base { ... } }`
-             */
-            VARIANT,
-        }
-
-        val type: Type
         val rootName: String
         val baseCall: KtCallExpression
         // The function that accepts the extraModifier argument. This may be the same as `baseCall` or `rootExpression`
@@ -335,25 +305,77 @@ sealed interface StyleSheetBlock {
 
         val bodyText: String? get() = baseCall.lambdaArguments.firstOrNull()?.getLambdaExpression()?.bodyExpression?.text
 
-        class Concise(
-            override val type: Type,
-            override val rootName: String,
-            override val rootExpression: KtDotQualifiedExpression,
-            override val baseCall: KtCallExpression,
-            override val extraModifierArg: KtValueArgument?,
-        ) : Style {
-            override val extraModifierFunc: KtCallExpression = baseCall
+        /**
+         * e.g. `CssStyle { base { ... } }`
+         */
+        sealed interface Definition : Style {
+            class Concise(
+                override val rootExpression: KtDotQualifiedExpression,
+                override val baseCall: KtCallExpression,
+                override val extraModifierArg: KtValueArgument?,
+            ) : Definition {
+                override val rootName get() = rootExpression.getRootName()
+                override val extraModifierFunc: KtCallExpression = baseCall
+            }
+
+            class Relaxed(
+                override val rootExpression: KtCallExpression,
+                override val baseCall: KtCallExpression,
+                override val extraModifierFunc: KtCallExpression,
+                override val extraModifierArg: KtValueArgument?,
+                val otherCalls: List<KtCallExpression>,
+            ) : Definition {
+                override val rootName get() = rootExpression.getRootName()
+            }
         }
 
-        class Relaxed(
-            override val type: Type,
-            override val rootName: String,
-            override val rootExpression: KtExpression,
-            override val baseCall: KtCallExpression,
-            override val extraModifierFunc: KtCallExpression,
-            override val extraModifierArg: KtValueArgument?,
-            val otherCalls: List<KtCallExpression>,
-        ) : Style
+        /**
+         * e.g. `SomeStyle.extendedBy { base { ... } }`
+         */
+        sealed interface Extended : Style {
+            class Concise(
+                override val rootExpression: KtDotQualifiedExpression,
+                override val baseCall: KtCallExpression,
+                override val extraModifierArg: KtValueArgument?,
+            ) : Extended {
+                override val rootName get() = rootExpression.getRootName()
+                override val extraModifierFunc: KtCallExpression = baseCall
+            }
+
+            class Relaxed(
+                override val rootExpression: KtDotQualifiedExpression,
+                override val baseCall: KtCallExpression,
+                override val extraModifierFunc: KtCallExpression,
+                override val extraModifierArg: KtValueArgument?,
+                val otherCalls: List<KtCallExpression>,
+            ) : Extended {
+                override val rootName get() = rootExpression.getRootName()
+            }
+        }
+
+        /**
+         * e.g. `SomeStyle.addVariant { base { ... } }`
+         */
+        sealed interface Variant : Style {
+            class Concise(
+                override val rootExpression: KtDotQualifiedExpression,
+                override val baseCall: KtCallExpression,
+                override val extraModifierArg: KtValueArgument?,
+            ) : Variant {
+                override val rootName get() = rootExpression.getRootName()
+                override val extraModifierFunc: KtCallExpression = baseCall
+            }
+
+            class Relaxed(
+                override val rootExpression: KtDotQualifiedExpression,
+                override val baseCall: KtCallExpression,
+                override val extraModifierFunc: KtCallExpression,
+                override val extraModifierArg: KtValueArgument?,
+                val otherCalls: List<KtCallExpression>,
+            ) : Variant {
+                override val rootName get() = rootExpression.getRootName()
+            }
+        }
     }
 }
 

@@ -42,11 +42,29 @@ class AttributeModifierInStyleSheetBlockInspection : LocalInspectionTool() {
                 }
 
                 val styleExtraModifierSuggestedFix = when (cssStyleBlock) {
-                    is StyleSheetBlock.Style.Concise ->
-                        "CssStyle.base(extraModifier = { Modifier.${expression.text} })"
-                    is StyleSheetBlock.Style.Relaxed ->
+                    is StyleSheetBlock.Style.Definition.Concise ->
+                        "${cssStyleBlock.rootName}.base(extraModifier = { Modifier.${expression.text} })"
+                    is StyleSheetBlock.Style.Definition.Relaxed ->
                         """
-                        CssStyle(extraModifier = { Modifier.${expression.text} }) {
+                        ${cssStyleBlock.rootName}(extraModifier = { Modifier.${expression.text} }) {
+                            base { ... }
+                        }
+                        """.trimIndent()
+
+                    is StyleSheetBlock.Style.Extended.Concise ->
+                        "${cssStyleBlock.rootName}.extendedByBase(extraModifier = { Modifier.${expression.text} })"
+                    is StyleSheetBlock.Style.Extended.Relaxed ->
+                        """
+                        ${cssStyleBlock.rootName}.extendedBy(extraModifier = { Modifier.${expression.text} }) {
+                            base { ... }
+                        }
+                        """.trimIndent()
+
+                    is StyleSheetBlock.Style.Variant.Concise ->
+                        "${cssStyleBlock.rootName}.addVariantBase(extraModifier = { Modifier.${expression.text} })"
+                    is StyleSheetBlock.Style.Variant.Relaxed ->
+                        """
+                        ${cssStyleBlock.rootName}.addVariant(extraModifier = { Modifier.${expression.text} }) {
                             base { ... }
                         }
                         """.trimIndent()
@@ -75,9 +93,9 @@ class AttributeModifierInStyleSheetBlockInspection : LocalInspectionTool() {
 
                             append("<pre><code>")
                             append(styleExtraModifierSuggestedFix)
-                            append("</code></pre> ")
-
-                            append("or you can remove it entirely, adding it where you convert this style into a modifier using <code>toModifier()</code>.")
+                            append("</code></pre>")
+                            append(' ')
+                            append("or you can remove it entirely, perhaps adding it where you convert this style into a modifier using <code>toModifier()</code>.")
                         }
 
                         append("</html>")

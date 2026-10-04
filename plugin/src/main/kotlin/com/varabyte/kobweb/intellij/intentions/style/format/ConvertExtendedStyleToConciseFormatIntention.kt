@@ -8,17 +8,16 @@ import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 
 private val DERIVED_RELAXED_EXTENDED_STYLE_KEY by CacheDerivedPsiElementIntentionAction.key<KtNameReferenceExpression>()
 
-class ConvertExtendedStyleToConciseFormatIntention : FormatStyleSheetSingletonBaseIntention(DERIVED_RELAXED_EXTENDED_STYLE_KEY) {
+// It might seem opposite, but we accept *relaxed* blocks (so we can convert them to concise)
+class ConvertExtendedStyleToConciseFormatIntention : FormatStyleSheetSingletonBaseIntention<StyleSheetBlock.Style.Extended.Relaxed>(
+    DERIVED_RELAXED_EXTENDED_STYLE_KEY,
+    // Do not allow compressing a CssStyle block that has pseudo-selectors already declared, e.g. `hover`, `focus`
+    castStyleBlock = { (it as? StyleSheetBlock.Style.Extended.Relaxed)?.takeIf { it.otherCalls.isEmpty() } }
+) {
     override fun getText() = "Convert to concise CssStyle format"
 
-    // It might seem opposite, but we accept *relaxed* blocks (so we can convert them to concise)
-    override fun acceptCssBlock(cssStyleBlock: StyleSheetBlock.Style) =
-        // Do not allow compressing a CssStyle block that has pseudo-selectors already declared, e.g. `hover`, `focus`
-        cssStyleBlock.type == StyleSheetBlock.Style.Type.EXTENDED && cssStyleBlock is StyleSheetBlock.Style.Relaxed && cssStyleBlock.otherCalls.isEmpty()
-
-
     override val imports: List<FqName> = listOf(EXTENDED_BY_BASE_CALLABLE_ID.asSingleFqName())
-    override fun StyleSheetBlock.Style.createReplacementCode(): String {
+    override fun StyleSheetBlock.Style.Extended.Relaxed.createReplacementCode(): String {
         // Transform: `CssStyle.addVariant(...) { base { ... } }` to `CssStyle.addVariantBase(...) { ... }`
         val argStr = extraModifierArg?.wrapInParentheses().orEmpty()
         val bodyStr = bodyText.orEmpty()

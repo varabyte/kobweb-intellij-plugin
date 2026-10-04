@@ -17,11 +17,15 @@ import org.jetbrains.kotlin.psi.KtValueArgument
 
 private val CSS_STYLE_FORMAT_KEY by key<StyleSheetBlock.Style>()
 
-abstract class FormatStyleSheetSingletonBaseIntention(cacheKey: Key<Pair<PsiElement, KtNameReferenceExpression>>)
+abstract class FormatStyleSheetSingletonBaseIntention<S: StyleSheetBlock.Style>(
+    cacheKey: Key<Pair<PsiElement, KtNameReferenceExpression>>,
+    private val castStyleBlock: (StyleSheetBlock.Style) -> S?)
     : CacheDerivedPsiElementIntentionAction<KtNameReferenceExpression>(cacheKey) {
 
-    abstract fun acceptCssBlock(cssStyleBlock: StyleSheetBlock.Style): Boolean
-    protected fun PsiElement.getStyleBlock(): StyleSheetBlock.Style? { return getUserData(CSS_STYLE_FORMAT_KEY) }
+    protected fun PsiElement.getStyleBlock(): S? {
+        @Suppress("UNCHECKED_CAST")
+        return getUserData(CSS_STYLE_FORMAT_KEY) as S?
+    }
 
     final override fun PsiElement.tryDerivingElement(): KtNameReferenceExpression? {
         val element = this as? KtNameReferenceExpression
@@ -31,7 +35,7 @@ abstract class FormatStyleSheetSingletonBaseIntention(cacheKey: Key<Pair<PsiElem
             ?: return null
 
         val cssStyleFormat = analyze(element) {
-            StyleSheetBlock.Style.containing(element)?.takeIf { acceptCssBlock(it) } ?: return null
+            StyleSheetBlock.Style.containing(element)?.let { castStyleBlock(it) } ?: return null
         }
         element.putUserData(CSS_STYLE_FORMAT_KEY, cssStyleFormat)
         return element
@@ -41,7 +45,7 @@ abstract class FormatStyleSheetSingletonBaseIntention(cacheKey: Key<Pair<PsiElem
 
     protected open val imports: List<FqName> = emptyList()
 
-    protected abstract fun StyleSheetBlock.Style.createReplacementCode(): String
+    protected abstract fun S.createReplacementCode(): String
 
     final override fun handleElementIsInvoked(project: Project, editor: Editor, element: KtNameReferenceExpression) {
         val cssStyleBlock = element.getStyleBlock() ?: return
