@@ -47,21 +47,21 @@
         <lang.inspectionSuppressor language="kotlin" implementationClass="com.varabyte.kobweb.intellij.inspections.supressors.UnusedInspectionSuppressor"/>
         <localInspection
                 language="kotlin"
-                displayName="Kobweb stylesheet objects must live at the top level"
+                displayName="Stylesheet objects must live at the top level"
                 groupName="Kobweb"
                 enabledByDefault="true"
                 level="ERROR"
                 implementationClass="com.varabyte.kobweb.intellij.inspections.style.TopLevelStyleSingletonsInspection"/>
         <localInspection
                 language="kotlin"
-                displayName="Kobweb stylesheet objects should be public"
+                displayName="Stylesheet objects should be public"
                 groupName="Kobweb"
                 enabledByDefault="true"
                 level="ERROR"
                 implementationClass="com.varabyte.kobweb.intellij.inspections.style.PrivateStyleSingletonsInspection"/>
         <localInspection
                 language="kotlin"
-                displayName="Kobweb stylesheet objects must not contain attribute modifiers"
+                displayName="Stylesheet objects must not contain attribute modifiers"
                 groupName="Kobweb"
                 enabledByDefault="true"
                 level="ERROR"
