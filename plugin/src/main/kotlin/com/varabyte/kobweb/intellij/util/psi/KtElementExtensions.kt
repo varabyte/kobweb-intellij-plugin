@@ -31,7 +31,7 @@ import org.jetbrains.kotlin.psi.KtProperty
  * This method must be called inside an [analyze] block.
  */
 context(kaSession: KaSession)
-val KtExpression.resolvedType: ClassId? get() = with(kaSession) {
+val KtExpression.resolvedClassId: ClassId? get() = with(kaSession) {
     expressionType?.expandedSymbol?.classId
 }
 

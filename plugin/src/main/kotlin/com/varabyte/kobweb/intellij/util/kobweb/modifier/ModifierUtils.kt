@@ -1,7 +1,7 @@
 package com.varabyte.kobweb.intellij.util.kobweb.modifier
 
 import com.intellij.psi.util.PsiTreeUtil
-import com.varabyte.kobweb.intellij.util.psi.resolvedType
+import com.varabyte.kobweb.intellij.util.psi.resolvedClassId
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.base.KaConstantValue
@@ -54,7 +54,7 @@ sealed class WebName(private val name: String) {
  */
 context(kaSession: KaSession)
 fun KtNameReferenceExpression.isModifierCompanion(): Boolean = with(kaSession) {
-    this@isModifierCompanion.resolvedType == MODIFIER_COMPANION_CLASS_ID
+    this@isModifierCompanion.resolvedClassId == MODIFIER_COMPANION_CLASS_ID
 }
 
 /**
