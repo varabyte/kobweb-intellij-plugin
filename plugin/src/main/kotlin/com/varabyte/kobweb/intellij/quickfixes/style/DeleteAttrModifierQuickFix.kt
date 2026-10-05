@@ -32,8 +32,8 @@ class DeleteAttrModifierQuickFix(private val attrModifierName: String) : KotlinM
         }
     }
 
-    override fun getFamilyName() = "Delete attribute modifiers."
-    override fun getName() = "Delete the '$attrModifierName' attribute modifier."
+    override fun getFamilyName() = "Delete attribute modifiers"
+    override fun getName() = "Delete the '$attrModifierName' attribute modifier"
 
     override fun applyFix(
         project: Project,

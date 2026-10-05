@@ -16,8 +16,8 @@ import org.jetbrains.kotlin.psi.KtPsiFactory
  * See also: [AttributeModifierInStyleSheetBlockInspection].
  */
 class MoveAttrModifierToExtraModifierQuickFix(private val attrModifierName: String) : KotlinModCommandQuickFix<KtCallExpression>() {
-    override fun getFamilyName() = "Move attribute modifiers to their CssStyle 'extraModifier' arguments."
-    override fun getName() = "Move '$attrModifierName' to CssStyle 'extraModifier' argument."
+    override fun getFamilyName() = "Move attribute modifiers to their CssStyle 'extraModifier' arguments"
+    override fun getName() = "Move '$attrModifierName' to CssStyle 'extraModifier' argument"
 
     override fun applyFix(
         project: Project,
