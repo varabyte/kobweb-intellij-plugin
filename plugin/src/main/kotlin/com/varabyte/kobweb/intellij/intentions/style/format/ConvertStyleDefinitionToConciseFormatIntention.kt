@@ -13,7 +13,7 @@ private val DERIVED_RELAXED_STYLE_DEFINITION_KEY by CacheDerivedPsiElementIntent
 class ConvertStyleDefinitionToConciseFormatIntention : FormatStyleSheetSingletonBaseIntention<StyleSheetBlock.Style.Definition.Relaxed>(
     DERIVED_RELAXED_STYLE_DEFINITION_KEY,
     // Do not allow compressing a CssStyle block that has pseudo-selectors already declared, e.g. `hover`, `focus`
-    castStyleBlock = { (it as? StyleSheetBlock.Style.Definition.Relaxed)?.takeIf { it.otherCalls.isEmpty() } }
+    castStyleBlock = { (it as? StyleSheetBlock.Style.Definition.Relaxed)?.takeIf { it.blockIsEmptyOrOnlyContainsBaseBlock() } }
 ) {
     override fun getText() = "Convert to concise CssStyle format"
 

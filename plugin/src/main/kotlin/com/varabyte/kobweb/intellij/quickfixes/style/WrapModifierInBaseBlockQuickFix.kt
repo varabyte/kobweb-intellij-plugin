@@ -25,7 +25,7 @@ class WrapModifierInBaseBlockQuickFix : KotlinModCommandQuickFix<KtExpression>()
             StyleSheetBlock.Style.containing(element)?.takeIf { it.baseCall == null } ?: return
         }
 
-        val styleScope = styleBlock.styleScope
+        val styleScope = styleBlock.styleBlock
         val factory = KtPsiFactory(project)
         val addedElement = styleScope.addBefore(factory.createExpression("base { ${element.text} }"), styleScope.firstChild)
         styleScope.addAfter(factory.createNewLine(), addedElement)

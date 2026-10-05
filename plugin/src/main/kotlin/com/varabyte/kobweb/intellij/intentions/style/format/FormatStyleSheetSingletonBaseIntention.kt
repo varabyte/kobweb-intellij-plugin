@@ -17,6 +17,10 @@ import org.jetbrains.kotlin.psi.KtValueArgument
 
 private val CSS_STYLE_FORMAT_KEY by key<StyleSheetBlock.Style>()
 
+internal fun StyleSheetBlock.Style.blockIsEmptyOrOnlyContainsBaseBlock(): Boolean {
+    return styleBlock.statements.none { it != this.baseCall }
+}
+
 abstract class FormatStyleSheetSingletonBaseIntention<S: StyleSheetBlock.Style>(
     cacheKey: Key<Pair<PsiElement, KtNameReferenceExpression>>,
     private val castStyleBlock: (StyleSheetBlock.Style) -> S?)
