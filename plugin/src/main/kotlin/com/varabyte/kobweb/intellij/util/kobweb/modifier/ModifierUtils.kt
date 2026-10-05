@@ -6,10 +6,12 @@ import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.base.KaConstantValue
 import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
+import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtCallExpression
+import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.psiUtil.getParentOfType
@@ -85,6 +87,22 @@ fun KtNamedFunction.returnsModifier(): Boolean {
     kaSession.apply {
         return returnType.expandedSymbol?.classId == MODIFIER_CLASS_ID
     }
+}
+
+context(kaSession: KaSession)
+fun KaType?.isModifierType(): Boolean {
+    if (this == null) return false
+    return with(kaSession) {
+        when (this@isModifierType.expandedSymbol?.classId) {
+            MODIFIER_CLASS_ID, MODIFIER_COMPANION_CLASS_ID -> true
+            else -> false
+        }
+    }
+}
+
+context(kaSession: KaSession)
+fun KtExpression.resolvesToModifier(): Boolean = with(kaSession) {
+    this@resolvesToModifier.expressionType?.isModifierType() ?: false
 }
 
 /**

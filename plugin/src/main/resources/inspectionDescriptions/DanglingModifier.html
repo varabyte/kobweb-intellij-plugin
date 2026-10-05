@@ -1,0 +1,39 @@
+<html lang="en">
+<body>
+Reports the use of dangling modifier chains.
+<p>
+Modifier chains are immutable data providers without any side effects, so there shouldn't be any reason to declare one
+that doesn't either get assigned to a variable, passed into a method as an argument, or returned.
+<p>
+While most people won't usually make this mistake on purpose, when you define a style is it easy to forget to wrap a
+modifier chain inside a <code>base</code> block. This inspection should help catch that case.
+<pre><code>
+// Not OK -- dangling
+Modifier.color(Colors.Magenta)
+
+// OK -- set to variable
+val modifier = Modifier.color(Colors.Magenta)
+
+// OK -- passed into a function
+SomeWidget(Modifier.color(Colors.Magenta))
+
+// OK -- last statement in a lambda that returns a value
+base {
+    Modifier.color(Colors.Magenta)
+}
+
+// Common mistake when defining a style -- forgetting `base`
+val MyStyle = CssStyle {
+    Modifier.color(Colors.Magenta)
+}
+
+// Corrected style
+val MyStyle = CssStyle {
+    <b>base {</b>
+        Modifier.color(Colors.Magenta)
+    <b>}</b>
+}
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>

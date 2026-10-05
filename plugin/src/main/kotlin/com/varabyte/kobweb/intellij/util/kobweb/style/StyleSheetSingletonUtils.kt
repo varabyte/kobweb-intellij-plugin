@@ -15,6 +15,8 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.psi.psiUtil.findDescendantOfType
+import org.jetbrains.kotlin.psi.psiUtil.isAncestor
 
 // This file contains utilities to help with Kobweb's top-level singleton properties that read style modifiers and put
 // their values into the site's stylesheet.
@@ -191,6 +193,13 @@ sealed interface StyleSheetBlock {
         val extraModifierArg: KtValueArgument?
 
         val baseBodyText: String? get() = baseCall?.lambdaArguments?.firstOrNull()?.getLambdaExpression()?.bodyExpression?.text
+
+        val styleScope
+            get() = rootExpression.findDescendantOfType<KtBlockExpression> { block ->
+                // Don't return the block associated with the `extraModifier = { ... }` block, if present
+                val isExtraModifierArgsBlock = extraModifierArg?.isAncestor(block) ?: false
+                !isExtraModifierArgsBlock
+            } ?: error("Unexpected failure! Every style declaration should have a scope")
 
         /**
          * e.g. `CssStyle { base { ... } }`
