@@ -111,6 +111,10 @@ sealed interface StyleSheetBlock {
                     Keyframes(callExpr)
                 } else null
             }
+
+            context(_: KaSession)
+            fun containing(fromElement: PsiElement) =
+                StyleSheetBlock.containing(fromElement)?.takeIf { it is Keyframes }
         }
     }
 
