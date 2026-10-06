@@ -1,15 +1,15 @@
 package com.varabyte.kobweb.intellij.inlay
 
-import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
 import com.intellij.codeInsight.hints.*
 import com.intellij.codeInsight.hints.presentation.MouseButton
 import com.intellij.codeInsight.hints.settings.InlaySettingsConfigurable
 import com.intellij.lang.Language
-import com.intellij.openapi.actionSystem.*
-import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.options.ShowSettingsUtil
-import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogPanel
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
@@ -36,14 +36,26 @@ class KobwebInlayHintsProvider : InlayHintsProvider<KobwebInlayHintsProvider.Set
     override val group: InlayGroup = InlayGroup.OTHER_GROUP
     override val name: String = "Kobweb"
 
-    override val previewText: String = """
+    // Use annotations to fake badges in the preview window. The badge indicators will be stripped out by then.
+    private val previewTextAnnotated = """
         val EXAMPLE_MODIFIER =
             Modifier
-                .id("id")
-                .tabIndex(0)
-                .color(Colors.Red)
-                .borderRadius(5.px)
+                .id[attr]("id")
+                .tabIndex[attr](0)
+                .color[style](Colors.Red)
+                .borderRadius[style](5.px)
     """.trimIndent()
+
+    private val methodBadges = Regex("""\.(?<key>\w+)\[(?<value>\w+)]""").let { keyValueRegex ->
+        keyValueRegex.findAll(previewTextAnnotated)
+            .associate { result ->
+                val key = result.groups["key"]!!.value
+                val value = result.groups["value"]!!.value
+                key to value
+            }
+    }
+
+    override val previewText = previewTextAnnotated.replace(Regex("\\[.+]"), "")
 
     override fun createSettings(): Settings = Settings()
 
@@ -122,9 +134,11 @@ class KobwebInlayHintsProvider : InlayHintsProvider<KobwebInlayHintsProvider.Set
                 if (element !is KtCallExpression) return true
 
                 val methodName = element.calleeExpression?.text ?: return true
-                val badgeText = when {
-                    (methodName == "id" || methodName == "tabIndex") && settings.showAttributeHints -> WebModifierType.ATTRS.badgeText
-                    (methodName == "color" || methodName == "borderRadius") && settings.showStyleHints -> WebModifierType.STYLE.badgeText
+
+                val methodBadge = methodBadges[methodName] ?: return true
+                val badgeText = when (methodBadge) {
+                    WebModifierType.ATTRS.badgeText if settings.showAttributeHints -> methodBadge
+                    WebModifierType.STYLE.badgeText if settings.showStyleHints -> methodBadge
                     else -> null
                 } ?: return true
 
