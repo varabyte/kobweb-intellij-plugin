@@ -278,7 +278,11 @@ class ExtractCssStyleWizard(
                 .lines()
                 .mapIndexed { i, line ->
                     val toDrop = if (i == 0) 0 else {
-                        minOf(line.indexOfFirst { !it.isWhitespace() }, indent)
+                        minOf(
+                            // Don't crash if the line is all whitespace (e.g. an empty line between braces, perhaps)
+                            line.indexOfFirst { !it.isWhitespace() }.takeIf { it >= 0 } ?: line.length,
+                            indent
+                        )
                     }
                     line.drop(toDrop)
                 }.joinToString("\n")
