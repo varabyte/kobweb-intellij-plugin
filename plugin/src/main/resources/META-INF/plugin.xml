@@ -30,7 +30,7 @@
         <projectConfigurable
                 instance="com.varabyte.kobweb.intellij.settings.KobwebSettingsConfigurable"
                 id="com.varabyte.kobweb.settings.framework"
-                displayName="Kobweb"
+                key="kobweb.name"
                 parentId="language"/>
 
         <spellchecker.bundledDictionaryProvider implementation="com.varabyte.kobweb.intellij.spellcheck.KobwebBundledDictionaryProvider" />
@@ -50,64 +50,64 @@
         <localInspection
                 language="kotlin"
                 displayName="Stylesheet objects must live at the top level"
-                groupName="Kobweb"
+                groupKey="kobweb.name"
                 enabledByDefault="true"
                 level="ERROR"
                 implementationClass="com.varabyte.kobweb.intellij.inspections.style.TopLevelStyleSingletonsInspection"/>
         <localInspection
                 language="kotlin"
                 displayName="Stylesheet objects should be public"
-                groupName="Kobweb"
+                groupKey="kobweb.name"
                 enabledByDefault="true"
                 level="ERROR"
                 implementationClass="com.varabyte.kobweb.intellij.inspections.style.PrivateStyleSingletonsInspection"/>
         <localInspection
                 language="kotlin"
                 displayName="Stylesheet objects must not contain attribute modifiers"
-                groupName="Kobweb"
+                groupKey="kobweb.name"
                 enabledByDefault="true"
                 level="ERROR"
                 implementationClass="com.varabyte.kobweb.intellij.inspections.style.AttributeModifierInStyleSheetBlockInspection"/>
         <localInspection
                 language="kotlin"
                 displayName="Modifier chains should be used"
-                groupName="Kobweb"
+                groupKey="kobweb.name"
                 enabledByDefault="true"
                 level="WARNING"
                 implementationClass="com.varabyte.kobweb.intellij.inspections.modifier.DanglingModifierInspection"/>
         <intentionAction>
             <className>com.varabyte.kobweb.intellij.intentions.style.ExtractCssStyleIntention</className>
-            <category>Kobweb</category>
+            <categoryKey>kobweb.name</categoryKey>
             <language>kotlin</language>
         </intentionAction>
         <intentionAction>
             <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertStyleDefinitionToConciseFormatIntention</className>
-            <category>Kobweb</category>
+            <categoryKey>kobweb.name</categoryKey>
             <language>kotlin</language>
         </intentionAction>
         <intentionAction>
             <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertStyleDefinitionToRelaxedFormatIntention</className>
-            <category>Kobweb</category>
+            <categoryKey>kobweb.name</categoryKey>
             <language>kotlin</language>
         </intentionAction>
         <intentionAction>
             <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertExtendedStyleToConciseFormatIntention</className>
-            <category>Kobweb</category>
+            <categoryKey>kobweb.name</categoryKey>
             <language>kotlin</language>
         </intentionAction>
         <intentionAction>
             <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertExtendedStyleToRelaxedFormatIntention</className>
-            <category>Kobweb</category>
+            <categoryKey>kobweb.name</categoryKey>
             <language>kotlin</language>
         </intentionAction>
         <intentionAction>
             <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertStyleVariantToConciseFormatIntention</className>
-            <category>Kobweb</category>
+            <categoryKey>kobweb.name</categoryKey>
             <language>kotlin</language>
         </intentionAction>
         <intentionAction>
             <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertStyleVariantToRelaxedFormatIntention</className>
-            <category>Kobweb</category>
+            <categoryKey>kobweb.name</categoryKey>
             <language>kotlin</language>
         </intentionAction>
 
