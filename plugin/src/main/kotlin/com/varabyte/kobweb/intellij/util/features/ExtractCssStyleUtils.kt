@@ -5,14 +5,17 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
 import com.intellij.psi.util.PsiTreeUtil
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierCompanion
+import com.varabyte.kobweb.intellij.util.kobweb.silk.INIT_SILK_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
 import com.varabyte.kobweb.intellij.util.psi.getEntireDotQualifiedExpression
 import com.varabyte.kobweb.intellij.util.psi.getRootReceiverExpression
+import com.varabyte.kobweb.intellij.util.psi.isAnnotatedWith
 import com.varabyte.kobweb.intellij.wizards.cssstyle.ExtractCssStyleWizard
 import com.varabyte.kobweb.intellij.wizards.cssstyle.performRefactoring
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
+import org.jetbrains.kotlin.psi.KtNamedFunction
 
 object ExtractCssStyleUtils {
     /**
@@ -28,6 +31,14 @@ object ExtractCssStyleUtils {
         val modifierChainStart = PsiTreeUtil.getParentOfType(element, KtDotQualifiedExpression::class.java)
             ?.getEntireDotQualifiedExpression()
             ?: return null
+
+        // If we're inside an `@InitSilk` method, we are at a point where we are still defining / registering styles via
+        // modifier chains. This is not the right context to suggest converting them to a CssStyle.
+        if (PsiTreeUtil.collectParents(element, KtNamedFunction::class.java, /* includeMyself =*/false) { false }.any {
+                    (it as KtNamedFunction).isAnnotatedWith(INIT_SILK_CLASS_ID) })
+        {
+            return null
+        }
 
         val namedExpression = modifierChainStart.getRootReceiverExpression() as? KtNameReferenceExpression ?: return null
         if (!allowAnyElementInChain && element != namedExpression) return null
