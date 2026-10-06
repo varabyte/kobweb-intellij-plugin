@@ -5,6 +5,8 @@
     <depends>org.jetbrains.kotlin</depends>
     <depends>org.jetbrains.plugins.gradle</depends>
 
+    <resource-bundle>bundles.KobwebBundle</resource-bundle>
+
     <actions>
         <group id="Kobweb.RefactorActionGroup"
                text="Kobweb"
@@ -110,8 +112,10 @@
         </intentionAction>
 
         <colorProvider implementation="com.varabyte.kobweb.intellij.colors.KobwebColorProvider" />
-        <annotator language="kotlin" implementationClass="com.varabyte.kobweb.intellij.annotations.AttrModifierFunctionAnnotator"/>
-
+        <codeInsight.inlayProvider
+                language="kotlin"
+                implementationClass="com.varabyte.kobweb.intellij.inlay.KobwebInlayHintsProvider"
+        />
         <notificationGroup displayType="BALLOON" id="Kobweb" />
 
         <platform.backend.documentation.psiTargetProvider
