@@ -4,6 +4,7 @@ import com.intellij.openapi.editor.Editor
 import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
 import com.intellij.psi.util.PsiTreeUtil
+import com.varabyte.kobweb.intellij.util.kobweb.compose.COMPOSABLE_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierCompanion
 import com.varabyte.kobweb.intellij.util.kobweb.silk.INIT_SILK_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
@@ -32,13 +33,10 @@ object ExtractCssStyleUtils {
             ?.getEntireDotQualifiedExpression()
             ?: return null
 
-        // If we're inside an `@InitSilk` method, we are at a point where we are still defining / registering styles via
-        // modifier chains. This is not the right context to suggest converting them to a CssStyle.
-        if (PsiTreeUtil.collectParents(element, KtNamedFunction::class.java, /* includeMyself =*/false) { false }.any {
-                    (it as KtNamedFunction).isAnnotatedWith(INIT_SILK_CLASS_ID) })
-        {
-            return null
-        }
+        // It only makes sense to extract inline modifier chains that are inside a @Composable function, because
+        // CssStyle.toModifier() is, itself, a composable function.
+        val containingFunction = PsiTreeUtil.getParentOfType(element, KtNamedFunction::class.java) ?: return null
+        if (!containingFunction.isAnnotatedWith(COMPOSABLE_CLASS_ID)) return null
 
         val namedExpression = modifierChainStart.getRootReceiverExpression() as? KtNameReferenceExpression ?: return null
         if (!allowAnyElementInChain && element != namedExpression) return null
