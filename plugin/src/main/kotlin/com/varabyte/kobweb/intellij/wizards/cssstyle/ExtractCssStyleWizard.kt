@@ -61,6 +61,7 @@ class ModifierChainInfo(val entries: List<Entry>, val chainTerminator: KtCallExp
         val webModifier: KtNamedFunction,
         val webModifierType: WebModifierType,
         val parameters: List<Parameter>,
+        val hasTrailingLambda: Boolean,
     ) {
         class Parameter(
             val name: String,
@@ -169,6 +170,7 @@ class ExtractCssStyleWizard(
 
         val entries = chainedCalls.map { (funcDefn, callExpr) ->
             val funcCall = callExpr.resolveToCall()?.singleFunctionCallOrNull()
+            val hasTrailingLambda = callExpr.valueArguments.lastOrNull() is KtLambdaArgument
             val argMapping = funcCall?.argumentMapping ?: emptyMap()
 
             val parameters = mutableListOf<ModifierChainInfo.Entry.Parameter>()
@@ -216,7 +218,10 @@ class ExtractCssStyleWizard(
                                 true
                             }
 
-                            ModifierChainInfo.Entry.Parameter.Value(valueArgument.text, isGlobal)
+                            ModifierChainInfo.Entry.Parameter.Value(
+                                valueArgument.text,
+                                isGlobal,
+                            )
                         }
                         else -> null
                     }
@@ -253,7 +258,8 @@ class ExtractCssStyleWizard(
             ModifierChainInfo.Entry(
                 funcDefn,
                 funcDefn.getWebModifierType(),
-                parameters
+                parameters,
+                hasTrailingLambda
             )
         }
 
@@ -596,14 +602,28 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
     }
 
     private fun ModifierChainInfo.Entry.toText() = buildString {
-        append(webModifier.name!!)
-        append('(')
         val varNames = associatedStyleVariableNames()
+        fun ModifierChainInfo.Entry.Parameter.toText(): String {
+            return varNames[this]?.let { varName -> "${varName}.value()" } ?: value!!.text
+        }
 
-        append(parameters.filter { varNames.containsKey(it) || it.value != null }.joinToString(", ") { p ->
-            varNames[p]?.let { varName -> "${varName}.value()" } ?: p.value!!.text
-        })
-        append(')')
+        append(webModifier.name!!)
+
+        val nonDefaultParams = parameters.filter { varNames.containsKey(it) || it.value != null }
+        val paramsToRender = nonDefaultParams.let {
+            if (hasTrailingLambda) it.dropLast(1) else it
+        }
+
+        if (paramsToRender.isNotEmpty() || !hasTrailingLambda) {
+            append('(')
+            append(paramsToRender.joinToString(", ") { it.toText() })
+            append(')')
+        }
+        if (hasTrailingLambda) {
+            append(' ')
+            val lastParam = nonDefaultParams.last()
+            append(lastParam.toText()) // Includes lambda braces already
+        }
     }
 
     private fun ExtractCssStyleWizard.Result.imports(): List<FqName> {
