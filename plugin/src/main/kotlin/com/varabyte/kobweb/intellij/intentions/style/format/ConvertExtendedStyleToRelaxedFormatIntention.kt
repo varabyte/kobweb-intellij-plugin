@@ -17,7 +17,7 @@ class ConvertExtendedStyleToRelaxedFormatIntention : FormatStyleSheetSingletonBa
 
     override val imports: List<FqName> = listOf(EXTENDED_BY_CALLABLE_ID.asSingleFqName())
     override fun StyleSheetBlock.Style.Extended.Concise.createReplacementCode(): String {
-        // Transform: `CssStyle.base(...) { ... }` to `CssStyle(...) { base { ... } }`
+        // Transform: `SomeStyle.extendedByBase(...) { ... }` to `SomeStyle.extendedBy(...) { base { ... } }`
         val argStr = extraModifierArg?.wrapInParentheses().orEmpty()
         val bodyStr = baseBodyText.orEmpty()
 

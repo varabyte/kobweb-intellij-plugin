@@ -22,7 +22,7 @@ class ConvertExtendedStyleToConciseFormatIntention : FormatStyleSheetSingletonBa
         MODIFIER_CLASS_ID.asSingleFqName(),
     )
     override fun StyleSheetBlock.Style.Extended.Relaxed.createReplacementCode(): String {
-        // Transform: `CssStyle.addVariant(...) { base { ... } }` to `CssStyle.addVariantBase(...) { ... }`
+        // Transform: `SomeStyle.extendedBy(...) { base { ... } }` to `SomeStyle.extendedByBase(...) { ... }`
         val argStr = extraModifierArg?.wrapInParentheses().orEmpty()
         val bodyStr = baseBodyText ?: MODIFIER_CLASS_ID.shortClassName.asString()
 
