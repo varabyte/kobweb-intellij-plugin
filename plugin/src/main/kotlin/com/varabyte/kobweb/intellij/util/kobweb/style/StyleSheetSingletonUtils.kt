@@ -64,8 +64,10 @@ sealed interface StyleSheetBlock {
                 Definition.Concise.tryConvert(dotExpr)?.let { return it }
                 Extended.Concise.tryConvert(dotExpr)?.let { return it }
                 Extended.Relaxed.tryConvert(dotExpr)?.let { return it }
-                Variant.Relaxed.tryConvert(dotExpr)?.let { return it }
-                Variant.Concise.tryConvert(dotExpr)?.let { return it }
+                Variant.Definition.Relaxed.tryConvert(dotExpr)?.let { return it }
+                Variant.Definition.Concise.tryConvert(dotExpr)?.let { return it }
+                Variant.Extended.Relaxed.tryConvert(dotExpr)?.let { return it }
+                Variant.Extended.Concise.tryConvert(dotExpr)?.let { return it }
             }
 
             val callExpr = element as? KtCallExpression
@@ -135,25 +137,30 @@ sealed interface StyleSheetBlock {
                 return topLevelCalls.firstOrNull { it.isBaseCall() }
             }
 
-            /**
-             * Checks if the receiver expression of the dot-qualified call is a `CssStyle<T>` against some `T` type.
-             */
             context(kaSession: KaSession)
-            private fun KtDotQualifiedExpression.hasCssStyleReceiver(typeClassId: ClassId): Boolean = with(kaSession) {
+            private fun KtDotQualifiedExpression.hasGenericReceiver(receiverTypeClassId: ClassId, genericTypeClassId: ClassId): Boolean = with(kaSession) {
                 val receiverType = receiverExpression.expressionType?.upperBoundIfFlexible() as? KaClassType ?: return false
 
                 // Check if receiver's type or supertypes match CssStyle<T>
                 val cssStyleType = receiverType.allSupertypes
                     .plus(receiverType)
                     .filterIsInstance<KaClassType>()
-                    .firstOrNull { it.classId == CSS_STYLE_CLASS_ID } ?: return false
+                    .firstOrNull { it.classId == receiverTypeClassId } ?: return false
 
                 // Extract type argument T from CssStyle<T> and check for a match
                 val typeArgument = cssStyleType.typeArguments.firstOrNull()?.type as? KaClassType ?: return false
                 return typeArgument.allSupertypes
                     .plus(typeArgument)
                     .filterIsInstance<KaClassType>()
-                    .any { it.classId == typeClassId }
+                    .any { it.classId == genericTypeClassId }
+            }
+
+            /**
+             * Checks if the receiver expression of the dot-qualified call is a `CssStyle<T>` against some `T` type.
+             */
+            context(kaSession: KaSession)
+            private fun KtDotQualifiedExpression.hasCssStyleReceiver(genericTypeClassId: ClassId): Boolean = with(kaSession) {
+                return hasGenericReceiver(CSS_STYLE_CLASS_ID, genericTypeClassId)
             }
 
             private fun KtDotQualifiedExpression.getRootName() = (receiverExpression as KtNameReferenceExpression).getReferencedName()
@@ -349,86 +356,172 @@ sealed interface StyleSheetBlock {
             }
         }
 
-        /**
-         * e.g. `SomeStyle.addVariant { base { ... } }`
-         */
         sealed interface Variant : Style {
-            companion object {
-                context(kaSession: KaSession)
-                private fun KtDotQualifiedExpression.hasComponentCssStyleReceiver(): Boolean = with(kaSession) {
-                    return hasCssStyleReceiver(COMPONENT_KIND_CLASS_ID)
-                }
-
-                /** Helper function to check for "SomeStyle.addVariant" and "SomeStyle.addVariantBase" calls. */
-                context(kaSession: KaSession)
-                private fun KtDotQualifiedExpression.getMatchingAddVariantCall(id: CallableId): KtCallExpression? {
-                    if (!hasComponentCssStyleReceiver()) return null
-
-                    val callExpr = selectorExpression as? KtCallExpression ?: return null
-                    val callee = callExpr.calleeExpression as? KtNameReferenceExpression ?: return null
-                    val symbol = with(kaSession) {
-                        callee.mainReference.resolveToSymbol() as? KaCallableSymbol ?: return null
+            /**
+             * e.g. `SomeStyle.addVariant { base { ... } }`
+             */
+            sealed interface Definition : Variant {
+                companion object {
+                    context(kaSession: KaSession)
+                    private fun KtDotQualifiedExpression.hasComponentCssStyleReceiver(): Boolean = with(kaSession) {
+                        return hasCssStyleReceiver(COMPONENT_KIND_CLASS_ID)
                     }
 
-                    return callExpr.takeIf { symbol.callableId == id }
+                    /** Helper function to check for "SomeStyle.addVariant" and "SomeStyle.addVariantBase" calls. */
+                    context(kaSession: KaSession)
+                    private fun KtDotQualifiedExpression.getMatchingAddVariantCall(id: CallableId): KtCallExpression? {
+                        if (!hasComponentCssStyleReceiver()) return null
+
+                        val callExpr = selectorExpression as? KtCallExpression ?: return null
+                        val callee = callExpr.calleeExpression as? KtNameReferenceExpression ?: return null
+                        val symbol = with(kaSession) {
+                            callee.mainReference.resolveToSymbol() as? KaCallableSymbol ?: return null
+                        }
+
+                        return callExpr.takeIf { symbol.callableId == id }
+                    }
+                }
+
+                class Concise(
+                    override val rootExpression: KtDotQualifiedExpression,
+                    override val baseCall: KtCallExpression,
+                    override val extraModifierArg: KtValueArgument?,
+                ) : Definition {
+                    companion object {
+                        /** Check for "SomeStyle.addVariantBase { ... }" format */
+                        context(_: KaSession)
+                        private fun KtDotQualifiedExpression.getAddVariantBaseCall(): KtCallExpression? =
+                            getMatchingAddVariantCall(ADD_VARIANT_BASE_CALLABLE_ID)
+
+                        context(_: KaSession)
+                        internal fun tryConvert(dotExpr: KtDotQualifiedExpression): Concise? {
+                            // Is this the "SomeStyle.addVariantBase { ... } }" format?
+                            dotExpr.getAddVariantBaseCall()?.let { addVariantBaseCall ->
+                                return Concise(
+                                    rootExpression = dotExpr,
+                                    baseCall = addVariantBaseCall,
+                                    extraModifierArg = addVariantBaseCall.findExtraModifierArg(),
+                                )
+                            }
+                            return null
+                        }
+                    }
+
+                    override val rootName get() = rootExpression.getRootName()
+                    override val extraModifierFunc: KtCallExpression = baseCall
+                }
+
+                class Relaxed(
+                    override val rootExpression: KtDotQualifiedExpression,
+                    override val baseCall: KtCallExpression?,
+                    override val extraModifierFunc: KtCallExpression,
+                    override val extraModifierArg: KtValueArgument?,
+                ) : Definition {
+                    companion object {
+                        /** Check for "SomeStyle.addVariant { base { ... } }" format */
+                        context(_: KaSession)
+                        private fun KtDotQualifiedExpression.getAddVariantCall(): KtCallExpression? =
+                            getMatchingAddVariantCall(ADD_VARIANT_CALLABLE_ID)
+
+                        context(_: KaSession)
+                        internal fun tryConvert(dotExpr: KtDotQualifiedExpression): Relaxed? {
+                            dotExpr.getAddVariantCall()?.let { addVariantCall ->
+                                return Relaxed(
+                                    rootExpression = dotExpr,
+                                    extraModifierFunc = addVariantCall,
+                                    extraModifierArg = addVariantCall.findExtraModifierArg(),
+                                    baseCall = addVariantCall.findBaseCallInsideLambda(),
+                                )
+                            }
+                            return null
+                        }
+                    }
+
+                    override val rootName get() = rootExpression.getRootName()
                 }
             }
-            class Concise(
-                override val rootExpression: KtDotQualifiedExpression,
-                override val baseCall: KtCallExpression,
-                override val extraModifierArg: KtValueArgument?,
-            ) : Variant {
-                companion object {
-                    /** Check for "SomeStyle.addVariantBase { ... }" format */
-                    context(_: KaSession)
-                    private fun KtDotQualifiedExpression.getAddVariantBaseCall(): KtCallExpression? =
-                        getMatchingAddVariantCall(ADD_VARIANT_BASE_CALLABLE_ID)
 
-                    context(_: KaSession)
-                    internal fun tryConvert(dotExpr: KtDotQualifiedExpression): Concise? {
-                        // Is this the "SomeStyle.addVariantBase { ... } }" format?
-                        dotExpr.getAddVariantBaseCall()?.let { addVariantBaseCall ->
-                            return Concise(
-                                rootExpression = dotExpr,
-                                baseCall = addVariantBaseCall,
-                                extraModifierArg = addVariantBaseCall.findExtraModifierArg(),
-                            )
+            /**
+             * e.g. `SomeVariant.extendedBy { base { ... } }`
+             */
+            sealed interface Extended : Style {
+                companion object {
+                    context(kaSession: KaSession)
+                    private fun KtDotQualifiedExpression.hasCssStyleVariantReceiver(): Boolean = with(kaSession) {
+                        return hasGenericReceiver(CSS_STYLE_VARIANT_CLASS_ID, COMPONENT_KIND_CLASS_ID)
+                    }
+
+                    /** Helper function to check for "SomeVariant.extendedBy" and "SomeVariant.extendedByBase" calls. */
+                    context(kaSession: KaSession)
+                    private fun KtDotQualifiedExpression.getMatchingExtendedByCall(id: CallableId): KtCallExpression? {
+                        if (!hasCssStyleVariantReceiver()) return null
+
+                        val callExpr = selectorExpression as? KtCallExpression ?: return null
+                        val callee = callExpr.calleeExpression as? KtNameReferenceExpression ?: return null
+                        val symbol = with(kaSession) {
+                            callee.mainReference.resolveToSymbol() as? KaCallableSymbol ?: return null
                         }
-                        return null
+
+                        return callExpr.takeIf { symbol.callableId == id }
                     }
                 }
+                class Concise(
+                    override val rootExpression: KtDotQualifiedExpression,
+                    override val baseCall: KtCallExpression,
+                    override val extraModifierArg: KtValueArgument?,
+                ) : Extended {
+                    companion object {
+                        /** Check for "SomeVariant.extendedByBase { ... }" format */
+                        context(_: KaSession)
+                        private fun KtDotQualifiedExpression.getExtendedByBaseCall(): KtCallExpression? =
+                            getMatchingExtendedByCall(EXTENDED_BY_BASE_CALLABLE_ID)
 
-                override val rootName get() = rootExpression.getRootName()
-                override val extraModifierFunc: KtCallExpression = baseCall
-            }
-
-            class Relaxed(
-                override val rootExpression: KtDotQualifiedExpression,
-                override val baseCall: KtCallExpression?,
-                override val extraModifierFunc: KtCallExpression,
-                override val extraModifierArg: KtValueArgument?,
-            ) : Variant {
-                companion object {
-                    /** Check for "SomeStyle.addVariant { base { ... } }" format */
-                    context(_: KaSession)
-                    private fun KtDotQualifiedExpression.getAddVariantCall(): KtCallExpression? =
-                        getMatchingAddVariantCall(ADD_VARIANT_CALLABLE_ID)
-
-                    context(_: KaSession)
-                    internal fun tryConvert(dotExpr: KtDotQualifiedExpression): Relaxed? {
-                        dotExpr.getAddVariantCall()?.let { addVariantCall ->
-                            return Relaxed(
-                                rootExpression = dotExpr,
-                                extraModifierFunc = addVariantCall,
-                                extraModifierArg = addVariantCall.findExtraModifierArg(),
-                                baseCall = addVariantCall.findBaseCallInsideLambda(),
-                            )
+                        context(_: KaSession)
+                        internal fun tryConvert(dotExpr: KtDotQualifiedExpression): Concise? {
+                            dotExpr.getExtendedByBaseCall()?.let { addVariantBaseCall ->
+                                return Concise(
+                                    rootExpression = dotExpr,
+                                    baseCall = addVariantBaseCall,
+                                    extraModifierArg = addVariantBaseCall.findExtraModifierArg(),
+                                )
+                            }
+                            return null
                         }
-                        return null
                     }
+
+                    override val rootName get() = rootExpression.getRootName()
+                    override val extraModifierFunc: KtCallExpression = baseCall
                 }
 
-                override val rootName get() = rootExpression.getRootName()
+                class Relaxed(
+                    override val rootExpression: KtDotQualifiedExpression,
+                    override val baseCall: KtCallExpression?,
+                    override val extraModifierFunc: KtCallExpression,
+                    override val extraModifierArg: KtValueArgument?,
+                ) : Extended {
+                    companion object {
+                        /** Check for "SomeVariant.extendedBy { base { ... } }" format */
+                        context(_: KaSession)
+                        private fun KtDotQualifiedExpression.getExtendedByCall(): KtCallExpression? =
+                            getMatchingExtendedByCall(EXTENDED_BY_CALLABLE_ID)
+
+                        context(_: KaSession)
+                        internal fun tryConvert(dotExpr: KtDotQualifiedExpression): Relaxed? {
+                            dotExpr.getExtendedByCall()?.let { addVariantCall ->
+                                return Relaxed(
+                                    rootExpression = dotExpr,
+                                    extraModifierFunc = addVariantCall,
+                                    extraModifierArg = addVariantCall.findExtraModifierArg(),
+                                    baseCall = addVariantCall.findBaseCallInsideLambda(),
+                                )
+                            }
+
+                            return null
+                        }
+                    }
+
+                    override val rootName get() = rootExpression.getRootName()
+                }
             }
         }
     }

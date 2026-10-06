@@ -60,14 +60,24 @@ class AttributeModifierInStyleSheetBlockInspection : LocalInspectionTool() {
                         }
                         """.trimIndent()
 
-                    is StyleSheetBlock.Style.Variant.Concise ->
+                    is StyleSheetBlock.Style.Variant.Definition.Concise ->
                         "${cssStyleBlock.rootName}.addVariantBase(extraModifier = { Modifier.${expression.text} })"
-                    is StyleSheetBlock.Style.Variant.Relaxed ->
+                    is StyleSheetBlock.Style.Variant.Definition.Relaxed ->
                         """
                         ${cssStyleBlock.rootName}.addVariant(extraModifier = { Modifier.${expression.text} }) {
                             base { ... }
                         }
                         """.trimIndent()
+
+                    is StyleSheetBlock.Style.Variant.Extended.Concise ->
+                        "${cssStyleBlock.rootName}.extendedByBase(extraModifier = { Modifier.${expression.text} })"
+                    is StyleSheetBlock.Style.Variant.Extended.Relaxed ->
+                        """
+                        ${cssStyleBlock.rootName}.extendedBy(extraModifier = { Modifier.${expression.text} }) {
+                            base { ... }
+                        }
+                        """.trimIndent()
+
                     else -> null // Non-style stylesheet blocks don't
                 }
 

@@ -110,6 +110,16 @@
             <categoryKey>kobweb.name</categoryKey>
             <language>kotlin</language>
         </intentionAction>
+        <intentionAction>
+            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertExtendedStyleVariantToConciseFormatIntention</className>
+            <categoryKey>kobweb.name</categoryKey>
+            <language>kotlin</language>
+        </intentionAction>
+        <intentionAction>
+            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertExtendedStyleVariantToRelaxedFormatIntention</className>
+            <categoryKey>kobweb.name</categoryKey>
+            <language>kotlin</language>
+        </intentionAction>
 
         <colorProvider implementation="com.varabyte.kobweb.intellij.colors.KobwebColorProvider" />
         <codeInsight.inlayProvider

@@ -1,0 +1,5 @@
+SomeVariant.extendedBy {
+    <spot>base</spot> {
+        Modifier
+    }
+}

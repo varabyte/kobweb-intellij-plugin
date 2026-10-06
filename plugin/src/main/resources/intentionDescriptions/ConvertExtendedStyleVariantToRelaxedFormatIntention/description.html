@@ -1,0 +1,20 @@
+<html lang="en">
+<body>
+This action will convert your CssStyleVariant declaration to use a more relaxed notation, which is useful if you plan to
+grow your CssStyleVariant block, e.g., with pseudo-selectors or additional CSS rules.
+<pre><code>
+// Before
+SomeVariant.extendedByBase {
+    Modifier
+}
+
+// After
+SomeVariant.extendedBy {
+    base {
+        Modifier
+    }
+}
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>
