@@ -13,14 +13,16 @@ abstract class KobwebInspectionTestBase : KobwebApplicationTestCase() {
         private val newCode: String
     ) {
         fun invoke() {
-            val quickFix = myFixture.getAllQuickFixes()
-                .firstOrNull {
+            val quickFixes = myFixture.getAllQuickFixes()
+                .filter {
                     val quickFix = QuickFixWrapper.unwrap(it)
                     quickFix != null && quickFix::class == quickFixClass
-                }
+                }.takeIf { it.isNotEmpty() }
                 ?: throw IllegalStateException("No matching quick fix found for ${quickFixClass.simpleName}")
 
-            myFixture.launchAction(quickFix)
+            quickFixes.forEach { quickFix ->
+                myFixture.launchAction(quickFix)
+            }
             myFixture.checkResult(newCode)
         }
     }

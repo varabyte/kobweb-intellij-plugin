@@ -78,7 +78,7 @@ class AttributeModifierInStyleSheetBlockInspection : LocalInspectionTool() {
                         }
                         """.trimIndent()
 
-                    else -> null // Non-style stylesheet blocks don't
+                    else -> null // Non-style stylesheet blocks don't have an extraModifier argument
                 }
 
                 // name should always be set but use a fallback just in case...
