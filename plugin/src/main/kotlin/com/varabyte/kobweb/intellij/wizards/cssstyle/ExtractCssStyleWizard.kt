@@ -646,19 +646,6 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
         return importsBuilder.sorted().map { FqName(it) }
     }
 
-    /**
-     * Partition all attribute modifiers into those that should be extracted and those that should be left behind.
-     * ```
-     * val (attrModifiersToExtract, attrModifiersToLeaveBehind) = partitionAttributeModifiers()
-     * ```
-     */
-    private fun ExtractCssStyleWizard.Result.partitionAttributeModifiers(): Pair<List<ModifierChainInfo.Entry>, List<ModifierChainInfo.Entry>> {
-        return modifierChainInfo.entries
-            .filter { it.webModifierType == WebModifierType.ATTRS }
-            .partition { extractAttributes && !it.hasParameterWithLocalValue() }
-    }
-    private val partitionedAttributeModifiers = result.partitionAttributeModifiers()
-
     fun importLines(skipImports: Set<FqName>): List<String> = with(result) {
         imports()
             .filter { it !in skipImports }
@@ -666,12 +653,11 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
     }
 
     fun cssStyleLines(): List<String> = with(result) {
-        val (attrModifiersToExtract, _) = partitionedAttributeModifiers
-
-        // For now, we also include unknown web modifier types, because as long as a modifier isn't mutable attributes,
-        // it should be safe to put into a CssStyle. We reserve the right to change this behavior in the future, at
-        // which point this would become `it.webModifierType == STYLE`
-        val styleModifiersToExtract = modifierChainInfo.entries.filter { it.webModifierType != WebModifierType.ATTRS }
+        val attrModifiersToExtract =
+            if (extractAttributes) {
+                modifierChainInfo.entries.filter { it.webModifierType == WebModifierType.ATTRS && !it.hasParameterWithLocalValue() }
+            } else emptyList()
+        val styleModifiersToExtract = modifierChainInfo.entries.filter { it.webModifierType == WebModifierType.STYLE }
 
         fun createModifier(indent: String) = buildString {
             append("${indent}Modifier")
@@ -722,10 +708,13 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
     }
 
     fun inlineModifierLines(): List<String> = with(result) {
-        val (_, inlineAttrModifiers) = partitionedAttributeModifiers
+        val inlineModifiers = run {
+            val inlineAttrModifiers = modifierChainInfo.entries.filter { it.webModifierType == WebModifierType.ATTRS && (!extractAttributes || it.hasParameterWithLocalValue()) }
+            modifierChainInfo.entries.filter { inlineAttrModifiers.contains(it) || it.webModifierType == WebModifierType.UNKNOWN }
+        }
 
         val chainedCalls = buildList {
-            inlineAttrModifiers.forEach { modifierEntry -> add(modifierEntry.toText()) }
+            inlineModifiers.forEach { modifierEntry -> add(modifierEntry.toText()) }
             modifierChainInfo.extractStyleVariables().forEach { (parameter, varName) ->
                 add(buildString {
                     append("setVariable(")
