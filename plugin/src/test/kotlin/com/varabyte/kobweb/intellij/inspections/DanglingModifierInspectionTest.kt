@@ -1,15 +1,9 @@
 package com.varabyte.kobweb.intellij.inspections
 
 import com.varabyte.kobweb.intellij.inspections.modifier.DanglingModifierInspection
-import com.varabyte.kobweb.intellij.test.fixtures.KobwebApplicationTestCase
-import org.intellij.lang.annotations.Language
 
-class DanglingModifierInspectionTest : KobwebApplicationTestCase() {
-    private fun doTest(@Language("kotlin") code: String) {
-        myFixture.enableInspections(DanglingModifierInspection())
-        myFixture.configureByText("DanglingModifier.kt", code)
-        myFixture.checkHighlighting(true, false, false)
-    }
+class DanglingModifierInspectionTest : KobwebInspectionTestBase() {
+    override fun produceInspection() = DanglingModifierInspection()
 
     fun testUnusedModifierChainIsFlagged() {
         doTest(

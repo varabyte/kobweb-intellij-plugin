@@ -1,14 +1,9 @@
 package com.varabyte.kobweb.intellij.inspections.style
 
- import com.varabyte.kobweb.intellij.test.fixtures.KobwebApplicationTestCase
- import org.intellij.lang.annotations.Language
+import com.varabyte.kobweb.intellij.inspections.KobwebInspectionTestBase
 
- class AttributeModifierInStyleSheetBlockInspectionTest : KobwebApplicationTestCase() {
-    private fun doTest(@Language("kotlin") code: String) {
-        myFixture.enableInspections(AttributeModifierInStyleSheetBlockInspection())
-        myFixture.configureByText("AttrModifierInStyle.kt", code)
-        myFixture.checkHighlighting(true, false, false)
-    }
+class AttributeModifierInStyleSheetBlockInspectionTest : KobwebInspectionTestBase() {
+    override fun produceInspection() = AttributeModifierInStyleSheetBlockInspection()
 
     fun testAttributeModifiersInStylesGetHighlighted() {
         doTest(
@@ -32,8 +27,7 @@ package com.varabyte.kobweb.intellij.inspections.style
                     .fillMaxWidth()
                     .id("id")
             }
-
             """.trimIndent()
         )
     }
- }
+}
