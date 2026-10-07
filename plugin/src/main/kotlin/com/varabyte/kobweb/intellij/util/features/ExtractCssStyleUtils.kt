@@ -6,7 +6,6 @@ import com.intellij.psi.impl.source.tree.LeafPsiElement
 import com.intellij.psi.util.PsiTreeUtil
 import com.varabyte.kobweb.intellij.util.kobweb.compose.COMPOSABLE_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierCompanion
-import com.varabyte.kobweb.intellij.util.kobweb.silk.INIT_SILK_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
 import com.varabyte.kobweb.intellij.util.psi.getEntireDotQualifiedExpression
 import com.varabyte.kobweb.intellij.util.psi.getRootReceiverExpression
@@ -14,9 +13,10 @@ import com.varabyte.kobweb.intellij.util.psi.isAnnotatedWith
 import com.varabyte.kobweb.intellij.wizards.cssstyle.ExtractCssStyleWizard
 import com.varabyte.kobweb.intellij.wizards.cssstyle.performRefactoring
 import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
-import org.jetbrains.kotlin.psi.KtNameReferenceExpression
-import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.analysis.api.resolution.successfulFunctionCallOrNull
+import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
+import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.psi.*
 
 object ExtractCssStyleUtils {
     /**
@@ -33,10 +33,41 @@ object ExtractCssStyleUtils {
             ?.getEntireDotQualifiedExpression()
             ?: return null
 
-        // It only makes sense to extract inline modifier chains that are inside a @Composable function, because
-        // CssStyle.toModifier() is, itself, a composable function.
-        val containingFunction = PsiTreeUtil.getParentOfType(element, KtNamedFunction::class.java) ?: return null
-        if (!containingFunction.isAnnotatedWith(COMPOSABLE_CLASS_ID)) return null
+        run {
+            fun PsiElement.isInsideComposableFunction(): Boolean {
+                val enclosingFunction = PsiTreeUtil.getParentOfType(this, KtNamedFunction::class.java) ?: return false
+                return enclosingFunction.isAnnotatedWith(COMPOSABLE_CLASS_ID)
+            }
+            fun PsiElement.isInsideComposableLambda(): Boolean {
+                val enclosingLambda = PsiTreeUtil.getParentOfType(this, KtLambdaExpression::class.java) ?: return false
+                val callExpr = PsiTreeUtil.getParentOfType(enclosingLambda, KtCallExpression::class.java) ?: return false
+
+                // Find the callback parameter associated with this lambda and see if it is Composable
+                analyze(enclosingLambda) {
+                    val functionCall = callExpr.resolveToCall()
+                        ?.successfulFunctionCallOrNull()
+                        ?: return false
+
+                    val paramSymbol = functionCall.argumentMapping[enclosingLambda]?.symbol ?: return false
+                    val paramType = paramSymbol.returnType as? KaFunctionType ?: return false
+                    if (paramType.annotations.contains(COMPOSABLE_CLASS_ID)) return true
+
+                    // If this lambda is not composable but is inline (like `run { ... }`, then it can inherit its
+                    // parent's Composable-ness.
+                    if (paramSymbol.isNoinline) return false // Inline disabled for this callback
+                    val paramOwningFunction = PsiTreeUtil.getParentOfType(paramSymbol.psi, KtNamedFunction::class.java) ?: return false
+                    if (paramOwningFunction.hasModifier(KtTokens.INLINE_KEYWORD)) {
+                        return enclosingLambda.isInsideComposableLambda()
+                    }
+
+                    return false
+                }
+            }
+
+            if (!(modifierChainStart.isInsideComposableFunction() || modifierChainStart.isInsideComposableLambda())) {
+                return null
+            }
+        }
 
         val namedExpression = modifierChainStart.getRootReceiverExpression() as? KtNameReferenceExpression ?: return null
         if (!allowAnyElementInChain && element != namedExpression) return null
