@@ -113,7 +113,7 @@ class KobwebSettingsConfigurable(private val project: Project)
 
                 row {
                     checkBox("Show \"Can't extract attribute Modifier\" warning")
-                        .comment("This warning is shown when you try to extract an attribute modifier into a CssStyle that we can't because the attribute modifier is set to some variable or method from a local scope.")
+                        .comment("This warning is shown when you try to extract an attribute modifier into a CssStyle that we can't because the attribute modifier is set to some value bounds to the local scope.")
                         .bindSelected(appState.extractCssStyle::showAttributeWarning)
                 }
             }

@@ -85,16 +85,17 @@ class ModifierChainInfo(val entries: List<Entry>, val chainTerminator: KtCallExp
             )
 
             /**
-             * If true, it means this parameter is bound to a variable or method that comes from a local scope.
+             * If true, it means this parameter is bound to a variable or method tied to the local scope.
              *
-             * For example, this means if we refactor out this parameter into a CssStyle, we will need to create an
-             * accompanying StyleVariable with it, to store the extra value.
+             * For example, this means if we refactor out a style modifier whose value is tied to a local variable, we
+             * we will need to create an accompanying StyleVariable with it, as a way to pass that value from the local
+             * scope over to the CssStyle.
              */
-            fun hasLocalValue() = value != null && !value.isGlobal
+            fun isLocallyBound() = value != null && !value.isGlobal
         }
 
-        fun hasParameterWithLocalValue(): Boolean {
-            return parameters.any { it.hasLocalValue() }
+        fun hasLocallyBoundParameter(): Boolean {
+            return parameters.any { it.isLocallyBound() }
         }
     }
 }
@@ -480,7 +481,7 @@ class ExtractCssStyleWizard(
                 }
             },
             object : Step {
-                override val headerText = "Locally Assigned Attribute Modifier(s)"
+                override val headerText = "Locally Bound Attribute Modifier(s)"
 
                 private val codeExample = ctx.utils.components.kotlinCode(
                     """
@@ -489,7 +490,7 @@ class ExtractCssStyleWizard(
                             val id = "my-id"
                             // The following example attribute
                             // modifiers can't be extracted due to
-                            // assignments tied to the local scope.
+                            // arguments tied to the local scope.
                             MyStyle.toModifier()
                                 .id(id)
                                 //  ^^
@@ -505,7 +506,7 @@ class ExtractCssStyleWizard(
                     val modifierChainInfo = ctx.data.getUserData(Keys.MODIFIER_CHAIN_INFO) ?: return false
                     val extractAttrModifiers = ctx.data.getUserData(Keys.EXTRACT_ATTRIBUTES) ?: return false
 
-                    return (extractAttrModifiers && modifierChainInfo.entries.any { it.webModifierType == WebModifierType.ATTRS && it.hasParameterWithLocalValue() })
+                    return (extractAttrModifiers && modifierChainInfo.entries.any { it.webModifierType == WebModifierType.ATTRS && it.hasLocallyBoundParameter() })
                 }
 
                 override fun produceComponent(): JComponent {
@@ -655,7 +656,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
     fun cssStyleLines(): List<String> = with(result) {
         val attrModifiersToExtract =
             if (extractAttributes) {
-                modifierChainInfo.entries.filter { it.webModifierType == WebModifierType.ATTRS && !it.hasParameterWithLocalValue() }
+                modifierChainInfo.entries.filter { it.webModifierType == WebModifierType.ATTRS && !it.hasLocallyBoundParameter() }
             } else emptyList()
         val styleModifiersToExtract = modifierChainInfo.entries.filter { it.webModifierType == WebModifierType.STYLE }
 
@@ -709,7 +710,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
 
     fun inlineModifierLines(): List<String> = with(result) {
         val inlineModifiers = run {
-            val inlineAttrModifiers = modifierChainInfo.entries.filter { it.webModifierType == WebModifierType.ATTRS && (!extractAttributes || it.hasParameterWithLocalValue()) }
+            val inlineAttrModifiers = modifierChainInfo.entries.filter { it.webModifierType == WebModifierType.ATTRS && (!extractAttributes || it.hasLocallyBoundParameter()) }
             modifierChainInfo.entries.filter { inlineAttrModifiers.contains(it) || it.webModifierType == WebModifierType.UNKNOWN }
         }
 
