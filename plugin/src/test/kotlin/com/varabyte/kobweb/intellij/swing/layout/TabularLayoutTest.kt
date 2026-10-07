@@ -2,7 +2,7 @@ package com.varabyte.kobweb.intellij.swing.layout
 
 import com.intellij.ui.scale.JBUIScale.scale
 import com.intellij.ui.scale.JBUIScale.setUserScaleFactorForTest
-import com.varabyte.kobweb.intellij.util.junit.rules.EdtRule
+import com.varabyte.kobweb.intellij.test.junit.rules.EdtRule
 import com.varabyte.truthish.assertThat
 import com.varabyte.truthish.assertThrows
 import org.junit.Rule

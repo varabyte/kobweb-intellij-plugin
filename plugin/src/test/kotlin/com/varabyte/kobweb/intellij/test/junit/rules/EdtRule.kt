@@ -1,4 +1,4 @@
-package com.varabyte.kobweb.intellij.util.junit.rules
+package com.varabyte.kobweb.intellij.test.junit.rules
 
 import org.junit.rules.TestRule
 import org.junit.runner.Description
