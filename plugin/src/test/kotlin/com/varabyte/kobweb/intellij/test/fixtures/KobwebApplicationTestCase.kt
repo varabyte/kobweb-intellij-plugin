@@ -323,5 +323,20 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                  }
              """.trimIndent()
         )
+        myFixture.addFileToProject(
+            "src/stubs/kobweb/Keyframes.kt", """
+                @file:Suppress("UNUSED_PARAMETER")
+                package com.varabyte.kobweb.silk.style.animation
+                import com.varabyte.kobweb.silk.style.*
+                import com.varabyte.kobweb.compose.ui.Modifier
+
+                class KeyframesBuilder : CssStyleScopeBase {
+                    fun from(createStyle: () -> Modifier) {}
+                    fun to(createStyle: () -> Modifier) {}
+                }
+                
+                class Keyframes(init: KeyframesBuilder.() -> Unit)
+             """.trimIndent()
+        )
     }
  }
