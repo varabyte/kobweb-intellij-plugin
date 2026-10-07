@@ -629,9 +629,14 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
     private fun ExtractCssStyleWizard.Result.imports(): List<FqName> {
         val importsBuilder = mutableSetOf<String>()
         importsBuilder.add("com.varabyte.kobweb.silk.style.CssStyle")
+        importsBuilder.add("com.varabyte.kobweb.silk.style.toModifier")
+        if (useConciseSyntax) {
+            importsBuilder.add("com.varabyte.kobweb.silk.style.base")
+        }
         val styleVariables = modifierChainInfo.extractStyleVariables()
         if (styleVariables.isNotEmpty()) {
             importsBuilder.add("com.varabyte.kobweb.compose.css.StyleVariable")
+            importsBuilder.add("com.varabyte.kobweb.compose.ui.modifiers.setVariable")
             styleVariables.forEach { (parameter, _) ->
                 parameter.type.imports.forEach { fqn ->
                     importsBuilder.add(fqn)
