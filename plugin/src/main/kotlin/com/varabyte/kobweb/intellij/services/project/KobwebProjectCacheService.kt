@@ -39,7 +39,7 @@ interface KobwebProjectCacheService : Iterable<KobwebProject> {
     fun clear()
 }
 
-private class KobwebProjectCacheServiceImpl : KobwebProjectCacheService {
+internal class KobwebProjectCacheServiceImpl : KobwebProjectCacheService {
     private val localProjects = Collections.synchronizedMap(mutableMapOf<Module, KobwebProject>())
     private val externalProjects = Collections.synchronizedMap(mutableMapOf<VirtualFile, KobwebProject>())
     private val notKobwebProjects = Collections.synchronizedSet(mutableSetOf<Any>())

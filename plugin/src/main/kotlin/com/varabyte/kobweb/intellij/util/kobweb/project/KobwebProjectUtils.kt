@@ -25,6 +25,10 @@ private val KOBWEB_METADATA_IDENTIFIERS_LIBRARY = listOf(
 private const val KOBWEB_METADATA_IDENTIFIER_WORKER = "$KOBWEB_METADATA_ROOT/worker.json"
 
 private fun Module.findKobwebProject(kobwebProjectsCache: KobwebProjectCacheService): KobwebProject? {
+    // Lightweight tests (no Gradle) register their project into the cache directly. Production code will only ever use
+    // the Gradle module to generate and then cache a KobwebProject, as below.
+    kobwebProjectsCache[this]?.let { return it }
+
     val gradleModule = this.toGradleModule() ?: return null
 
     kobwebProjectsCache[gradleModule]?.let { return it }

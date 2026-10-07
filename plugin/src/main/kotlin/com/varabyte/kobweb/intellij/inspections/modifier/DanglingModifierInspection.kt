@@ -44,11 +44,11 @@ class DanglingModifierInspection : LocalInspectionTool() {
                                 if (insideStyleBlockWithoutBaseBlock) {
                                     add(WrapModifierInBaseBlockQuickFix())
                                 }
-                                add(SafeDeleteExpressionQuickFix("dangling modifier chain"))
+                                add(SafeDeleteExpressionQuickFix("dangling modifier"))
                             }
                             holder.registerProblem(
                                 statement,
-                                "This modifier chains is dangling. You should instead use it or remove it.",
+                                "This modifier is dangling. You should instead use it or remove it.",
                                 ProblemHighlightType.LIKE_UNUSED_SYMBOL,
                                 *quickFixes.toTypedArray()
                             )
