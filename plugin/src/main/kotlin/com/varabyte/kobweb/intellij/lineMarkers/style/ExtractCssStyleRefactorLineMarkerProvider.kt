@@ -1,4 +1,4 @@
-package com.varabyte.kobweb.intellij.lineMarkers
+package com.varabyte.kobweb.intellij.lineMarkers.style
 
 import com.intellij.codeInsight.daemon.LineMarkerInfo
 import com.intellij.codeInsight.daemon.LineMarkerProviderDescriptor

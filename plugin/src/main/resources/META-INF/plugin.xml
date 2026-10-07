@@ -43,7 +43,7 @@
 
         <codeInsight.lineMarkerProvider
                 language="kotlin"
-                implementationClass="com.varabyte.kobweb.intellij.lineMarkers.ExtractCssStyleRefactorLineMarkerProvider" />
+                implementationClass="com.varabyte.kobweb.intellij.lineMarkers.style.ExtractCssStyleRefactorLineMarkerProvider" />
 
         <lang.inspectionSuppressor language="kotlin" implementationClass="com.varabyte.kobweb.intellij.inspections.supressors.FunctionNameInspectionSuppressor"/>
         <lang.inspectionSuppressor language="kotlin" implementationClass="com.varabyte.kobweb.intellij.inspections.supressors.UnusedInspectionSuppressor"/>
