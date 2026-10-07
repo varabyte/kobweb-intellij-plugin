@@ -48,6 +48,19 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
              """.trimIndent()
         )
         myFixture.addFileToProject(
+            "src/stubs/android/Compose.kt", """
+                package androidx.compose.runtime
+
+                @Target(
+                    AnnotationTarget.FUNCTION,
+                    AnnotationTarget.TYPE,
+                    AnnotationTarget.TYPE_PARAMETER,
+                    AnnotationTarget.PROPERTY_GETTER,
+                )
+                public annotation class Composable
+            """.trimIndent()
+        )
+        myFixture.addFileToProject(
             "src/stubs/composehtml/Attr.kt", """
                  package org.jetbrains.compose.web.attributes
                  import org.w3c.dom.Element
@@ -212,9 +225,102 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
         )
         myFixture.addFileToProject(
             "src/stubs/kobweb/CssStyle.kt", """
+                 @file:Suppress("UNUSED_PARAMETER")
                  package com.varabyte.kobweb.silk.style
+                 import androidx.compose.runtime.Composable
                  import com.varabyte.kobweb.compose.ui.Modifier
-                 // TODO: Add CssStyle stubs here
+    
+                 sealed interface CssKind
+                 sealed interface GeneralKind : CssKind
+                 sealed interface RestrictedKind : CssKind
+                 interface ComponentKind : CssKind
+    
+                 interface CssStyleScopeBase
+    
+                 abstract class StyleScope {
+                    fun base(createModifier: () -> Modifier) {}
+                 }
+    
+                 class CssStyleScope : CssStyleScopeBase, StyleScope()
+                 class CssStyleBaseScope : CssStyleScopeBase
+    
+                 abstract class CssStyle<K : CssKind> {
+                    companion object // for extensions
+                 }
+
+                 fun CssStyle(
+                     extraModifier: @Composable () -> Modifier = { Modifier },
+                     init: CssStyleScope.() -> Unit
+                 ) = object : CssStyle<GeneralKind>() {}
+ 
+                 fun CssStyle.Companion.base(
+                     extraModifier: @Composable () -> Modifier = { Modifier },
+                     init: CssStyleBaseScope.() -> Modifier
+                 ) = object : CssStyle<GeneralKind>() {}
+
+                 fun <K : ComponentKind> CssStyle(
+                     extraModifier: @Composable () -> Modifier = { Modifier },
+                     init: CssStyleScope.() -> Unit
+                 ) = object : CssStyle<K>() {}
+
+                 fun <K : ComponentKind> CssStyle.Companion.base(
+                     extraModifier: @Composable () -> Modifier = { Modifier },
+                     init: CssStyleBaseScope.() -> Modifier
+                 ) = object : CssStyle<K>() {}
+
+                 fun CssStyle<GeneralKind>.extendedBy(
+                     extraModifier: @Composable () -> Modifier = { Modifier },
+                     init: CssStyleScope.() -> Unit
+                 ) = object : CssStyle<GeneralKind>() {}
+
+                 fun CssStyle<GeneralKind>.extendedByBase(
+                     extraModifier: @Composable () -> Modifier = { Modifier },
+                     init: CssStyleBaseScope.() -> Modifier
+                 ) = object : CssStyle<GeneralKind>() {}
+
+                 @Composable
+                 fun CssStyle<GeneralKind>.toModifier(): Modifier = Modifier
+
+                 @Composable
+                 fun CssStyle<RestrictedKind>.toModifier(): Modifier = Modifier
+
+                 @Composable
+                 fun Iterable<CssStyle<GeneralKind>>.toModifier(): Modifier = Modifier
+             """.trimIndent()
+        )
+        myFixture.addFileToProject(
+            "src/stubs/kobweb/CssStyleVariant.kt", """
+                @file:Suppress("UNUSED_PARAMETER")
+                package com.varabyte.kobweb.silk.style
+                import androidx.compose.runtime.Composable
+                import com.varabyte.kobweb.compose.ui.Modifier
+
+                class CssStyleVariant<K : ComponentKind>
+
+                fun <K : ComponentKind> CssStyle<K>.addVariant(
+                    extraModifier: @Composable () -> Modifier = { Modifier },
+                    init: CssStyleScope.() -> Unit
+                ): CssStyleVariant<K> = CssStyleVariant<K>()
+
+                fun <K : ComponentKind> CssStyle<K>.addVariantBase(
+                    extraModifier: @Composable () -> Modifier = { Modifier },
+                    init: CssStyleBaseScope.() -> Modifier
+                ): CssStyleVariant<K> = CssStyleVariant<K>()
+
+                fun <K : ComponentKind> CssStyleVariant<K>.extendedBy(
+                    extraModifier: @Composable () -> Modifier = { Modifier },
+                    init: CssStyleScope.() -> Unit
+                ): CssStyleVariant<K> = CssStyleVariant<K>()
+
+                fun <K : ComponentKind> CssStyleVariant<K>.extendedByBase(
+                    extraModifier: @Composable () -> Modifier = { Modifier },
+                    init: CssStyleBaseScope.() -> Modifier
+                ) = CssStyleVariant<K>()
+
+                 @Composable
+                 fun <K : ComponentKind> CssStyle<K>.toModifier(vararg variants: CssStyleVariant<K>?): Modifier {
+                     return Modifier
+                 }
              """.trimIndent()
         )
     }
