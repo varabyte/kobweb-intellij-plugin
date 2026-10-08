@@ -9,26 +9,26 @@ import com.varabyte.kobweb.intellij.util.kobweb.KobwebPluginState
 import com.varabyte.kobweb.intellij.util.kobweb.kobwebPluginState
 
 abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
-     override fun setUp() {
-         super.setUp()
-         addKobwebStubs()
-         markModuleAsKobweb()
-     }
+    override fun setUp() {
+        super.setUp()
+        addKobwebStubs()
+        markModuleAsKobweb()
+    }
 
-     override fun tearDown() {
-         try {
-             project.service<KobwebProjectCacheService>().clear()
-             project.kobwebPluginState = KobwebPluginState.DISABLED
-         } finally {
-             super.tearDown()
-         }
-     }
+    override fun tearDown() {
+        try {
+            project.service<KobwebProjectCacheService>().clear()
+            project.kobwebPluginState = KobwebPluginState.DISABLED
+        } finally {
+            super.tearDown()
+        }
+    }
 
     private fun markModuleAsKobweb() {
-         project.kobwebPluginState = KobwebPluginState.INITIALIZED
-         project.service<KobwebProjectCacheService>()
-             .add(KobwebProject("test-shell", KobwebProjectType.Application, KobwebProject.Source.Local(module)))
-     }
+        project.kobwebPluginState = KobwebPluginState.INITIALIZED
+        project.service<KobwebProjectCacheService>()
+            .add(KobwebProject("test-shell", KobwebProjectType.Application, KobwebProject.Source.Local(module)))
+    }
 
     /** Minimal stand-ins for the parts of the Kobweb framework that the plugin looks up by ClassId / CallableId. */
     private fun addKobwebStubs() {
@@ -195,35 +195,6 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
              """.trimIndent()
         )
         myFixture.addFileToProject(
-            "src/stubs/kobweb/WebModifiers.kt", """
-                 package com.varabyte.kobweb.compose.ui.modifiers
-                 import com.varabyte.kobweb.compose.ui.Modifier
-                 import com.varabyte.kobweb.compose.ui.styleModifier
-                 import com.varabyte.kobweb.compose.ui.attrsModifier
-                 import com.varabyte.kobweb.compose.ui.graphics.Color
-                 import com.varabyte.kobweb.compose.css.CSSLengthOrPercentageNumericValue
-                 import org.jetbrains.compose.web.css.px
-                 import org.jetbrains.compose.web.css.percent
-
-                 // Attrs
-                 fun Modifier.id(value: String) = attrsModifier {
-                     attr("id", value)
-                 }
-                 fun Modifier.tabIndex(value: Int) = attrsModifier {
-                     attr("tabindex", value.toString())
-                 }
-
-                 // Styles
-                 fun Modifier.width(value: CSSLengthOrPercentageNumericValue) = styleModifier {
-                     property("width", value)
-                 }
-                 fun Modifier.fillMaxWidth() = width(100.percent)
-                 fun Modifier.color(value: Color) = styleModifier {
-                     property("color", value)
-                 }
-             """.trimIndent()
-        )
-        myFixture.addFileToProject(
             "src/stubs/kobweb/CssStyle.kt", """
                  @file:Suppress("UNUSED_PARAMETER")
                  package com.varabyte.kobweb.silk.style
@@ -338,5 +309,38 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                 class Keyframes(init: KeyframesBuilder.() -> Unit)
              """.trimIndent()
         )
+        myFixture.addFileToProject(
+            "src/stubs/kobweb/WebModifiers.kt", """
+                 package com.varabyte.kobweb.compose.ui.modifiers
+                 import com.varabyte.kobweb.compose.ui.Modifier
+                 import com.varabyte.kobweb.compose.ui.styleModifier
+                 import com.varabyte.kobweb.compose.ui.attrsModifier
+                 import com.varabyte.kobweb.compose.ui.graphics.Color
+                 import com.varabyte.kobweb.compose.css.CSSLengthNumericValue
+                 import com.varabyte.kobweb.compose.css.CSSLengthOrPercentageNumericValue
+                 import org.jetbrains.compose.web.css.px
+                 import org.jetbrains.compose.web.css.percent
+
+                 // Attrs
+                 fun Modifier.id(value: String) = attrsModifier {
+                     attr("id", value)
+                 }
+                 fun Modifier.tabIndex(value: Int) = attrsModifier {
+                     attr("tabindex", value.toString())
+                 }
+
+                 // Styles
+                 fun Modifier.borderRadius(value: CSSLengthNumericValue) = styleModifier {
+                     property("border-radius", value)
+                 }
+                 fun Modifier.color(value: Color) = styleModifier {
+                     property("color", value)
+                 }
+                 fun Modifier.fillMaxWidth() = width(100.percent)
+                 fun Modifier.width(value: CSSLengthOrPercentageNumericValue) = styleModifier {
+                     property("width", value)
+                 }
+             """.trimIndent()
+        )
     }
- }
+}
