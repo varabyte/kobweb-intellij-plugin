@@ -5,7 +5,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
 import com.varabyte.kobweb.intellij.util.features.ExtractCssStyleUtils
 import com.varabyte.kobweb.intellij.util.idea.intentions.CacheDerivedPsiElementIntentionAction
-import com.varabyte.kobweb.intellij.wizards.cssstyle.ExtractCssStyleWizard
+import com.varabyte.kobweb.intellij.wizards.style.ExtractCssStyleWizard
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 
 private val DERIVED_MODIFIER_CHAIN_KEY by CacheDerivedPsiElementIntentionAction.key<KtDotQualifiedExpression>()

@@ -2,7 +2,7 @@ package com.varabyte.kobweb.intellij.lineMarkers.style
 
 import com.intellij.codeInsight.daemon.impl.DaemonCodeAnalyzerImpl
 import com.varabyte.kobweb.intellij.test.fixtures.KobwebApplicationTestCase
-import com.varabyte.kobweb.intellij.wizards.cssstyle.ExtractCssStyleWizard
+import com.varabyte.kobweb.intellij.wizards.style.ExtractCssStyleWizard
 import com.varabyte.truthish.assertAll
 import com.varabyte.truthish.assertWithMessage
 

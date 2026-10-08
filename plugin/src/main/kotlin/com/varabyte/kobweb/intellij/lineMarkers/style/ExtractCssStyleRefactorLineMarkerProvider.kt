@@ -9,7 +9,7 @@ import com.intellij.psi.impl.source.tree.LeafPsiElement
 import com.varabyte.kobweb.intellij.util.features.ExtractCssStyleUtils
 import com.varabyte.kobweb.intellij.util.kobweb.project.KobwebLineMarkerInfo
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
-import com.varabyte.kobweb.intellij.wizards.cssstyle.ExtractCssStyleWizard
+import com.varabyte.kobweb.intellij.wizards.style.ExtractCssStyleWizard
 
 class ExtractCssStyleRefactorLineMarkerProvider : LineMarkerProviderDescriptor() {
 

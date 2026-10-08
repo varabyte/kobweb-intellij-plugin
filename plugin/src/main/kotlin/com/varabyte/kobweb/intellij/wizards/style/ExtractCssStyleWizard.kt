@@ -1,4 +1,4 @@
-package com.varabyte.kobweb.intellij.wizards.cssstyle
+package com.varabyte.kobweb.intellij.wizards.style
 
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.application.readAction

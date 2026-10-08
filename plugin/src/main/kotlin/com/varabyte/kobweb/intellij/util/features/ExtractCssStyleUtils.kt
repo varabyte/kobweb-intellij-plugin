@@ -10,8 +10,8 @@ import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
 import com.varabyte.kobweb.intellij.util.psi.getEntireDotQualifiedExpression
 import com.varabyte.kobweb.intellij.util.psi.getRootReceiverExpression
 import com.varabyte.kobweb.intellij.util.psi.isAnnotatedWith
-import com.varabyte.kobweb.intellij.wizards.cssstyle.ExtractCssStyleWizard
-import com.varabyte.kobweb.intellij.wizards.cssstyle.performRefactoring
+import com.varabyte.kobweb.intellij.wizards.style.ExtractCssStyleWizard
+import com.varabyte.kobweb.intellij.wizards.style.performRefactoring
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.resolution.successfulFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
