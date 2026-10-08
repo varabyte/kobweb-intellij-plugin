@@ -33,22 +33,28 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
     /** Minimal stand-ins for the parts of the Kobweb framework that the plugin looks up by ClassId / CallableId. */
     private fun addKobwebStubs() {
         myFixture.addFileToProject(
-            "src/stubs/js/Stdlib.kt", """
+            "src/stubs/js/Stdlib.kt",
+            // language=kotlin
+            """
                  package kotlin.js
 
                  @Suppress("NOTHING_TO_INLINE", "UNCHECKED_CAST")
-                 public inline fun <T> Any?.unsafeCast(): T = this as T
+                 inline fun <T> Any?.unsafeCast(): T = this as T
              """.trimIndent()
         )
         myFixture.addFileToProject(
-            "src/stubs/js/Dom.kt", """
+            "src/stubs/js/Dom.kt",
+            // language=kotlin
+            """
                  package org.w3c.dom
 
                  interface Element
              """.trimIndent()
         )
         myFixture.addFileToProject(
-            "src/stubs/android/Compose.kt", """
+            "src/stubs/android/Compose.kt",
+            // language=kotlin
+            """
                 package androidx.compose.runtime
 
                 @Target(
@@ -57,21 +63,25 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                     AnnotationTarget.TYPE_PARAMETER,
                     AnnotationTarget.PROPERTY_GETTER,
                 )
-                public annotation class Composable
+                annotation class Composable
             """.trimIndent()
         )
         myFixture.addFileToProject(
-            "src/stubs/composehtml/Attr.kt", """
+            "src/stubs/composehtml/Attr.kt",
+            // language=kotlin
+            """
                  package org.jetbrains.compose.web.attributes
                  import org.w3c.dom.Element
 
-                 interface AttrsScope<out TElement : Element> {
-                    fun attr(attr: String, value: String): AttrsScope<TElement>
+                 interface AttrsScope<out E : Element> {
+                     fun attr(attr: String, value: String)
                  }
              """.trimIndent()
         )
         myFixture.addFileToProject(
-            "src/stubs/composehtml/Style.kt", """
+            "src/stubs/composehtml/Style.kt",
+            // language=kotlin
+            """
                  package org.jetbrains.compose.web.css
                  interface StylePropertyValue
                  interface StyleScope {
@@ -80,7 +90,9 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
              """.trimIndent()
         )
         myFixture.addFileToProject(
-            "src/stubs/composehtml/Units.kt", """
+            "src/stubs/composehtml/Units.kt",
+            // language=kotlin
+            """
                  package org.jetbrains.compose.web.css
                  import kotlin.js.unsafeCast
 
@@ -108,9 +120,13 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                  typealias CSSNumeric = CSSNumericValue<out CSSUnit>
 
                  interface CSSUnit {
+                     @Suppress("ClassName")
                      interface percent: CSSUnitPercentage
+                     @Suppress("ClassName")
                      interface em: CSSUnitRel
+                     @Suppress("ClassName")
                      interface rem: CSSUnitRel
+                     @Suppress("ClassName")
                      interface px: CSSUnitAbs
 
                      companion object {
@@ -135,14 +151,18 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
              """.trimIndent()
         )
         myFixture.addFileToProject(
-            "src/stubs/composehtml/Color.kt", """
+            "src/stubs/composehtml/Color.kt",
+            // language=kotlin
+            """
                  package org.jetbrains.compose.web.css
                  import org.jetbrains.compose.web.css.StylePropertyValue
                  interface CSSColorValue : StylePropertyValue
              """.trimIndent()
         )
         myFixture.addFileToProject(
-            "src/stubs/kobweb/Units.kt", """
+            "src/stubs/kobweb/Units.kt",
+            // language=kotlin
+            """
                  package com.varabyte.kobweb.compose.css
 
                  import org.jetbrains.compose.web.css.CSSNumericValue
@@ -154,7 +174,9 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
              """.trimIndent()
         )
         myFixture.addFileToProject(
-            "src/stubs/kobweb/Modifier.kt", """
+            "src/stubs/kobweb/Modifier.kt",
+            // language=kotlin
+            """
                  package com.varabyte.kobweb.compose.ui
                  interface Modifier {
                     interface Element : Modifier
@@ -163,7 +185,9 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
              """.trimIndent()
         )
         myFixture.addFileToProject(
-            "src/stubs/kobweb/WebModifier.kt", """
+            "src/stubs/kobweb/WebModifier.kt",
+            // language=kotlin
+            """
                  package com.varabyte.kobweb.compose.ui
                  import org.jetbrains.compose.web.attributes.AttrsScope
                  import org.jetbrains.compose.web.css.StyleScope
@@ -173,14 +197,16 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                  interface AttrsModifier : WebModifier
                  interface StyleModifier : WebModifier
 
-                 @Suppress("UNUSED_PARAMETER")
+                 @Suppress("UnusedReceiverParameter", "UNUSED_PARAMETER")
                  fun Modifier.attrsModifier(attrs: (AttrsScope<*>.() -> Unit)): Modifier = Modifier
-                 @Suppress("UNUSED_PARAMETER")
+                 @Suppress("UnusedReceiverParameter", "UNUSED_PARAMETER")
                  fun Modifier.styleModifier(styles: (StyleScope.() -> Unit)): Modifier = Modifier
              """.trimIndent()
         )
         myFixture.addFileToProject(
-            "src/stubs/kobweb/Colors.kt", """
+            "src/stubs/kobweb/Colors.kt",
+            // language=kotlin
+            """
                  package com.varabyte.kobweb.compose.ui.graphics
                  import org.jetbrains.compose.web.css.CSSColorValue
 
@@ -195,7 +221,9 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
              """.trimIndent()
         )
         myFixture.addFileToProject(
-            "src/stubs/kobweb/CssStyle.kt", """
+            "src/stubs/kobweb/CssStyle.kt",
+            // language=kotlin
+            """
                  @file:Suppress("UNUSED_PARAMETER")
                  package com.varabyte.kobweb.silk.style
                  import androidx.compose.runtime.Composable
@@ -219,6 +247,7 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                     companion object // for extensions
                  }
 
+                 @Suppress("FunctionName")
                  fun CssStyle(
                      extraModifier: @Composable () -> Modifier = { Modifier },
                      init: CssStyleScope.() -> Unit
@@ -229,6 +258,7 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                      init: CssStyleBaseScope.() -> Modifier
                  ) = object : CssStyle<GeneralKind>() {}
 
+                 @Suppress("FunctionName")
                  fun <K : ComponentKind> CssStyle(
                      extraModifier: @Composable () -> Modifier = { Modifier },
                      init: CssStyleScope.() -> Unit
@@ -239,28 +269,35 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                      init: CssStyleBaseScope.() -> Modifier
                  ) = object : CssStyle<K>() {}
 
+                 @Suppress("UnusedReceiverParameter", "UNUSED_PARAMETER")
                  fun CssStyle<GeneralKind>.extendedBy(
                      extraModifier: @Composable () -> Modifier = { Modifier },
                      init: CssStyleScope.() -> Unit
                  ) = object : CssStyle<GeneralKind>() {}
 
+                 @Suppress("UnusedReceiverParameter", "UNUSED_PARAMETER")
                  fun CssStyle<GeneralKind>.extendedByBase(
                      extraModifier: @Composable () -> Modifier = { Modifier },
                      init: CssStyleBaseScope.() -> Modifier
                  ) = object : CssStyle<GeneralKind>() {}
 
+                 @Suppress("UnusedReceiverParameter", "UNUSED_PARAMETER")
                  @Composable
                  fun CssStyle<GeneralKind>.toModifier(): Modifier = Modifier
 
+                 @Suppress("UnusedReceiverParameter", "UNUSED_PARAMETER")
                  @Composable
                  fun CssStyle<RestrictedKind>.toModifier(): Modifier = Modifier
 
+                 @Suppress("UnusedReceiverParameter", "UNUSED_PARAMETER")
                  @Composable
                  fun Iterable<CssStyle<GeneralKind>>.toModifier(): Modifier = Modifier
              """.trimIndent()
         )
         myFixture.addFileToProject(
-            "src/stubs/kobweb/CssStyleVariant.kt", """
+            "src/stubs/kobweb/CssStyleVariant.kt",
+            // language=kotlin
+            """
                 @file:Suppress("UNUSED_PARAMETER")
                 package com.varabyte.kobweb.silk.style
                 import androidx.compose.runtime.Composable
@@ -283,19 +320,24 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                     init: CssStyleScope.() -> Unit
                 ): CssStyleVariant<K> = CssStyleVariant<K>()
 
+
+                @Suppress("UnusedReceiverParameter")
                 fun <K : ComponentKind> CssStyleVariant<K>.extendedByBase(
                     extraModifier: @Composable () -> Modifier = { Modifier },
                     init: CssStyleBaseScope.() -> Modifier
                 ) = CssStyleVariant<K>()
 
-                 @Composable
-                 fun <K : ComponentKind> CssStyle<K>.toModifier(vararg variants: CssStyleVariant<K>?): Modifier {
-                     return Modifier
-                 }
+                @Suppress("UnusedReceiverParameter")
+                @Composable
+                fun <K : ComponentKind> CssStyle<K>.toModifier(vararg variants: CssStyleVariant<K>?): Modifier {
+                    return Modifier
+                }
              """.trimIndent()
         )
         myFixture.addFileToProject(
-            "src/stubs/kobweb/Keyframes.kt", """
+            "src/stubs/kobweb/Keyframes.kt",
+            // language=kotlin
+            """
                 @file:Suppress("UNUSED_PARAMETER")
                 package com.varabyte.kobweb.silk.style.animation
                 import com.varabyte.kobweb.silk.style.*
@@ -310,18 +352,24 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
              """.trimIndent()
         )
         myFixture.addFileToProject(
-            "src/stubs/kobweb/StyleSelectors.kt", """
+            "src/stubs/kobweb/StyleSelectors.kt",
+            // language=kotlin
+            """
                  @file:Suppress("UNUSED_PARAMETER")
                  package com.varabyte.kobweb.silk.style.selectors
                  import com.varabyte.kobweb.compose.ui.Modifier
                  import com.varabyte.kobweb.silk.style.StyleScope
 
+                 @Suppress("UnusedReceiverParameter")
                  fun StyleScope.focus(block: () -> Modifier) {}
+                 @Suppress("UnusedReceiverParameter")
                  fun StyleScope.hover(block: () -> Modifier) {}
              """.trimIndent()
         )
         myFixture.addFileToProject(
-            "src/stubs/kobweb/WebModifiers.kt", """
+            "src/stubs/kobweb/WebModifiers.kt",
+            // language=kotlin
+            """
                  package com.varabyte.kobweb.compose.ui.modifiers
                  import com.varabyte.kobweb.compose.ui.Modifier
                  import com.varabyte.kobweb.compose.ui.styleModifier
@@ -333,21 +381,27 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                  import org.jetbrains.compose.web.css.percent
 
                  // Attrs
+                 @Suppress("UnusedReceiverParameter")
                  fun Modifier.id(value: String) = attrsModifier {
                      attr("id", value)
                  }
+                 @Suppress("UnusedReceiverParameter")
                  fun Modifier.tabIndex(value: Int) = attrsModifier {
                      attr("tabindex", value.toString())
                  }
 
                  // Styles
+                 @Suppress("UnusedReceiverParameter")
                  fun Modifier.borderRadius(value: CSSLengthNumericValue) = styleModifier {
                      property("border-radius", value)
                  }
+                 @Suppress("UnusedReceiverParameter")
                  fun Modifier.color(value: CSSColorValue) = styleModifier {
                      property("color", value)
                  }
+                 @Suppress("UnusedReceiverParameter")
                  fun Modifier.fillMaxWidth() = width(100.percent)
+                 @Suppress("UnusedReceiverParameter")
                  fun Modifier.width(value: CSSLengthOrPercentageNumericValue) = styleModifier {
                      property("width", value)
                  }
