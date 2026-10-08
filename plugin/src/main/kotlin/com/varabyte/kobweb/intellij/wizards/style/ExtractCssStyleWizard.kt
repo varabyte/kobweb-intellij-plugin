@@ -100,6 +100,130 @@ class ModifierChainInfo(val entries: List<Entry>, val chainTerminator: KtCallExp
     }
 }
 
+context(kaSession: KaSession)
+fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaSession) {
+    val chainedCalls = mutableListOf<Pair<KtNamedFunction, KtCallExpression>>()
+    var current: KtExpression? = this@toModifierChainInfo
+    var chainTerminator: KtCallExpression? = null
+    while (current is KtDotQualifiedExpression) {
+        val callExpression = (current.selectorExpression as? KtCallExpression)
+        val namedFun = callExpression
+            ?.resolveToCall()
+            ?.singleFunctionCallOrNull()
+            ?.symbol?.psi
+                as? KtNamedFunction
+
+        if (namedFun != null) {
+            if (!namedFun.isModifierChainingExtension()) {
+                check(chainTerminator == null) { "There should only ever be at most one non-Modifier function in a Modifier chain (which, if present, terminates it!)"}
+                chainTerminator = callExpression
+            } else {
+                chainedCalls.add(0, namedFun to callExpression)
+            }
+        }
+        current = current.receiverExpression
+    }
+
+    val entries = chainedCalls.map { (funcDefn, callExpr) ->
+        val funcCall = callExpr.resolveToCall()?.singleFunctionCallOrNull()
+        val hasTrailingLambda = callExpr.valueArguments.lastOrNull() is KtLambdaArgument
+        val argMapping = funcCall?.argumentMapping ?: emptyMap()
+
+        val parameters = mutableListOf<ModifierChainInfo.Entry.Parameter>()
+        if (funcCall != null) {
+            parameters.addAll(funcCall.symbol.valueParameters.map { paramSymbol ->
+                val argValueExpr = argMapping.entries
+                    .firstOrNull { it.value.symbol == paramSymbol }
+                    ?.key
+                // valueArgument includes the full expression, e.g. not just "10" but "value = 10" if the user
+                // included it explicitly
+                val valueArgument = argValueExpr?.findParentOfType<KtValueArgument>()
+                val paramValue = when {
+                    valueArgument != null -> {
+                        fun KtExpression.getReferencedSimpleNames(): List<KtSimpleNameExpression> {
+                            return if (this is KtSimpleNameExpression) listOf(this)
+                            else PsiTreeUtil.findChildrenOfType(this, KtSimpleNameExpression::class.java).toList()
+                        }
+
+                        val references = argValueExpr.getReferencedSimpleNames()
+
+                        // Check if the parameter is global. If so, we can move the function call to the top-level
+                        // CssStyle trivially.
+                        val isGlobal = references.all { ref ->
+                            // Literals or unresolved names (e.g. '100', 'true') have no symbol
+                            val refSymbol = ref.mainReference.resolveToSymbol() ?: return@all true
+                            if (refSymbol is KaDeclarationSymbol && refSymbol.isTopLevel) return@all true
+
+                            var containerSymbol: KaSymbol? = refSymbol.containingSymbol
+
+                            while (containerSymbol != null) {
+                                when (containerSymbol) {
+                                    is KaPackageSymbol -> return@all true
+                                    is KaNamedClassSymbol -> {
+                                        // Companion objects are always global, so we can abort early
+                                        if (containerSymbol.classKind == KaClassKind.COMPANION_OBJECT) return@all true
+                                        if (containerSymbol.classKind == KaClassKind.OBJECT && containerSymbol.isTopLevel) return@all true
+                                        if (containerSymbol.isLocal) return@all false
+                                        // If we're a nested class, we must also verify parent containers
+                                        containerSymbol = containerSymbol.containingSymbol
+                                    }
+
+                                    // Any local variables, local functions, or inner classes bounded to an instance/local context
+                                    else -> return@all false
+                                }
+                            }
+                            true
+                        }
+
+                        ModifierChainInfo.Entry.Parameter.Value(
+                            valueArgument.text,
+                            isGlobal,
+                        )
+                    }
+                    else -> null
+                }
+
+                @OptIn(KaExperimentalApi::class)
+                val paramType = if (paramSymbol.returnType.symbol != null) {
+                    // There HAS to be a better way than this, but I fought the IntelliJ APIs and could not find
+                    // a way that worked with generic types, regular types, AND type-alias values. So what I do for
+                    // now is "parse" the fqns out of the qualified-name version of the render.
+                    val qualifiedRender = paramSymbol.returnType.render(
+                        KaTypeRendererForSource.WITH_QUALIFIED_NAMES,
+                        position = Variance.INVARIANT
+                    )
+
+                    ModifierChainInfo.Entry.Parameter.Type(
+                        qualifiedRender.split(Regex("[<>, ]")).filter { it.isNotBlank() && it.trim() !in setOf("*", "in", "out") }.toSet(),
+                        paramSymbol.returnType.render(
+                            KaTypeRendererForSource.WITH_SHORT_NAMES,
+                            position = Variance.INVARIANT
+                        )
+                    )
+                } else null
+
+                ModifierChainInfo.Entry.Parameter(
+                    paramSymbol.name.asString(),
+                    paramType ?: ModifierChainInfo.Entry.Parameter.Type(
+                        setOf(STYLE_PROPERTY_VALUE_CLASS_ID.asFqNameString()),
+                        STYLE_PROPERTY_VALUE_CLASS_ID.shortClassName.asString()
+                    ),
+                    paramValue
+                )
+            })
+        }
+        ModifierChainInfo.Entry(
+            funcDefn,
+            funcDefn.getWebModifierType(),
+            parameters,
+            hasTrailingLambda
+        )
+    }
+
+    return ModifierChainInfo(entries, chainTerminator)
+}
+
+
 private object Keys {
     val STYLE_NAME by key<String>()
     val MODIFIER_CHAIN_INFO by key<ModifierChainInfo>()
@@ -143,128 +267,6 @@ class ExtractCssStyleWizard(
 
     companion object {
         const val TITLE = "Extract Inline Modifier to CssStyle"
-    }
-
-    context(kaSession: KaSession)
-    private fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaSession) {
-        val chainedCalls = mutableListOf<Pair<KtNamedFunction, KtCallExpression>>()
-        var current: KtExpression? = this@toModifierChainInfo
-        var chainTerminator: KtCallExpression? = null
-        while (current is KtDotQualifiedExpression) {
-            val callExpression = (current.selectorExpression as? KtCallExpression)
-            val namedFun = callExpression
-                ?.resolveToCall()
-                ?.singleFunctionCallOrNull()
-                ?.symbol?.psi
-                    as? KtNamedFunction
-
-            if (namedFun != null) {
-                if (!namedFun.isModifierChainingExtension()) {
-                    check(chainTerminator == null) { "There should only ever be at most one non-Modifier function in a Modifier chain (which, if present, terminates it!)"}
-                    chainTerminator = callExpression
-                } else {
-                    chainedCalls.add(0, namedFun to callExpression)
-                }
-            }
-            current = current.receiverExpression
-        }
-
-        val entries = chainedCalls.map { (funcDefn, callExpr) ->
-            val funcCall = callExpr.resolveToCall()?.singleFunctionCallOrNull()
-            val hasTrailingLambda = callExpr.valueArguments.lastOrNull() is KtLambdaArgument
-            val argMapping = funcCall?.argumentMapping ?: emptyMap()
-
-            val parameters = mutableListOf<ModifierChainInfo.Entry.Parameter>()
-            if (funcCall != null) {
-                parameters.addAll(funcCall.symbol.valueParameters.map { paramSymbol ->
-                    val argValueExpr = argMapping.entries
-                        .firstOrNull { it.value.symbol == paramSymbol }
-                        ?.key
-                    // valueArgument includes the full expression, e.g. not just "10" but "value = 10" if the user
-                    // included it explicitly
-                    val valueArgument = argValueExpr?.findParentOfType<KtValueArgument>()
-                    val paramValue = when {
-                        valueArgument != null -> {
-                            fun KtExpression.getReferencedSimpleNames(): List<KtSimpleNameExpression> {
-                                return if (this is KtSimpleNameExpression) listOf(this)
-                                else PsiTreeUtil.findChildrenOfType(this, KtSimpleNameExpression::class.java).toList()
-                            }
-
-                            val references = argValueExpr.getReferencedSimpleNames()
-
-                            // Check if the parameter is global. If so, we can move the function call to the top-level
-                            // CssStyle trivially.
-                            val isGlobal = references.all { ref ->
-                                // Literals or unresolved names (e.g. '100', 'true') have no symbol
-                                val refSymbol = ref.mainReference.resolveToSymbol() ?: return@all true
-                                if (refSymbol is KaDeclarationSymbol && refSymbol.isTopLevel) return@all true
-
-                                var containerSymbol: KaSymbol? = refSymbol.containingSymbol
-
-                                while (containerSymbol != null) {
-                                    when (containerSymbol) {
-                                        is KaPackageSymbol -> return@all true
-                                        is KaNamedClassSymbol -> {
-                                            // If we're a property declared inside a companion object, we can abort early
-                                            if (containerSymbol.classKind == KaClassKind.COMPANION_OBJECT) return@all true
-                                            if (containerSymbol.isLocal) return@all false
-                                            // If we're a nested class, we must also verify parent containers
-                                            containerSymbol = containerSymbol.containingSymbol
-                                        }
-
-                                        // Any local variables, local functions, or inner classes bounded to an instance/local context
-                                        else -> return@all false
-                                    }
-                                }
-                                true
-                            }
-
-                            ModifierChainInfo.Entry.Parameter.Value(
-                                valueArgument.text,
-                                isGlobal,
-                            )
-                        }
-                        else -> null
-                    }
-
-                    @OptIn(KaExperimentalApi::class)
-                    val paramType = if (paramSymbol.returnType.symbol != null) {
-                        // There HAS to be a better way than this, but I fought the IntelliJ APIs and could not find
-                        // a way that worked with generic types, regular types, AND type-alias values. So what I do for
-                        // now is "parse" the fqns out of the qualified-name version of the render.
-                        val qualifiedRender = paramSymbol.returnType.render(
-                            KaTypeRendererForSource.WITH_QUALIFIED_NAMES,
-                            position = Variance.INVARIANT
-                        )
-
-                        ModifierChainInfo.Entry.Parameter.Type(
-                            qualifiedRender.split(Regex("[<>, ]")).filter { it.isNotBlank() && it.trim() !in setOf("*", "in", "out") }.toSet(),
-                            paramSymbol.returnType.render(
-                                KaTypeRendererForSource.WITH_SHORT_NAMES,
-                                position = Variance.INVARIANT
-                            )
-                        )
-                    } else null
-
-                    ModifierChainInfo.Entry.Parameter(
-                        paramSymbol.name.asString(),
-                        paramType ?: ModifierChainInfo.Entry.Parameter.Type(
-                            setOf(STYLE_PROPERTY_VALUE_CLASS_ID.asFqNameString()),
-                            STYLE_PROPERTY_VALUE_CLASS_ID.shortClassName.asString()
-                        ),
-                        paramValue
-                    )
-                })
-            }
-            ModifierChainInfo.Entry(
-                funcDefn,
-                funcDefn.getWebModifierType(),
-                parameters,
-                hasTrailingLambda
-            )
-        }
-
-        return ModifierChainInfo(entries, chainTerminator)
     }
 
     override fun createSteps(ctx: SimpleWizard<Input, Result>.StepContext): List<Step> {

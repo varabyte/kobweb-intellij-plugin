@@ -2,9 +2,11 @@ package com.varabyte.kobweb.intellij.util.psi
 
 import com.intellij.openapi.roots.ProjectRootModificationTracker
 import com.intellij.openapi.util.Key
+import com.intellij.psi.PsiElement
 import com.intellij.psi.util.CachedValue
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
+import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationValue
@@ -48,6 +50,14 @@ tailrec fun KtDotQualifiedExpression.getEntireDotQualifiedExpression(): KtDotQua
     val parentExpr = parent as? KtDotQualifiedExpression
     return parentExpr?.getEntireDotQualifiedExpression() ?: this
 }
+
+/** Given any element inside a [KtDotQualifiedExpression], return the first item in the list */
+fun PsiElement?.getEntireDotQualifiedExpression(): KtDotQualifiedExpression? {
+    if (this == null) return null
+    val ktDotExpr = PsiTreeUtil.getParentOfType(this, KtDotQualifiedExpression::class.java) ?: return null
+    return ktDotExpr.getEntireDotQualifiedExpression()
+}
+
 
 /**
  * Returns the leading expression of a [KtDotQualifiedExpression] chain.
