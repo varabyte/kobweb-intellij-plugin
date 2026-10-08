@@ -326,9 +326,9 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                  import com.varabyte.kobweb.compose.ui.Modifier
                  import com.varabyte.kobweb.compose.ui.styleModifier
                  import com.varabyte.kobweb.compose.ui.attrsModifier
-                 import com.varabyte.kobweb.compose.ui.graphics.Color
                  import com.varabyte.kobweb.compose.css.CSSLengthNumericValue
                  import com.varabyte.kobweb.compose.css.CSSLengthOrPercentageNumericValue
+                 import org.jetbrains.compose.web.css.CSSColorValue
                  import org.jetbrains.compose.web.css.px
                  import org.jetbrains.compose.web.css.percent
 
@@ -344,7 +344,7 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                  fun Modifier.borderRadius(value: CSSLengthNumericValue) = styleModifier {
                      property("border-radius", value)
                  }
-                 fun Modifier.color(value: Color) = styleModifier {
+                 fun Modifier.color(value: CSSColorValue) = styleModifier {
                      property("color", value)
                  }
                  fun Modifier.fillMaxWidth() = width(100.percent)
