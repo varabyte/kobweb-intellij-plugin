@@ -19,9 +19,6 @@ class KobwebApplicationFixtureTest : KobwebApplicationTestCase() {
         })
 
         assertThat(stubsList).isNotEmpty()
-        for (stub in stubsList) {
-            myFixture.configureFromExistingVirtualFile(stub)
-            myFixture.checkHighlighting(true, false, false)
-        }
+        myFixture.testHighlightingAllFiles(true, false, false, *stubsList.toTypedArray())
     }
 }
