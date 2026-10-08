@@ -310,6 +310,17 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
              """.trimIndent()
         )
         myFixture.addFileToProject(
+            "src/stubs/kobweb/StyleSelectors.kt", """
+                 @file:Suppress("UNUSED_PARAMETER")
+                 package com.varabyte.kobweb.silk.style.selectors
+                 import com.varabyte.kobweb.compose.ui.Modifier
+                 import com.varabyte.kobweb.silk.style.StyleScope
+
+                 fun StyleScope.focus(block: () -> Modifier) {}
+                 fun StyleScope.hover(block: () -> Modifier) {}
+             """.trimIndent()
+        )
+        myFixture.addFileToProject(
             "src/stubs/kobweb/WebModifiers.kt", """
                  package com.varabyte.kobweb.compose.ui.modifiers
                  import com.varabyte.kobweb.compose.ui.Modifier
