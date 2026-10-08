@@ -31,7 +31,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Run tests
-        run: ./gradlew :plugin:test
+        run: ./gradlew :plugin:prepareTestSandbox :plugin:test
 
       - name: Verify Kobweb IntelliJ Plugin
         run: ./gradlew :plugin:verifyPlugin
