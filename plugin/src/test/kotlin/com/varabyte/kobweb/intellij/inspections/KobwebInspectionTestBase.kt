@@ -4,6 +4,7 @@ import com.intellij.codeInspection.InspectionProfileEntry
 import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.codeInspection.ex.QuickFixWrapper
 import com.varabyte.kobweb.intellij.test.fixtures.KobwebApplicationTestCase
+import com.varabyte.kobweb.intellij.test.util.checkResultAndHighlight
 import org.intellij.lang.annotations.Language
 import kotlin.reflect.KClass
 
@@ -23,7 +24,7 @@ abstract class KobwebInspectionTestBase : KobwebApplicationTestCase() {
             quickFixes.forEach { quickFix ->
                 myFixture.launchAction(quickFix)
             }
-            myFixture.checkResult(newCode)
+            myFixture.checkResultAndHighlight(newCode)
         }
     }
 

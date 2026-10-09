@@ -1,6 +1,7 @@
 package com.varabyte.kobweb.intellij.intentions
 
 import com.varabyte.kobweb.intellij.test.fixtures.KobwebApplicationTestCase
+import com.varabyte.kobweb.intellij.test.util.checkResultAndHighlight
 import com.varabyte.truthish.assertWithMessage
 import org.intellij.lang.annotations.Language
 
@@ -19,8 +20,7 @@ abstract class KobwebIntentionTestBase : KobwebApplicationTestCase() {
         val intention = myFixture.getAvailableIntention(intentionName)
             ?: error("Intention \"$intentionName\" was not available for code:\n\n$before")
         myFixture.launchAction(intention)
-        myFixture.checkResult(after)
-        myFixture.checkHighlighting()
+        myFixture.checkResultAndHighlight(after)
     }
 
     protected fun assertIntentionNotAvailable(
