@@ -121,7 +121,6 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         )
     }
 
-
     fun testTopLevelStyleValuesCanBeExtracted() {
         myFixture.configureByTextAndHighlight("SomePage.kt",
             // language=kotlin
@@ -373,4 +372,59 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             """.trimIndent()
         )
     }
+
+    fun testExtractModifierWithDefaultValues() {
+        myFixture.configureByTextAndHighlight("SomePage.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import org.jetbrains.compose.web.css.px
+
+            @Composable
+            fun SomePage() {
+                val marginTop = 5.px
+                M<caret>odifier
+                    .padding(right = 10.px)
+                    .margin(top = marginTop)
+            }
+            """.trimIndent()
+        )
+
+        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
+        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
+        result.performRefactoring(myFixture.editor, ktDotExpr)
+
+        myFixture.checkResult(
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import org.jetbrains.compose.web.css.px
+            import com.varabyte.kobweb.compose.css.StyleVariable
+            import com.varabyte.kobweb.compose.ui.modifiers.setVariable
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.base
+            import com.varabyte.kobweb.silk.style.toModifier
+            import org.jetbrains.compose.web.css.CSSNumericValue
+            import org.jetbrains.compose.web.css.CSSUnitLengthOrPercentage
+
+            val MyStyle_MarginTopVar by StyleVariable<CSSNumericValue<out CSSUnitLengthOrPercentage>>()
+            val MyStyle = CssStyle.base {
+                Modifier
+                    .padding(right = 10.px)
+                    .margin(top = MyStyle_MarginTopVar.value())
+            }
+
+            @Composable
+            fun SomePage() {
+                val marginTop = 5.px
+                MyStyle.toModifier().setVariable(MyStyle_MarginTopVar, marginTop)
+            }
+            """.trimIndent()
+        )
+    }
+
 }

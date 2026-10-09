@@ -69,6 +69,7 @@ class ModifierChainInfo(val entries: List<Entry>, val chainTerminator: KtCallExp
             val value: Value?,
         ) {
             class Value(
+                val isNamed: Boolean,
                 val text: String,
                 val isGlobal: Boolean,
             )
@@ -176,7 +177,8 @@ fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaS
                         }
 
                         ModifierChainInfo.Entry.Parameter.Value(
-                            valueArgument.text,
+                            valueArgument.isNamed(),
+                            argValueExpr.text,
                             isGlobal,
                         )
                     }
@@ -607,7 +609,16 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
     private fun ModifierChainInfo.Entry.toText() = buildString {
         val varNames = associatedStyleVariableNames()
         fun ModifierChainInfo.Entry.Parameter.toText(): String {
-            return varNames[this]?.let { varName -> "${varName}.value()" } ?: value!!.text
+            val param = this
+            // NOTE: We only call this for parameters that have their values set, i.e., not defaults
+            val paramValue = value!!
+
+            return buildString {
+                if (paramValue.isNamed) {
+                    append("$name = ")
+                }
+                append(varNames[param]?.let { varName -> "${varName}.value()" } ?: paramValue.text)
+            }
         }
 
         append(webModifier.name!!)

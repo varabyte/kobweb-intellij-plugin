@@ -86,6 +86,7 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                  interface StylePropertyValue
                  interface StyleScope {
                     fun property(name: String, value: StylePropertyValue)
+                    fun property(name: String, value: String)
                  }
              """.trimIndent()
         )
@@ -369,7 +370,7 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
         myFixture.addFileToProject(
             "src/stubs/kobweb/WebModifiers.kt",
             // language=kotlin
-            """
+            $$"""
                  package com.varabyte.kobweb.compose.ui.modifiers
                  import com.varabyte.kobweb.compose.ui.Modifier
                  import com.varabyte.kobweb.compose.ui.styleModifier
@@ -401,6 +402,25 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                  }
                  @Suppress("UnusedReceiverParameter")
                  fun Modifier.fillMaxWidth() = width(100.percent)
+                 @Suppress("UnusedReceiverParameter")
+                 fun Modifier.margin(
+                     top: CSSLengthOrPercentageNumericValue = 0.px,
+                     right: CSSLengthOrPercentageNumericValue = 0.px,
+                     bottom: CSSLengthOrPercentageNumericValue = 0.px,
+                     left: CSSLengthOrPercentageNumericValue = 0.px,
+                 ): Modifier = styleModifier {
+                     property("margin", "$top $right $bottom $left")
+                 }
+                 @Suppress("UnusedReceiverParameter")
+                 fun Modifier.padding(
+                     top: CSSLengthOrPercentageNumericValue = 0.px,
+                     right: CSSLengthOrPercentageNumericValue = 0.px,
+                     bottom: CSSLengthOrPercentageNumericValue = 0.px,
+                     left: CSSLengthOrPercentageNumericValue = 0.px,
+                 ): Modifier = styleModifier {
+                     property("padding", "$top $right $bottom $left")
+                 }
+
                  @Suppress("UnusedReceiverParameter")
                  fun Modifier.width(value: CSSLengthOrPercentageNumericValue) = styleModifier {
                      property("width", value)
