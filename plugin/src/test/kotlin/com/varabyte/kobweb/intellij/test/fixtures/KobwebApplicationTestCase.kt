@@ -33,6 +33,20 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
     /** Minimal stand-ins for the parts of the Kobweb framework that the plugin looks up by ClassId / CallableId. */
     private fun addKobwebStubs() {
         myFixture.addFileToProject(
+            "src/stubs/common/Stdlib.kt",
+            // language=kotlin
+            """
+            package kotlin
+
+            inline fun <R> run(block: () -> R): R {
+                return block()
+            }
+            inline fun <T, R> T.let(block: (T) -> R): R {
+                return block(this)
+            }
+            """.trimIndent()
+        )
+        myFixture.addFileToProject(
             "src/stubs/js/Stdlib.kt",
             // language=kotlin
             """
@@ -82,12 +96,27 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
             "src/stubs/composehtml/Style.kt",
             // language=kotlin
             """
-                 package org.jetbrains.compose.web.css
-                 interface StylePropertyValue
-                 interface StyleScope {
+                package org.jetbrains.compose.web.css
+                import kotlin.js.unsafeCast
+
+                interface StylePropertyValue
+                interface StylePropertyNumber: StylePropertyValue
+                interface StylePropertyString: StylePropertyValue
+                interface CSSStyleValue: StylePropertyValue {
+                    override fun toString(): String
+                }
+
+                @Suppress("NOTHING_TO_INLINE", "FunctionName")
+                inline fun StylePropertyValue(value: String) = value.unsafeCast<StylePropertyString>()
+                @Suppress("NOTHING_TO_INLINE", "FunctionName")
+                inline fun StylePropertyValue(value: Number) = value.unsafeCast<StylePropertyNumber>()
+                @Suppress("NOTHING_TO_INLINE", "FunctionName")
+                inline fun CSSStyleValue(value: String) = StylePropertyValue(value).unsafeCast<CSSStyleValue>()
+
+                interface StyleScope {
                     fun property(name: String, value: StylePropertyValue)
                     fun property(name: String, value: String)
-                 }
+                }
              """.trimIndent()
         )
         myFixture.addFileToProject(
@@ -229,21 +258,21 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                  package com.varabyte.kobweb.silk.style
                  import androidx.compose.runtime.Composable
                  import com.varabyte.kobweb.compose.ui.Modifier
-    
+
                  sealed interface CssKind
                  sealed interface GeneralKind : CssKind
                  sealed interface RestrictedKind : CssKind
                  interface ComponentKind : CssKind
-    
+
                  interface CssStyleScopeBase
-    
+
                  abstract class StyleScope {
                     fun base(createModifier: () -> Modifier) {}
                  }
-    
+
                  class CssStyleScope : CssStyleScopeBase, StyleScope()
                  class CssStyleBaseScope : CssStyleScopeBase
-    
+
                  abstract class CssStyle<K : CssKind> {
                     companion object // for extensions
                  }
@@ -253,7 +282,7 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                      extraModifier: @Composable () -> Modifier = { Modifier },
                      init: CssStyleScope.() -> Unit
                  ) = object : CssStyle<GeneralKind>() {}
- 
+
                  fun CssStyle.Companion.base(
                      extraModifier: @Composable () -> Modifier = { Modifier },
                      init: CssStyleBaseScope.() -> Modifier
@@ -348,7 +377,7 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                     fun from(createStyle: () -> Modifier) {}
                     fun to(createStyle: () -> Modifier) {}
                 }
-                
+
                 class Keyframes(init: KeyframesBuilder.() -> Unit)
              """.trimIndent()
         )
@@ -368,64 +397,138 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
              """.trimIndent()
         )
         myFixture.addFileToProject(
+            "src/stubs/kobweb/StyleVariable.kt",
+            // language=kotlin
+            """
+            @file:Suppress("UNUSED_PARAMETER")
+            package com.varabyte.kobweb.compose.css
+            import kotlin.let
+            import kotlin.js.unsafeCast
+            import kotlin.reflect.KProperty
+            import org.jetbrains.compose.web.css.StylePropertyNumber
+            import org.jetbrains.compose.web.css.StylePropertyString
+            import org.jetbrains.compose.web.css.StylePropertyValue
+
+            sealed class StyleVariable<T : StylePropertyValue, V>(name: String, defaultFallback: T?) {
+                fun value(): T = "--var".unsafeCast<T>()
+
+                class PropertyValue<T : StylePropertyValue>( name: String, defaultFallback: T? = null)
+                : StyleVariable<T, T>(name, defaultFallback)
+
+                class NumberValue<T : Number>(name: String, defaultFallback: T? = null)
+                : StyleVariable<StylePropertyNumber, T>(name, defaultFallback?.let { StylePropertyValue(it) })
+
+                class StringValue(
+                    name: String,
+                    defaultFallback: String? = null,
+                ) : StyleVariable<StylePropertyString, String>(name, defaultFallback?.let { StylePropertyValue(it) })
+            }
+
+            // Support "by" syntax
+
+            class StyleVariablePropertyProvider<T : StylePropertyValue>(private val defaultFallback: T?) {
+                operator fun getValue(thisRef: Any?, property: KProperty<*>) =
+                    StyleVariable.PropertyValue("stubbed-name", defaultFallback)
+            }
+
+            class StyleVariableNumberProvider<T : Number>(private val defaultFallback: T?) {
+                operator fun getValue(thisRef: Any?, property: KProperty<*>) =
+                    StyleVariable.NumberValue("stubbed-name", defaultFallback)
+            }
+
+            class StyleVariableStringProvider(private val defaultFallback: String?) {
+                operator fun getValue(thisRef: Any?, property: KProperty<*>) =
+                    StyleVariable.StringValue("stubbed-name", defaultFallback)
+            }
+
+            @Suppress("FunctionName")
+            fun <T : StylePropertyValue> StyleVariable(defaultFallback: T? = null) =
+                StyleVariablePropertyProvider(defaultFallback)
+
+            @Suppress("FunctionName")
+            fun <T : Number> StyleVariable(defaultFallback: T? = null) =
+                StyleVariableNumberProvider(defaultFallback)
+
+            @Suppress("FunctionName", "FINAL_UPPER_BOUND")
+            fun <T : String> StyleVariable(defaultFallback: T? = null) =
+                StyleVariableStringProvider(defaultFallback)
+
+
+            """.trimIndent()
+        )
+        myFixture.addFileToProject(
             "src/stubs/kobweb/WebModifiers.kt",
             // language=kotlin
             $$"""
-                 package com.varabyte.kobweb.compose.ui.modifiers
-                 import com.varabyte.kobweb.compose.ui.Modifier
-                 import com.varabyte.kobweb.compose.ui.styleModifier
-                 import com.varabyte.kobweb.compose.ui.attrsModifier
-                 import com.varabyte.kobweb.compose.css.CSSLengthNumericValue
-                 import com.varabyte.kobweb.compose.css.CSSLengthOrPercentageNumericValue
-                 import org.jetbrains.compose.web.css.CSSColorValue
-                 import org.jetbrains.compose.web.css.px
-                 import org.jetbrains.compose.web.css.percent
+            @file:Suppress("UNUSED_PARAMETER")
+            package com.varabyte.kobweb.compose.ui.modifiers
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.styleModifier
+            import com.varabyte.kobweb.compose.ui.attrsModifier
+            import com.varabyte.kobweb.compose.css.CSSLengthNumericValue
+            import com.varabyte.kobweb.compose.css.CSSLengthOrPercentageNumericValue
+            import com.varabyte.kobweb.compose.css.StyleVariable
+            import org.jetbrains.compose.web.css.CSSColorValue
+            import org.jetbrains.compose.web.css.StylePropertyValue
+            import org.jetbrains.compose.web.css.px
+            import org.jetbrains.compose.web.css.percent
 
-                 // Attrs
-                 @Suppress("UnusedReceiverParameter")
-                 fun Modifier.id(value: String) = attrsModifier {
-                     attr("id", value)
-                 }
-                 @Suppress("UnusedReceiverParameter")
-                 fun Modifier.tabIndex(value: Int) = attrsModifier {
-                     attr("tabindex", value.toString())
-                 }
+            // Attrs
+            @Suppress("UnusedReceiverParameter")
+            fun Modifier.id(value: String) = attrsModifier {
+                attr("id", value)
+            }
+            @Suppress("UnusedReceiverParameter")
+            fun Modifier.tabIndex(value: Int) = attrsModifier {
+                attr("tabindex", value.toString())
+            }
 
-                 // Styles
-                 @Suppress("UnusedReceiverParameter")
-                 fun Modifier.borderRadius(value: CSSLengthNumericValue) = styleModifier {
-                     property("border-radius", value)
-                 }
-                 @Suppress("UnusedReceiverParameter")
-                 fun Modifier.color(value: CSSColorValue) = styleModifier {
-                     property("color", value)
-                 }
-                 @Suppress("UnusedReceiverParameter")
-                 fun Modifier.fillMaxWidth() = width(100.percent)
-                 @Suppress("UnusedReceiverParameter")
-                 fun Modifier.margin(
-                     top: CSSLengthOrPercentageNumericValue = 0.px,
-                     right: CSSLengthOrPercentageNumericValue = 0.px,
-                     bottom: CSSLengthOrPercentageNumericValue = 0.px,
-                     left: CSSLengthOrPercentageNumericValue = 0.px,
-                 ): Modifier = styleModifier {
-                     property("margin", "$top $right $bottom $left")
-                 }
-                 @Suppress("UnusedReceiverParameter")
-                 fun Modifier.padding(
-                     top: CSSLengthOrPercentageNumericValue = 0.px,
-                     right: CSSLengthOrPercentageNumericValue = 0.px,
-                     bottom: CSSLengthOrPercentageNumericValue = 0.px,
-                     left: CSSLengthOrPercentageNumericValue = 0.px,
-                 ): Modifier = styleModifier {
-                     property("padding", "$top $right $bottom $left")
-                 }
+            // Styles
+            @Suppress("UnusedReceiverParameter")
+            fun Modifier.borderRadius(value: CSSLengthNumericValue) = styleModifier {
+                property("border-radius", value)
+            }
 
-                 @Suppress("UnusedReceiverParameter")
-                 fun Modifier.width(value: CSSLengthOrPercentageNumericValue) = styleModifier {
-                     property("width", value)
-                 }
-             """.trimIndent()
+            @Suppress("UnusedReceiverParameter")
+            fun Modifier.color(value: CSSColorValue) = styleModifier {
+                property("color", value)
+            }
+
+            @Suppress("UnusedReceiverParameter")
+            fun Modifier.fillMaxWidth() = width(100.percent)
+
+            @Suppress("UnusedReceiverParameter")
+            fun Modifier.margin(
+                top: CSSLengthOrPercentageNumericValue = 0.px,
+                right: CSSLengthOrPercentageNumericValue = 0.px,
+                bottom: CSSLengthOrPercentageNumericValue = 0.px,
+                left: CSSLengthOrPercentageNumericValue = 0.px,
+            ): Modifier = styleModifier {
+                property("margin", "$top $right $bottom $left")
+            }
+
+            @Suppress("UnusedReceiverParameter")
+            fun Modifier.padding(
+                top: CSSLengthOrPercentageNumericValue = 0.px,
+                right: CSSLengthOrPercentageNumericValue = 0.px,
+                bottom: CSSLengthOrPercentageNumericValue = 0.px,
+                left: CSSLengthOrPercentageNumericValue = 0.px,
+            ): Modifier = styleModifier {
+                property("padding", "$top $right $bottom $left")
+            }
+
+            @Suppress("UnusedReceiverParameter")
+            fun <T : StylePropertyValue> Modifier.setVariable(variable: StyleVariable.PropertyValue<T>, value: T?): Modifier = this
+            @Suppress("UnusedReceiverParameter")
+            fun <T : Number> Modifier.setVariable(variable: StyleVariable.NumberValue<T>, value: T?): Modifier = this
+            @Suppress("UnusedReceiverParameter")
+            fun Modifier.setVariable(variable: StyleVariable.StringValue, value: String?): Modifier = this
+
+            @Suppress("UnusedReceiverParameter")
+            fun Modifier.width(value: CSSLengthOrPercentageNumericValue) = styleModifier {
+                property("width", value)
+            }
+            """.trimIndent()
         )
     }
 }

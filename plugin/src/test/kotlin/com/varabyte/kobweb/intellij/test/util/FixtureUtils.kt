@@ -19,3 +19,14 @@ fun CodeInsightTestFixture.configureByTextAndHighlight(fileName: String, text: S
     configureByText(fileName, text)
     checkHighlighting()
 }
+
+/**
+ * Check the target file for expected text and ensure there are no highlighting errors.
+ *
+ * Doing both of these operations together allows us to make sure that the code we generate didn't accidentally
+ * introduce any highlighting errors.
+ */
+fun CodeInsightTestFixture.checkResultAndHighlight(expected: String) {
+    checkResult(expected)
+    checkHighlighting()
+}

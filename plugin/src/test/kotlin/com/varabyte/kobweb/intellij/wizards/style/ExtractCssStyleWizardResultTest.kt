@@ -2,6 +2,7 @@ package com.varabyte.kobweb.intellij.wizards.style
 
 import com.varabyte.kobweb.intellij.test.fixtures.KobwebApplicationTestCase
 import com.varabyte.kobweb.intellij.test.util.analyzeOnEdt
+import com.varabyte.kobweb.intellij.test.util.checkResultAndHighlight
 import com.varabyte.kobweb.intellij.test.util.configureByTextAndHighlight
 import com.varabyte.kobweb.intellij.test.util.elementUnderCaret
 import com.varabyte.kobweb.intellij.util.psi.getEntireDotQualifiedExpression
@@ -47,7 +48,7 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
         result.performRefactoring(myFixture.editor, ktDotExpr)
 
-        myFixture.checkResult(
+        myFixture.checkResultAndHighlight(
             // language=kotlin
             """
             import androidx.compose.runtime.Composable
@@ -94,7 +95,7 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = false)
         result.performRefactoring(myFixture.editor, ktDotExpr)
 
-        myFixture.checkResult(
+        myFixture.checkResultAndHighlight(
             // language=kotlin
             """
             import androidx.compose.runtime.Composable
@@ -145,7 +146,7 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
         result.performRefactoring(myFixture.editor, ktDotExpr)
 
-        myFixture.checkResult(
+        myFixture.checkResultAndHighlight(
             // language=kotlin
             """
             import androidx.compose.runtime.Composable
@@ -198,7 +199,7 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = false)
         result.performRefactoring(myFixture.editor, ktDotExpr)
 
-        myFixture.checkResult(
+        myFixture.checkResultAndHighlight(
             // language=kotlin
             """
             import androidx.compose.runtime.Composable
@@ -257,7 +258,7 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = false, extractAttributes = true)
         result.performRefactoring(myFixture.editor, ktDotExpr)
 
-        myFixture.checkResult(
+        myFixture.checkResultAndHighlight(
             // language=kotlin
             """
             import androidx.compose.runtime.Composable
@@ -301,7 +302,7 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = false, extractAttributes = false)
         result.performRefactoring(myFixture.editor, ktDotExpr)
 
-        myFixture.checkResult(
+        myFixture.checkResultAndHighlight(
             // language=kotlin
             """
             import androidx.compose.runtime.Composable
@@ -348,7 +349,7 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = false, extractAttributes = true)
         result.performRefactoring(myFixture.editor, ktDotExpr)
 
-        myFixture.checkResult(
+        myFixture.checkResultAndHighlight(
             // language=kotlin
             """
             import androidx.compose.runtime.Composable
@@ -396,7 +397,7 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
         result.performRefactoring(myFixture.editor, ktDotExpr)
 
-        myFixture.checkResult(
+        myFixture.checkResultAndHighlight(
             // language=kotlin
             """
             import androidx.compose.runtime.Composable
