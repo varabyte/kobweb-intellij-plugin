@@ -701,7 +701,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
 
         return buildString {
             modifierChainInfo.extractStyleVariables().forEach { (parameter, varName) ->
-                appendLine("val $varName by StyleVariable<${parameter.type.rendered}>()")
+                appendLine("private val $varName by StyleVariable<${parameter.type.rendered}>()")
             }
             append("val $styleName = CssStyle")
             if (useConciseSyntax) {

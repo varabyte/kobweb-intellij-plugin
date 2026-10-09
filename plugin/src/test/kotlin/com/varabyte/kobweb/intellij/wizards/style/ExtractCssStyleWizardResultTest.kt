@@ -215,8 +215,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import org.jetbrains.compose.web.css.CSSNumericValue
             import org.jetbrains.compose.web.css.CSSUnitLengthOrPercentage
             
-            val MyStyle_WidthVar by StyleVariable<CSSNumericValue<out CSSUnitLengthOrPercentage>>()
-            val MyStyle_ColorVar by StyleVariable<CSSColorValue>()
+            private val MyStyle_WidthVar by StyleVariable<CSSNumericValue<out CSSUnitLengthOrPercentage>>()
+            private val MyStyle_ColorVar by StyleVariable<CSSColorValue>()
             val MyStyle = CssStyle {
                 base {
                     Modifier
@@ -412,7 +412,7 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import org.jetbrains.compose.web.css.CSSNumericValue
             import org.jetbrains.compose.web.css.CSSUnitLengthOrPercentage
 
-            val MyStyle_MarginTopVar by StyleVariable<CSSNumericValue<out CSSUnitLengthOrPercentage>>()
+            private val MyStyle_MarginTopVar by StyleVariable<CSSNumericValue<out CSSUnitLengthOrPercentage>>()
             val MyStyle = CssStyle.base {
                 Modifier
                     .padding(right = 10.px)
