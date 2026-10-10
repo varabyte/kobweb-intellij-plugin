@@ -28,14 +28,18 @@ import com.varabyte.kobweb.intellij.settings.KobwebAppSettingsService
 import com.varabyte.kobweb.intellij.util.compose.STYLE_PROPERTY_VALUE_CLASS_ID
 import com.varabyte.kobweb.intellij.util.idea.key
 import com.varabyte.kobweb.intellij.util.kobweb.compose.COMPOSABLE_CLASS_ID
+import com.varabyte.kobweb.intellij.util.kobweb.compose.MUTABLE_STATE_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierChainingExtension
+import com.varabyte.kobweb.intellij.util.kobweb.silk.COLOR_MODE_CLASS_ID
+import com.varabyte.kobweb.intellij.util.kobweb.silk.COLOR_MODE_COMPANION_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.style.CSS_STYLE_SUFFIX
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleNameWarningValidator
 import com.varabyte.kobweb.intellij.util.kobweb.style.createStyleNameErrorValidator
 import com.varabyte.kobweb.intellij.util.psi.getEntireDotQualifiedExpression
 import com.varabyte.kobweb.intellij.util.text.capitalized
+import com.varabyte.kobweb.intellij.util.text.replaceAll
 import com.varabyte.kobweb.intellij.wizards.SimpleWizard
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
@@ -45,7 +49,9 @@ import org.jetbrains.kotlin.analysis.api.renderer.types.impl.KaTypeRendererForSo
 import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
 import org.jetbrains.kotlin.analysis.api.symbols.*
+import org.jetbrains.kotlin.analysis.api.types.KaTypeNullability
 import org.jetbrains.kotlin.analysis.api.types.symbol
+import org.jetbrains.kotlin.idea.base.psi.childrenDfsSequence
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.*
@@ -144,15 +150,71 @@ fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaS
                 val paramValue = when {
                     valueArgument != null -> {
                         fun KtExpression.getReferencedSimpleNames(): List<KtSimpleNameExpression> {
-                            return if (this is KtSimpleNameExpression) listOf(this)
-                            else PsiTreeUtil.findChildrenOfType(this, KtSimpleNameExpression::class.java).toList()
+                            return PsiTreeUtil.findChildrenOfAnyType(this, /*strict = */false, KtSimpleNameExpression::class.java).toList()
+                        }
+                        val references = argValueExpr.getReferencedSimpleNames()
+
+                        context(kaSession: KaSession)
+                        fun KtSimpleNameExpression.isColorModeReference(): Boolean = with(kaSession) {
+                            val symbol = mainReference.resolveToSymbol() ?: return false
+
+                            // Check direct property reference to ColorMode.current, ColorMode.currentState, or
+                            // ColorMode.currentState.value.
+                            if (symbol is KaPropertySymbol) {
+                                (symbol.containingSymbol as? KaNamedClassSymbol)?.let { containingSymbol ->
+                                    if (
+                                        containingSymbol.classId == COLOR_MODE_COMPANION_CLASS_ID &&
+                                        symbol.name.asString().let { it == "currentState" || it == "current" }
+                                    ) {
+                                        return true
+                                    } else if (
+                                        containingSymbol.classId == MUTABLE_STATE_CLASS_ID &&
+                                        symbol.name.asString() == "value"
+                                    ) {
+                                        return true
+                                    }
+                                }
+                            }
+
+                            // Check variable assigned to / delegate property bound to ColorMode.current / by ColorMode.currentState
+                            if (symbol is KaLocalVariableSymbol && symbol.returnType.expandedSymbol?.classId == COLOR_MODE_CLASS_ID) {
+                                (symbol.psi as? KtProperty)?.let { property ->
+                                    (property.delegateExpression ?: property.initializer)?.let { assignmentExpr ->
+                                        val delegateCalls = PsiTreeUtil.findChildrenOfType(
+                                            assignmentExpr,
+                                            KtSimpleNameExpression::class.java
+                                        )
+                                        if (delegateCalls.any { it.isColorModeReference() }) {
+                                            return true
+                                        }
+                                    }
+                                }
+                            }
+
+                            return false
                         }
 
-                        val references = argValueExpr.getReferencedSimpleNames()
+                        /**
+                         * Find all inner expressions that reference the ColorMode class.
+                         *
+                         * This is useful because we can intercep these references and shortcut them to the
+                         * `CssStyle.colorMode` property.
+                         */
+                        context(_: KaSession)
+                        fun KtExpression.findColorModeReferences(): List<KtSimpleNameExpression> {
+                            return childrenDfsSequence().filterIsInstance<KtSimpleNameExpression>().filter { it.isColorModeReference() }.toList()
+                        }
+
+                        val colorModeReferences = argValueExpr.findColorModeReferences().toSet()
 
                         // Check if the parameter is global. If so, we can move the function call to the top-level
                         // CssStyle trivially.
                         val isGlobal = references.all { ref ->
+                            // colorModeReferences that we find would normally be bound to local scope -- but we plan
+                            // to intercept and rewrite them using the provided CssStyle.colorMode instead, thereby
+                            // cutting the ties to the local scope.
+                            if (colorModeReferences.contains(ref)) return@all true
+
                             // Literals or unresolved names (e.g. '100', 'true') have no symbol
                             val refSymbol = ref.mainReference.resolveToSymbol() ?: return@all true
                             if (refSymbol is KaDeclarationSymbol && refSymbol.isTopLevel) return@all true
@@ -165,7 +227,11 @@ fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaS
                                     is KaNamedClassSymbol -> {
                                         // Companion objects are always global, so we can abort early
                                         if (containerSymbol.classKind == KaClassKind.COMPANION_OBJECT) return@all true
+                                        // Enums too
+                                        if (containerSymbol.classKind == KaClassKind.ENUM_CLASS) return@all true
+                                        // Objects are global only if they are top level or nested in outer objects
                                         if (containerSymbol.classKind == KaClassKind.OBJECT && containerSymbol.isTopLevel) return@all true
+
                                         if (containerSymbol.isLocal) return@all false
                                         // If we're a nested class, we must also verify parent containers
                                         containerSymbol = containerSymbol.containingSymbol
@@ -184,19 +250,22 @@ fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaS
                         // 1) property getters, e.g. @get:Composable val MODIFIER_VALUE = ...
                         // 2) function calls, e.g. produceColor() where `@Composable fun produceColor() ...``
                         context(kaSession: KaSession)
-                        fun KtValueArgument.includesComposableReference(): Boolean {
+                        fun KtValueArgument.includesComposableReference(skip: Set<KtExpression>): Boolean {
                             val self = this.getArgumentExpression() ?: return false
                             with(kaSession) {
                                 fun KaAnnotated.hasComposableAnnotation(): Boolean {
                                     return annotations.contains(COMPOSABLE_CLASS_ID)
                                 }
 
+                                fun <T : KtExpression> Iterable<T>.removeSkipped(): Iterable<T> =
+                                    if (skip.isEmpty()) this else this.filter { !skip.contains(it) }
+
                                 val calls = PsiTreeUtil.findChildrenOfAnyType(
                                     self, /* strict = */
                                     false,
                                     KtCallExpression::class.java
                                 )
-                                for (call in calls) {
+                                for (call in calls.removeSkipped()) {
                                     val functionSymbol = call.resolveToCall()
                                         ?.singleFunctionCallOrNull()
                                         ?.symbol as? KaNamedFunctionSymbol ?: continue
@@ -211,7 +280,7 @@ fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaS
                                     false,
                                     KtSimpleNameExpression::class.java
                                 )
-                                for (nameExpr in nameExprs) {
+                                for (nameExpr in nameExprs.removeSkipped()) {
                                     val symbol = nameExpr.mainReference.resolveToSymbol() ?: continue
                                     if (symbol is KaPropertySymbol && symbol.getter?.hasComposableAnnotation() == true)
                                         return true
@@ -221,10 +290,22 @@ fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaS
                             return false
                         }
 
+                        // e.g. "current" -> "ColorMode.current"
+                        fun Set<KtSimpleNameExpression>.toQualifiedNames(): Set<String> =
+                            this.map { nameExpr ->
+                                var topQualifiedExpr: KtExpression = nameExpr
+                                while (topQualifiedExpr.parent is KtDotQualifiedExpression &&
+                                    (topQualifiedExpr.parent as KtDotQualifiedExpression).selectorExpression == topQualifiedExpr) {
+                                    topQualifiedExpr = topQualifiedExpr.parent as KtDotQualifiedExpression
+                                }
+
+                                topQualifiedExpr.text
+                            }.toSet()
+
                         ModifierChainInfo.Entry.Parameter.Value(
                             valueArgument.isNamed(),
-                            argValueExpr.text,
-                            !isGlobal || valueArgument.includesComposableReference(),
+                            argValueExpr.text.replaceAll(colorModeReferences.toQualifiedNames(), "colorMode"),
+                            !isGlobal || valueArgument.includesComposableReference(colorModeReferences.toSet()),
                         )
                     }
                     else -> null
@@ -232,17 +313,21 @@ fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaS
 
                 @OptIn(KaExperimentalApi::class)
                 val paramType = if (paramSymbol.returnType.symbol != null) {
+                    // Even if the parameter itself is nullable, we just want the underlying non-nulllable type, since
+                    // we may want to import it, use its type with StyleVariable, etc.
+                    val paramSymbolReturnType = paramSymbol.returnType.withNullability(KaTypeNullability.NON_NULLABLE)
+
                     // There HAS to be a better way than this, but I fought the IntelliJ APIs and could not find
                     // a way that worked with generic types, regular types, AND type-alias values. So what I do for
                     // now is "parse" the fqns out of the qualified-name version of the render.
-                    val qualifiedRender = paramSymbol.returnType.render(
+                    val qualifiedRender = paramSymbolReturnType.render(
                         KaTypeRendererForSource.WITH_QUALIFIED_NAMES,
                         position = Variance.INVARIANT
                     )
 
                     ModifierChainInfo.Entry.Parameter.Type(
                         qualifiedRender.split(Regex("[<>, ]")).filter { it.isNotBlank() && it.trim() !in setOf("*", "in", "out") }.toSet(),
-                        paramSymbol.returnType.render(
+                        paramSymbolReturnType.render(
                             KaTypeRendererForSource.WITH_SHORT_NAMES,
                             position = Variance.INVARIANT
                         )

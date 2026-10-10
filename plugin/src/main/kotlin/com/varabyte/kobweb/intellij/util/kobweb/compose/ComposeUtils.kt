@@ -7,3 +7,5 @@ import org.jetbrains.kotlin.name.Name
 private val COMPOSE_RUNTIME_PACKAGE = FqName("androidx.compose.runtime")
 
 val COMPOSABLE_CLASS_ID = ClassId(COMPOSE_RUNTIME_PACKAGE, Name.identifier("Composable"))
+
+val MUTABLE_STATE_CLASS_ID = ClassId(COMPOSE_RUNTIME_PACKAGE, Name.identifier("MutableState"))

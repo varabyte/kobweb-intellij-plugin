@@ -27,6 +27,14 @@ fun CodeInsightTestFixture.configureByTextAndHighlight(fileName: String, text: S
  * introduce any highlighting errors.
  */
 fun CodeInsightTestFixture.checkResultAndHighlight(expected: String) {
-    checkResult(expected)
-    checkHighlighting()
+    val pattern = setOf("warning", "error").joinToString("|")
+
+    // Search for tags like <warning>, </warning>, and <warning blahblahblah>
+    val regex = Regex("</?($pattern)(\\s+[^>]*)?>")
+
+    // NOTE: checkResult expects EXACT text match, with no highlighting tags embedded. So remove them first, then
+    // refresh the fixture in place with the tagged version if checkResult passes
+    val withHighlightTagsStripped = expected.replace(regex, "")
+    checkResult(withHighlightTagsStripped)
+    configureByTextAndHighlight(file.name, expected)
 }

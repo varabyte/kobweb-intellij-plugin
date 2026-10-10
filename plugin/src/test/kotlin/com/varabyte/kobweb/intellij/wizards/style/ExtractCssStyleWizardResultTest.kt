@@ -495,4 +495,144 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         )
     }
 
+    fun testColorModeReferencesConvertedToStyleBlockColorModeProperty() {
+        // There are four ways to reference ColorMode inside a modifier chain while inside a composable context...
+        // 1) Directly (ColorMode.current)
+        // 2) By state value (ColorMode.currentState.value)
+        // 3) Indirectly via a variable (val colorMode = ColorMode.current)
+        // 4) Indirectly via state delegate (val colorMode by ColorMode.currentState)
+        // Our extract logic should intercept all of them.
+        myFixture.configureByTextAndHighlight("SomePage.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.theme.colors.ColorMode
+            import org.jetbrains.compose.web.css.CSSColorValue
+            import org.jetbrains.compose.web.css.px
+
+            @Composable
+            fun SomePage() {
+                val borderWidth = 1.px
+                var colorByState by ColorMode.currentState
+                val colorMode = ColorMode.current
+                M<caret>odifier
+                    .border(borderWidth, color = if (colorByState.isDark) Colors.White else Colors.Black)
+                    .color(if (colorMode.isDark) Colors.Green else Colors.Red)
+                    .backgroundColor(if (ColorMode.current.isDark) Colors.Red else Colors.Green)
+                    .accentColor(if (ColorMode.currentState.value.isDark) Colors.Magenta else Colors.Purple)
+            }
+            """.trimIndent()
+        )
+
+        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
+        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
+        result.performRefactoring(myFixture.editor, ktDotExpr)
+
+        myFixture.checkResultAndHighlight(
+            // language=kotlin
+            """
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.theme.colors.ColorMode
+            import org.jetbrains.compose.web.css.CSSColorValue
+            import org.jetbrains.compose.web.css.px
+            import com.varabyte.kobweb.compose.css.StyleVariable
+            import com.varabyte.kobweb.compose.ui.modifiers.setVariable
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.base
+            import com.varabyte.kobweb.silk.style.toModifier
+            import org.jetbrains.compose.web.css.CSSNumericValue
+            import org.jetbrains.compose.web.css.CSSUnitLength
+
+            private val MyStyle_BorderWidthVar by StyleVariable<CSSNumericValue<out CSSUnitLength>>()
+            val MyStyle = CssStyle.base {
+                Modifier
+                    .border(MyStyle_BorderWidthVar.value(), color = if (colorMode.isDark) Colors.White else Colors.Black)
+                    .color(if (colorMode.isDark) Colors.Green else Colors.Red)
+                    .backgroundColor(if (colorMode.isDark) Colors.Red else Colors.Green)
+                    .accentColor(if (colorMode.isDark) Colors.Magenta else Colors.Purple)
+            }
+
+            @Composable
+            fun SomePage() {
+                val borderWidth = 1.px
+                var <warning>colorByState</warning> by ColorMode.currentState
+                val <warning>colorMode</warning> = ColorMode.current
+                MyStyle.toModifier().setVariable(MyStyle_BorderWidthVar, borderWidth)
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testColorModeVariableMayStillNeedToBeSetByStyleVariable() {
+        myFixture.configureByTextAndHighlight("SomePage.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.theme.colors.ColorMode
+            import org.jetbrains.compose.web.css.CSSColorValue
+
+            @Composable
+            fun SomePage() {
+                fun ColorMode.toColor(): CSSColorValue {
+                    return when (this) {
+                        ColorMode.LIGHT -> Colors.Black
+                        ColorMode.DARK -> Colors.White
+                    }
+                }
+
+                val color = ColorMode.current.toColor()
+                M<caret>odifier.color(color)
+            }
+            """.trimIndent()
+        )
+
+        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
+        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
+        result.performRefactoring(myFixture.editor, ktDotExpr)
+
+        myFixture.checkResultAndHighlight(
+            // language=kotlin
+            """
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.theme.colors.ColorMode
+            import org.jetbrains.compose.web.css.CSSColorValue
+            import com.varabyte.kobweb.compose.css.StyleVariable
+            import com.varabyte.kobweb.compose.ui.modifiers.setVariable
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.base
+            import com.varabyte.kobweb.silk.style.toModifier
+
+            private val MyStyle_ColorVar by StyleVariable<CSSColorValue>()
+            val MyStyle = CssStyle.base {
+                Modifier.color(MyStyle_ColorVar.value())
+            }
+
+            @Composable
+            fun SomePage() {
+                fun ColorMode.toColor(): CSSColorValue {
+                    return when (this) {
+                        ColorMode.LIGHT -> Colors.Black
+                        ColorMode.DARK -> Colors.White
+                    }
+                }
+
+                val color = ColorMode.current.toColor()
+                MyStyle.toModifier().setVariable(MyStyle_ColorVar, color)
+            }
+            """.trimIndent()
+        )
+    }
+
 }

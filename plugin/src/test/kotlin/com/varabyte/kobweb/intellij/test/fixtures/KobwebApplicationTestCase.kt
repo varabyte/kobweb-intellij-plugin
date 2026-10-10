@@ -33,6 +33,19 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
     /** Minimal stand-ins for the parts of the Kobweb framework that the plugin looks up by ClassId / CallableId. */
     private fun addKobwebStubs() {
         myFixture.addFileToProject(
+            // Not actually part of the Kotlin APIs but useful for our own stubs.
+            // Use it anytime the implementation of a method is non-trivial.
+            "src/stubs/common/Stub.kt",
+            // language=kotlin
+            """
+            package kotlin
+
+            private val stub = Any()
+            @Suppress("FunctionName", "UNCHECKED_CAST")
+            fun <T> STUB() = stub as T
+            """.trimIndent()
+        )
+        myFixture.addFileToProject(
             "src/stubs/common/Stdlib.kt",
             // language=kotlin
             """
@@ -44,6 +57,26 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
             inline fun <T, R> T.let(block: (T) -> R): R {
                 return block(this)
             }
+            """.trimIndent()
+        )
+        myFixture.addFileToProject(
+            "src/stubs/common/Collections.kt",
+            // language=kotlin
+            """
+            package kotlin.collections
+                
+            @Suppress("UNUSED_PARAMETER")
+            fun <T : Any> listOfNotNull(vararg elements: T?): List<T> = STUB()
+
+            @Suppress("UnusedReceiverParameter", "UNUSED_PARAMETER")
+            fun <T> Iterable<T>.joinToString(
+                separator: CharSequence = ", ",
+                prefix: CharSequence = "",
+                postfix: CharSequence = "",
+                limit: Int = -1,
+                truncated: CharSequence = "...",
+                transform: ((T) -> CharSequence)? = null
+            ): String = STUB()
             """.trimIndent()
         )
         myFixture.addFileToProject(
@@ -70,6 +103,7 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
             // language=kotlin
             """
                 package androidx.compose.runtime
+                import kotlin.reflect.KProperty
 
                 @Target(
                     AnnotationTarget.FUNCTION,
@@ -78,7 +112,26 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                     AnnotationTarget.PROPERTY_GETTER,
                 )
                 annotation class Composable
-            """.trimIndent()
+
+                interface State<out T> {
+                    val value: T
+                }
+                interface MutableState<T> : State<T> {
+                    override var value: T
+                }
+
+                @Suppress("NOTHING_TO_INLINE")
+                inline operator fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T = value
+
+                @Suppress("NOTHING_TO_INLINE")
+                inline operator fun <T> MutableState<T>.setValue(
+                    thisObj: Any?,
+                    property: KProperty<*>,
+                    value: T,
+                ) {
+                    this.value = value
+                }
+                """.trimIndent()
         )
         myFixture.addFileToProject(
             "src/stubs/composehtml/Attr.kt",
@@ -102,6 +155,8 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                 interface StylePropertyValue
                 interface StylePropertyNumber: StylePropertyValue
                 interface StylePropertyString: StylePropertyValue
+                interface StylePropertyEnum: StylePropertyString
+
                 interface CSSStyleValue: StylePropertyValue {
                     override fun toString(): String
                 }
@@ -243,12 +298,39 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                  interface Color : CSSColorValue
 
                  object Colors {
-                    private val stub = object : Color {}
-                    val Red: Color = stub
-                    val Green: Color = stub
-                    val Blue: Color = stub
+                    val Black: Color = STUB()
+                    val White: Color = STUB()
+                    val Red: Color = STUB()
+                    val Orange: Color = STUB()
+                    val Yellow: Color = STUB()
+                    val Green: Color = STUB()
+                    val Blue: Color = STUB()
+                    val Purple: Color = STUB()
+                    val Magenta: Color = STUB()
                  }
              """.trimIndent()
+        )
+        myFixture.addFileToProject(
+            "src/stubs/kobweb/ColorMode.kt",
+            // language=kotlin
+            """
+            package com.varabyte.kobweb.silk.theme.colors
+            import androidx.compose.runtime.Composable
+            import androidx.compose.runtime.MutableState
+
+            enum class ColorMode {
+                LIGHT,
+                DARK;
+            
+                companion object {
+                    val currentState: MutableState<ColorMode> @Composable get() = STUB()
+                    val current: ColorMode @Composable get() = STUB()
+                }
+            
+                val isLight get() = (this == LIGHT)
+                val isDark get() = (this == DARK)
+            }
+            """.trimIndent()
         )
         myFixture.addFileToProject(
             "src/stubs/kobweb/CssStyle.kt",
@@ -258,20 +340,23 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                  package com.varabyte.kobweb.silk.style
                  import androidx.compose.runtime.Composable
                  import com.varabyte.kobweb.compose.ui.Modifier
+                 import com.varabyte.kobweb.silk.theme.colors.ColorMode
 
                  sealed interface CssKind
                  sealed interface GeneralKind : CssKind
                  sealed interface RestrictedKind : CssKind
                  interface ComponentKind : CssKind
 
-                 interface CssStyleScopeBase
+                 interface CssStyleScopeBase {
+                    val colorMode: ColorMode
+                 }
 
                  abstract class StyleScope {
                     fun base(createModifier: () -> Modifier) {}
                  }
 
-                 class CssStyleScope : CssStyleScopeBase, StyleScope()
-                 class CssStyleBaseScope : CssStyleScopeBase
+                 class CssStyleScope(override val colorMode: ColorMode) : CssStyleScopeBase, StyleScope()
+                 class CssStyleBaseScope(override val colorMode: ColorMode) : CssStyleScopeBase
 
                  abstract class CssStyle<K : CssKind> {
                     companion object // for extensions
@@ -372,8 +457,9 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                 package com.varabyte.kobweb.silk.style.animation
                 import com.varabyte.kobweb.silk.style.*
                 import com.varabyte.kobweb.compose.ui.Modifier
+                import com.varabyte.kobweb.silk.theme.colors.ColorMode
 
-                class KeyframesBuilder : CssStyleScopeBase {
+                class KeyframesBuilder(override val colorMode: ColorMode) : CssStyleScopeBase {
                     fun from(createStyle: () -> Modifier) {}
                     fun to(createStyle: () -> Modifier) {}
                 }
@@ -457,21 +543,42 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
             """.trimIndent()
         )
         myFixture.addFileToProject(
+            "src/stubs/kobweb/StyleProperties.kt",
+            // language=kotlin
+            """
+            package com.varabyte.kobweb.compose.css
+            import kotlin.js.unsafeCast
+            import org.jetbrains.compose.web.css.StylePropertyEnum
+
+            sealed interface LineStyle: StylePropertyEnum {
+                companion object {
+                    inline val None get() = "none".unsafeCast<LineStyle>()
+                    inline val Hidden get() = "hidden".unsafeCast<LineStyle>()
+                    inline val Dotted get() = "dotted".unsafeCast<LineStyle>()
+                    inline val Dashed get() = "dashed".unsafeCast<LineStyle>()
+                    inline val Solid get() = "solid".unsafeCast<LineStyle>()
+                    inline val Double get() = "double".unsafeCast<LineStyle>()
+                    inline val Groove get() = "groove".unsafeCast<LineStyle>()
+                    inline val Ridge get() = "ridge".unsafeCast<LineStyle>()
+                    inline val Inset get() = "inset".unsafeCast<LineStyle>()
+                    inline val Outset get() = "outset".unsafeCast<LineStyle>()
+                }
+            }
+            """.trimIndent()
+        )
+        myFixture.addFileToProject(
             "src/stubs/kobweb/WebModifiers.kt",
             // language=kotlin
             $$"""
             @file:Suppress("UNUSED_PARAMETER")
             package com.varabyte.kobweb.compose.ui.modifiers
+            import kotlin.collections.listOfNotNull
+            import kotlin.collections.joinToString
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.styleModifier
             import com.varabyte.kobweb.compose.ui.attrsModifier
-            import com.varabyte.kobweb.compose.css.CSSLengthNumericValue
-            import com.varabyte.kobweb.compose.css.CSSLengthOrPercentageNumericValue
-            import com.varabyte.kobweb.compose.css.StyleVariable
-            import org.jetbrains.compose.web.css.CSSColorValue
-            import org.jetbrains.compose.web.css.StylePropertyValue
-            import org.jetbrains.compose.web.css.px
-            import org.jetbrains.compose.web.css.percent
+            import com.varabyte.kobweb.compose.css.*
+            import org.jetbrains.compose.web.css.*
 
             //-------------------------------
             // Attrs
@@ -491,8 +598,22 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
             //-------------------------------
 
             @Suppress("UnusedReceiverParameter")
+            fun Modifier.accentColor(value: CSSColorValue) = styleModifier {
+                property("accent-color", value)
+            }
+
+            @Suppress("UnusedReceiverParameter")
             fun Modifier.backgroundColor(value: CSSColorValue) = styleModifier {
                 property("background-color", value)
+            }
+
+            @Suppress("UnusedReceiverParameter")
+            fun Modifier.border(
+                width: CSSLengthNumericValue? = null,
+                style: LineStyle? = null,
+                color: CSSColorValue? = null,
+            ) = styleModifier {
+                property("border", listOfNotNull(width, style, color).joinToString(" "))
             }
 
             @Suppress("UnusedReceiverParameter")
