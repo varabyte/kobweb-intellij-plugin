@@ -27,6 +27,7 @@ import com.intellij.util.ui.JBUI
 import com.varabyte.kobweb.intellij.settings.KobwebAppSettingsService
 import com.varabyte.kobweb.intellij.util.compose.STYLE_PROPERTY_VALUE_CLASS_ID
 import com.varabyte.kobweb.intellij.util.idea.key
+import com.varabyte.kobweb.intellij.util.kobweb.compose.COMPOSABLE_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierChainingExtension
@@ -39,6 +40,7 @@ import com.varabyte.kobweb.intellij.wizards.SimpleWizard
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotated
 import org.jetbrains.kotlin.analysis.api.renderer.types.impl.KaTypeRendererForSource
 import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
@@ -71,7 +73,7 @@ class ModifierChainInfo(val entries: List<Entry>, val chainTerminator: KtCallExp
             class Value(
                 val isNamed: Boolean,
                 val text: String,
-                val isGlobal: Boolean,
+                val isLocallyBound: Boolean,
             )
 
             class Type(
@@ -92,7 +94,7 @@ class ModifierChainInfo(val entries: List<Entry>, val chainTerminator: KtCallExp
              * we will need to create an accompanying StyleVariable with it, as a way to pass that value from the local
              * scope over to the CssStyle.
              */
-            fun isLocallyBound() = value != null && !value.isGlobal
+            fun isLocallyBound() = value != null && value.isLocallyBound
         }
 
         fun hasLocallyBoundParameter(): Boolean {
@@ -176,10 +178,53 @@ fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaS
                             true
                         }
 
+                        // CssStyle blocks are not themselves composable, so we cannot port over anything that requires
+                        // a composable context to call it.
+                        // The kinds of expressions that arguments might contain that are composable are...
+                        // 1) property getters, e.g. @get:Composable val MODIFIER_VALUE = ...
+                        // 2) function calls, e.g. produceColor() where `@Composable fun produceColor() ...``
+                        context(kaSession: KaSession)
+                        fun KtValueArgument.includesComposableReference(): Boolean {
+                            val self = this.getArgumentExpression() ?: return false
+                            with(kaSession) {
+                                fun KaAnnotated.hasComposableAnnotation(): Boolean {
+                                    return annotations.contains(COMPOSABLE_CLASS_ID)
+                                }
+
+                                val calls = PsiTreeUtil.findChildrenOfAnyType(
+                                    self, /* strict = */
+                                    false,
+                                    KtCallExpression::class.java
+                                )
+                                for (call in calls) {
+                                    val functionSymbol = call.resolveToCall()
+                                        ?.singleFunctionCallOrNull()
+                                        ?.symbol as? KaNamedFunctionSymbol ?: continue
+
+                                    if (functionSymbol.hasComposableAnnotation()) {
+                                        return true
+                                    }
+                                }
+
+                                val nameExprs = PsiTreeUtil.findChildrenOfAnyType(
+                                    self, /* strict = */
+                                    false,
+                                    KtSimpleNameExpression::class.java
+                                )
+                                for (nameExpr in nameExprs) {
+                                    val symbol = nameExpr.mainReference.resolveToSymbol() ?: continue
+                                    if (symbol is KaPropertySymbol && symbol.getter?.hasComposableAnnotation() == true)
+                                        return true
+                                }
+                            }
+
+                            return false
+                        }
+
                         ModifierChainInfo.Entry.Parameter.Value(
                             valueArgument.isNamed(),
                             argValueExpr.text,
-                            isGlobal,
+                            !isGlobal || valueArgument.includesComposableReference(),
                         )
                     }
                     else -> null
@@ -584,7 +629,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
         // e.g. `Modifier.backgroundColor(colorVar)` + `val MyStyle = CssStyle { ... }`
         //      --> MyStyle_BackgroundColorVar
         val multiParameterModifier = parameters.size > 1
-        return parameters.filter { it.value != null && !it.value.isGlobal }.associateWith { param ->
+        return parameters.filter { it.isLocallyBound() }.associateWith { param ->
             buildString {
                 append(result.styleName)
                 append('_')
