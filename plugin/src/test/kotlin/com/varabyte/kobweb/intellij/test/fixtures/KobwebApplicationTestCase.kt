@@ -473,7 +473,10 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
             import org.jetbrains.compose.web.css.px
             import org.jetbrains.compose.web.css.percent
 
+            //-------------------------------
             // Attrs
+            //-------------------------------
+
             @Suppress("UnusedReceiverParameter")
             fun Modifier.id(value: String) = attrsModifier {
                 attr("id", value)
@@ -483,7 +486,15 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
                 attr("tabindex", value.toString())
             }
 
+            //-------------------------------
             // Styles
+            //-------------------------------
+
+            @Suppress("UnusedReceiverParameter")
+            fun Modifier.backgroundColor(value: CSSColorValue) = styleModifier {
+                property("background-color", value)
+            }
+
             @Suppress("UnusedReceiverParameter")
             fun Modifier.borderRadius(value: CSSLengthNumericValue) = styleModifier {
                 property("border-radius", value)
