@@ -627,7 +627,15 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
             }
 
             @Suppress("UnusedReceiverParameter")
+            fun Modifier.fillMaxHeight() = height(100.percent)
+
+            @Suppress("UnusedReceiverParameter")
             fun Modifier.fillMaxWidth() = width(100.percent)
+
+            @Suppress("UnusedReceiverParameter")
+            fun Modifier.height(value: CSSLengthOrPercentageNumericValue) = styleModifier {
+                property("height", value)
+            }
 
             @Suppress("UnusedReceiverParameter")
             fun Modifier.margin(

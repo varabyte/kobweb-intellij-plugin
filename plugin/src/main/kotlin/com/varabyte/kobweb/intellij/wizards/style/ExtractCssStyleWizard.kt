@@ -15,6 +15,7 @@ import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.platform.ide.progress.runWithModalProgressBlocking
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.SmartPointerManager
 import com.intellij.psi.SmartPsiElementPointer
 import com.intellij.psi.impl.source.codeStyle.IndentHelper
@@ -37,6 +38,8 @@ import com.varabyte.kobweb.intellij.util.kobweb.silk.COLOR_MODE_COMPANION_CLASS_
 import com.varabyte.kobweb.intellij.util.kobweb.style.CSS_STYLE_SUFFIX
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleNameWarningValidator
 import com.varabyte.kobweb.intellij.util.kobweb.style.createStyleNameErrorValidator
+import com.varabyte.kobweb.intellij.util.psi.AttachedComments
+import com.varabyte.kobweb.intellij.util.psi.findAttachedComments
 import com.varabyte.kobweb.intellij.util.psi.getEntireDotQualifiedExpression
 import com.varabyte.kobweb.intellij.util.text.capitalized
 import com.varabyte.kobweb.intellij.util.text.replaceAll
@@ -70,6 +73,7 @@ class ModifierChainInfo(val entries: List<Entry>, val chainTerminator: KtCallExp
         val webModifierType: WebModifierType,
         val parameters: List<Parameter>,
         val hasTrailingLambda: Boolean,
+        val attachedComments: AttachedComments,
     ) {
         class Parameter(
             val name: String,
@@ -348,7 +352,8 @@ fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaS
             funcDefn,
             funcDefn.getWebModifierType(),
             parameters,
-            hasTrailingLambda
+            hasTrailingLambda,
+            callExpr.findAttachedComments()
         )
     }
 
@@ -766,6 +771,16 @@ class ExtractCssStyleWizard(
     }
 }
 
+private fun List<ModifierChainInfo.Entry>.targetedForExtraction(extractAttributes: Boolean): List<ModifierChainInfo.Entry> {
+    return this.filter {
+        when (it.webModifierType) {
+            WebModifierType.ATTRS -> extractAttributes && !it.hasLocallyBoundParameter()
+            WebModifierType.STYLE -> true
+            else -> false
+        }
+    }
+}
+
 private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) {
     // The full names of StyleVariable names that will be associated with parameters that need them (i.e., because
     // they are bound to a local value from the original scope). If no entry is found for the target parameter,
@@ -858,15 +873,13 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
     }
 
     fun cssStyleLines(): List<String> = with(result) {
-        val attrModifiersToExtract =
-            if (extractAttributes) {
-                modifierChainInfo.entries.filter { it.webModifierType == WebModifierType.ATTRS && !it.hasLocallyBoundParameter() }
-            } else emptyList()
-        val styleModifiersToExtract = modifierChainInfo.entries.filter { it.webModifierType == WebModifierType.STYLE }
+        val webModifiersToExtract = modifierChainInfo.entries.targetedForExtraction(extractAttributes)
+        val (attrModifiersToExtract, styleModifiersToExtract) = webModifiersToExtract.partition { it.webModifierType == WebModifierType.ATTRS }
 
         fun createModifier(indent: String) = buildString {
             append("${indent}Modifier")
-            val putModifiersOnNewLines = styleModifiersToExtract.size > 1
+            val putModifiersOnNewLines =
+                styleModifiersToExtract.size > 1 || (styleModifiersToExtract.size == 1 && styleModifiersToExtract[0].attachedComments.overhead.isNotEmpty())
             styleModifiersToExtract
                 .forEach { modifierEntry ->
                     if (putModifiersOnNewLines) {
@@ -874,19 +887,44 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
                         append(indent)
                         append('\t')
                     }
+
+                    modifierEntry.attachedComments.overhead.forEach {
+                        appendLine(it.text)
+                        append(indent)
+                        append('\t')
+                    }
                     append('.')
                     append(modifierEntry.toText())
+                    modifierEntry.attachedComments.trailing?.let { append(' '); append(it.text) }
                 }
         }
 
         val extraModifierParam = if (attrModifiersToExtract.isNotEmpty()) {
             buildString {
-                append("extraModifier = { Modifier")
-                attrModifiersToExtract.forEach { modifierEntry ->
-                    append('.')
-                    append(modifierEntry.toText())
+                val useMultiLineFormat = attrModifiersToExtract.any { it.attachedComments.hasAny() }
+                if (!useMultiLineFormat) {
+                    append("extraModifier = { Modifier")
+                    attrModifiersToExtract.forEach { modifierEntry ->
+                        append('.')
+                        append(modifierEntry.toText())
+                    }
+                    append(" }")
+                } else {
+                    appendLine("extraModifier = {")
+                    appendLine("\tModifier")
+                    attrModifiersToExtract.forEach { modifierEntry ->
+                        modifierEntry.attachedComments.overhead.forEach { overheadComment ->
+                            append("\t\t")
+                            appendLine(overheadComment.text)
+                        }
+                        append("\t\t")
+                        append('.')
+                        append(modifierEntry.toText())
+                        modifierEntry.attachedComments.trailing?.let { append(' '); append(it.text) }
+                        appendLine()
+                    }
+                    append("}") // Do NOT appendLine -- this allows the codegen to add a trailing ")" after the brace
                 }
-                append(" }")
             }
         } else null
 
@@ -1004,7 +1042,24 @@ fun ExtractCssStyleWizard.Result.performRefactoring(
                 }
 
                 val replacementExpr = psiFactory.createExpression(codeGen.inlineModifierLines().joinToString("\n"))
-                SmartPointerManager.getInstance(project).createSmartPsiElementPointer(modifierChainStart.getEntireDotQualifiedExpression().replace(replacementExpr))
+                val origInlineModifierExpr = modifierChainStart.getEntireDotQualifiedExpression()
+
+                // If there is a trailing comment after the end of the inline modifier which we will move over to
+                // the CssStyle block, delete it from here so it won't be duplicated in two places
+                val trailingComment = origInlineModifierExpr.findAttachedComments().trailing
+                    ?.takeIf { psiComment ->
+                        psiComment == modifierChainInfo.entries.targetedForExtraction(extractAttributes)
+                            .lastOrNull()?.attachedComments?.trailing
+                    }
+
+                SmartPointerManager.getInstance(project).createSmartPsiElementPointer(
+                    origInlineModifierExpr.replace(replacementExpr).also {
+                        if (trailingComment != null) {
+                            (trailingComment.prevSibling as? PsiWhiteSpace)?.delete()
+                            trailingComment.delete()
+                        }
+                    }
+                )
             }
 
             PsiDocumentManager.getInstance(project).apply {

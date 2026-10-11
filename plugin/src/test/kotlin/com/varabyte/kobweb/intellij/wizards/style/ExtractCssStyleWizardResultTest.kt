@@ -635,4 +635,211 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         )
     }
 
+    fun testExtractionBringsCommentsAlong() {
+        myFixture.configureByTextAndHighlight("SomePage.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import org.jetbrains.compose.web.css.percent
+
+            @Composable
+            fun SomePage() {
+                M<caret>odifier
+                    // Overhead comment
+                    // Multiple lines
+                    .width(70.percent)
+                    .height(30.percent) // Trailing comment
+                    // Overhead comment and...
+                    .color(Colors.Green) // ... trailing comment
+            }
+            """.trimIndent()
+        )
+
+        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
+        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
+        result.performRefactoring(myFixture.editor, ktDotExpr)
+
+        myFixture.checkResultAndHighlight(
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import org.jetbrains.compose.web.css.percent
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.base
+            import com.varabyte.kobweb.silk.style.toModifier
+
+            val MyStyle = CssStyle.base {
+                Modifier
+                    // Overhead comment
+                    // Multiple lines
+                    .width(70.percent)
+                    .height(30.percent) // Trailing comment
+                    // Overhead comment and...
+                    .color(Colors.Green) // ... trailing comment
+            }
+
+            @Composable
+            fun SomePage() {
+                MyStyle.toModifier()
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testExtractionBringsCommentsAlong_OverheadCommentForcesNewlineAboveSingleModifierCase() {
+        // Normally, extract CSS style logic for single modifiers uses a one-liner concise syntax, but if we have an
+        // overhead comment, it forces the less concise syntax so it has a place to add the comment.
+
+        myFixture.configureByTextAndHighlight("SomePage.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import org.jetbrains.compose.web.css.percent
+
+            @Composable
+            fun SomePage() {
+                M<caret>odifier
+                    // Overhead comment
+                    .width(70.percent)
+            }
+            """.trimIndent()
+        )
+
+        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
+        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
+        result.performRefactoring(myFixture.editor, ktDotExpr)
+
+        myFixture.checkResultAndHighlight(
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import org.jetbrains.compose.web.css.percent
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.base
+            import com.varabyte.kobweb.silk.style.toModifier
+
+            val MyStyle = CssStyle.base {
+                Modifier
+                    // Overhead comment
+                    .width(70.percent)
+            }
+
+            @Composable
+            fun SomePage() {
+                MyStyle.toModifier()
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testExtractionMovesCommentsForAttributeModifiers() {
+        myFixture.configureByTextAndHighlight("SomePage.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import org.jetbrains.compose.web.css.percent
+
+            @Composable
+            fun SomePage() {
+                M<caret>odifier
+                    // Overhead comment
+                    .id("hi") // Trailing comment
+                    // Overhead comment #2
+                    .tabIndex(0) // Trailing comment #2
+            }
+            """.trimIndent()
+        )
+
+        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
+        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true, extractAttributes = true)
+        result.performRefactoring(myFixture.editor, ktDotExpr)
+
+        myFixture.checkResultAndHighlight(
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import org.jetbrains.compose.web.css.percent
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.base
+            import com.varabyte.kobweb.silk.style.toModifier
+
+            val MyStyle = CssStyle.base(extraModifier = {
+                Modifier
+                    // Overhead comment
+                    .id("hi") // Trailing comment
+                    // Overhead comment #2
+                    .tabIndex(0) // Trailing comment #2
+            }) {
+                Modifier
+            }
+
+            @Composable
+            fun SomePage() {
+                MyStyle.toModifier()
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testExtractionDoesNotDeleteFinalTrailingCommentIfAssociatedModifierIsNotExtracted() {
+        myFixture.configureByTextAndHighlight("SomePage.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import org.jetbrains.compose.web.css.percent
+
+            @Composable
+            fun SomePage() {
+                val id = "hi"
+                M<caret>odifier
+                    .width(70.percent) // Trailing comment moved
+                    .id(id) // Trailing comment left in place
+            }
+            """.trimIndent()
+        )
+
+        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
+        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
+        result.performRefactoring(myFixture.editor, ktDotExpr)
+
+        myFixture.checkResultAndHighlight(
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import org.jetbrains.compose.web.css.percent
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.base
+            import com.varabyte.kobweb.silk.style.toModifier
+
+            val MyStyle = CssStyle.base {
+                Modifier.width(70.percent) // Trailing comment moved
+            }
+
+            @Composable
+            fun SomePage() {
+                val id = "hi"
+                MyStyle.toModifier().id(id) // Trailing comment left in place
+            }
+            """.trimIndent()
+        )
+    }
+
 }
