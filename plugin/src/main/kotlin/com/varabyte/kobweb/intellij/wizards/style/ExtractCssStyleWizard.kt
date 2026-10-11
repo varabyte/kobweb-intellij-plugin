@@ -364,6 +364,7 @@ private object Keys {
 
     val REMEMBER_SYNTAX_CHOICE by key(false)
     val REMEMBER_EXTRACT_ATTRIBUTES_CHOICE by key(false)
+    val SKIP_STYLE_VARIABLE_INFO by key(false)
     val SKIP_ATTRIBUTE_WARNING by key(false)
 }
 
@@ -546,6 +547,63 @@ class ExtractCssStyleWizard(
                 }
             },
             object : Step {
+                override val headerText = "Locally Bound Style Modifier(s)"
+
+                private val doNotShowCheckbox = ctx.utils.components.doNotShowAgainCheckbox()
+
+                override fun shouldShow(): Boolean {
+                    if (!appSettings.extractCssStyle.showStyleVariableInfo) return false
+
+                    val modifierChainInfo = ctx.data.getUserData(Keys.MODIFIER_CHAIN_INFO) ?: return false
+
+                    return (modifierChainInfo.entries.any { it.webModifierType == WebModifierType.STYLE && it.hasLocallyBoundParameter() })
+                }
+
+                override fun produceComponent(): JComponent {
+                    return ctx.utils.components.formBuilder()
+                        .addComponent(JBLabel(
+                            "<html>This modifier chain includes at least one style modifier set to a value tied to the local scope. This means we will introduce a <code>StyleVariable</code> as a way to communicate between the call site and the extracted style itself.<br><br>For example:</html>",
+                        ))
+                        .addComponentFillVertically(
+                            ctx.utils.components.kotlinCode(
+                                """
+                                    // Before
+                                    @Composable
+                                    fun SomeWidget() {
+                                        val radius = 5.px
+                                        Modifier.borderRadius(radius)
+                                        //                    ^^^^^^
+                                        // bound to "radius" from local scope
+                                    }
+
+                                    // After
+                                    val MyStyle_BorderRadiusVar by StyleVariable<CSSLengthOrPercentageNumericValue>()
+                                    //  ^^^^^^^^^^^^^^^^^^^^^^^
+                                    val MyStyle = CssStyle.base {
+                                        Modifier.borderRadius(MyStyle_BorderRadiusVar.value())
+                                        //                    ^^^^^^^^^^^^^^^^^^^^^^^
+                                    }
+                                    
+                                    @Composable
+                                    fun SomeWidget() {
+                                        val radius = 5.px
+                                        MyStyle.toModifier().setVariable(MyStyle_BorderRadiusVar, radius)
+                                        //                               ^^^^^^^^^^^^^^^^^^^^^^^
+                                    }
+                                """.trimIndent()
+                            ), 8)
+                        .addComponent(JBLabel(
+                            "<html>This is fine! But you can cancel the extraction of this style and inline the parameter first before trying this again if you'd like. Or you can manually copy the variable over to the newly extracted <code>CssStyle</code> afterwards and delete the variable.</html>",
+                        ))
+                        .addComponent(doNotShowCheckbox)
+                        .panel
+                }
+
+                override fun onNext() {
+                    ctx.data.putUserData(Keys.SKIP_STYLE_VARIABLE_INFO, doNotShowCheckbox.isSelected)
+                }
+            },
+            object : Step {
                 override val headerText = "Extract Attribute Modifier(s)?"
 
                 private val leaveInlineChoice = TabInfo(ctx.utils.components.kotlinCode(
@@ -696,6 +754,9 @@ class ExtractCssStyleWizard(
             appSettings.extractCssStyle.attributeModifiersStrategy = if (result.extractAttributes) {
                 KobwebAppSettingsService.ExtractCssStyle.AttributeModifiersStrategy.EXTRACT
             } else KobwebAppSettingsService.ExtractCssStyle.AttributeModifiersStrategy.INLINE
+        }
+        if (data.getUserData(Keys.SKIP_STYLE_VARIABLE_INFO)!!) {
+            appSettings.extractCssStyle.showStyleVariableInfo = false
         }
         if (data.getUserData(Keys.SKIP_ATTRIBUTE_WARNING)!!) {
             appSettings.extractCssStyle.showAttributeWarning = false

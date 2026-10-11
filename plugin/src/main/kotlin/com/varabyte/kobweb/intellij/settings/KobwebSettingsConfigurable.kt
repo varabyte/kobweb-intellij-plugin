@@ -112,8 +112,13 @@ class KobwebSettingsConfigurable(private val project: Project)
                 }.bind(appState.extractCssStyle::attributeModifiersStrategy)
 
                 row {
-                    checkBox("Show \"Can't extract attribute Modifier\" warning")
-                        .comment("This warning is shown when you try to extract an attribute modifier into a CssStyle that we can't because the attribute modifier is set to some value bounds to the local scope.")
+                    checkBox("Show \"StyleVariable will be created\" info")
+                        .comment("This information is shown when you try to extract a style modifier into a CssStyle whose value is bound to the local scope. We can continue the extraction but introduce a StyleVariable to allow it.")
+                        .bindSelected(appState.extractCssStyle::showStyleVariableInfo)
+                }
+                row {
+                    checkBox("Show \"Can't extract attribute modifier\" warning")
+                        .comment("This warning is shown when you try to extract an attribute modifier into a CssStyle whose value is bound to the local scope. This prevents the extraction of that modifier.")
                         .bindSelected(appState.extractCssStyle::showAttributeWarning)
                 }
             }

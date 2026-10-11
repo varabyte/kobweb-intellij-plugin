@@ -19,6 +19,7 @@ class KobwebAppSettingsService : PersistentStateComponent<KobwebAppSettingsServi
         class CssStyle {
             var format = ExtractCssStyle.Format.ASK_ME
             var attributeModifiersStrategy = ExtractCssStyle.AttributeModifiersStrategy.ASK_ME
+            var showStyleVariableInfo = true
             var showAttributeWarning = true
         }
 
