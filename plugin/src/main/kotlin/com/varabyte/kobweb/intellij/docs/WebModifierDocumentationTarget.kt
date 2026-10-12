@@ -12,6 +12,7 @@ import com.intellij.platform.backend.documentation.DocumentationResult
 import com.intellij.platform.backend.documentation.DocumentationTarget
 import com.intellij.platform.backend.presentation.TargetPresentation
 import com.intellij.platform.ide.progress.withBackgroundProgress
+import com.intellij.polySymbols.PolySymbolApiStatus
 import com.intellij.psi.PsiElement
 import com.intellij.util.io.HttpRequests
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebName
@@ -136,10 +137,7 @@ class WebModifierDocumentationTarget(private val webName: WebName, val element: 
         return object : MdnSymbolDocumentation {
             override val name: String = name
             override val url: String = url
-            // We have to stub out apiStatus, an issue due to this plugin being compatible with older IDEs. Since we
-            // never call it, it's OK. If we ever bump up our minimum version later, we might be able to update this
-            // (but it doesn't really matter).
-            override val apiStatus get() = error("not defined")
+            override val apiStatus = PolySymbolApiStatus.Stable
             override val description = docsContent
 
             override val sections = emptyMap<String, String>()
