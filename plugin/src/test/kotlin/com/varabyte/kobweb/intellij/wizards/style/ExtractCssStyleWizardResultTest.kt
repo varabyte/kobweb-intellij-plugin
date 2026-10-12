@@ -207,15 +207,14 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import com.varabyte.kobweb.compose.ui.modifiers.*
             import com.varabyte.kobweb.compose.ui.graphics.Colors
             import org.jetbrains.compose.web.css.percent
+            import com.varabyte.kobweb.compose.css.CSSLengthOrPercentageNumericValue
             import com.varabyte.kobweb.compose.css.StyleVariable
             import com.varabyte.kobweb.compose.ui.modifiers.setVariable
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.toModifier
             import org.jetbrains.compose.web.css.CSSColorValue
-            import org.jetbrains.compose.web.css.CSSNumericValue
-            import org.jetbrains.compose.web.css.CSSUnitLengthOrPercentage
             
-            private val MyStyle_WidthVar by StyleVariable<CSSNumericValue<out CSSUnitLengthOrPercentage>>()
+            private val MyStyle_WidthVar by StyleVariable<CSSLengthOrPercentageNumericValue>()
             private val MyStyle_ColorVar by StyleVariable<CSSColorValue>()
             val MyStyle = CssStyle {
                 base {
@@ -404,15 +403,14 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.modifiers.*
             import org.jetbrains.compose.web.css.px
+            import com.varabyte.kobweb.compose.css.CSSLengthOrPercentageNumericValue
             import com.varabyte.kobweb.compose.css.StyleVariable
             import com.varabyte.kobweb.compose.ui.modifiers.setVariable
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.base
             import com.varabyte.kobweb.silk.style.toModifier
-            import org.jetbrains.compose.web.css.CSSNumericValue
-            import org.jetbrains.compose.web.css.CSSUnitLengthOrPercentage
 
-            private val MyStyle_MarginTopVar by StyleVariable<CSSNumericValue<out CSSUnitLengthOrPercentage>>()
+            private val MyStyle_MarginTopVar by StyleVariable<CSSLengthOrPercentageNumericValue>()
             val MyStyle = CssStyle.base {
                 Modifier
                     .padding(right = 10.px)
@@ -463,13 +461,12 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.modifiers.*
             import org.jetbrains.compose.web.css.px
+            import com.varabyte.kobweb.compose.css.CSSLengthOrPercentageNumericValue
             import com.varabyte.kobweb.compose.css.StyleVariable
             import com.varabyte.kobweb.compose.ui.modifiers.setVariable
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.base
             import com.varabyte.kobweb.silk.style.toModifier
-            import org.jetbrains.compose.web.css.CSSNumericValue
-            import org.jetbrains.compose.web.css.CSSUnitLengthOrPercentage
 
             @get:Composable
             private val PADDING_RIGHT get() = 10.px
@@ -477,8 +474,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             @Composable
             private fun produceMarginTop() = 5.px
 
-            private val MyStyle_PaddingRightVar by StyleVariable<CSSNumericValue<out CSSUnitLengthOrPercentage>>()
-            private val MyStyle_MarginTopVar by StyleVariable<CSSNumericValue<out CSSUnitLengthOrPercentage>>()
+            private val MyStyle_PaddingRightVar by StyleVariable<CSSLengthOrPercentageNumericValue>()
+            private val MyStyle_MarginTopVar by StyleVariable<CSSLengthOrPercentageNumericValue>()
             val MyStyle = CssStyle.base {
                 Modifier
                     .padding(right = MyStyle_PaddingRightVar.value())
@@ -541,15 +538,14 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import com.varabyte.kobweb.silk.theme.colors.ColorMode
             import org.jetbrains.compose.web.css.CSSColorValue
             import org.jetbrains.compose.web.css.px
+            import com.varabyte.kobweb.compose.css.CSSLengthNumericValue
             import com.varabyte.kobweb.compose.css.StyleVariable
             import com.varabyte.kobweb.compose.ui.modifiers.setVariable
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.base
             import com.varabyte.kobweb.silk.style.toModifier
-            import org.jetbrains.compose.web.css.CSSNumericValue
-            import org.jetbrains.compose.web.css.CSSUnitLength
 
-            private val MyStyle_BorderWidthVar by StyleVariable<CSSNumericValue<out CSSUnitLength>>()
+            private val MyStyle_BorderWidthVar by StyleVariable<CSSLengthNumericValue>()
             val MyStyle = CssStyle.base {
                 Modifier
                     .border(MyStyle_BorderWidthVar.value(), color = if (colorMode.isDark) Colors.White else Colors.Black)
@@ -561,8 +557,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             @Composable
             fun SomePage() {
                 val borderWidth = 1.px
-                var <warning>colorByState</warning> by ColorMode.currentState
-                val <warning>colorMode</warning> = ColorMode.current
+                var colorByState by ColorMode.currentState
+                val colorMode = ColorMode.current
                 MyStyle.toModifier().setVariable(MyStyle_BorderWidthVar, borderWidth)
             }
             """.trimIndent()

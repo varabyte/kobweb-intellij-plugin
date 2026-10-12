@@ -47,9 +47,9 @@ dependencies {
     testImplementation(kotlin("test"))
 
     intellijPlatform {
-        // Interesting statistics: https://plugins.jetbrains.com/docs/marketplace/product-versions-in-use-statistics.html
-        // We target 2024.2.1 as it is the earliest version supporting K2 mode / the Analysis API
-        intellijIdeaCommunity("2024.2.1")
+        // See all versions here: https://www.jetbrains.com/idea/download/other/
+        // We generally aim to support about / at least 3 major versions back
+        intellijIdea("2025.3")
 
         bundledPlugins(
             "org.jetbrains.kotlin",
@@ -60,24 +60,10 @@ dependencies {
         zipSigner()
 
         testFramework(TestFrameworkType.Platform)
+        testFramework(TestFrameworkType.Plugin.Java)
     }
 }
 
-intellijPlatformTesting {
-    runIde {
-        register("runRecentIde") {
-            type = IntelliJPlatformType.IntellijIdea
-            // See all versions here: https://www.jetbrains.com/idea/download/other/
-            version = "2026.2.2"
-
-            // Re-register required bundled plugins for this target IDE version
-            plugins {
-                bundledPlugin("org.jetbrains.kotlin")
-                bundledPlugin("org.jetbrains.plugins.gradle")
-            }
-        }
-    }
-}
 // https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-extension.html#intellijPlatform
 intellijPlatform {
     buildSearchableOptions = false

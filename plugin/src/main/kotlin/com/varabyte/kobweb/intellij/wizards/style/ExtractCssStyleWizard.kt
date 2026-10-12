@@ -52,7 +52,6 @@ import org.jetbrains.kotlin.analysis.api.renderer.types.impl.KaTypeRendererForSo
 import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
 import org.jetbrains.kotlin.analysis.api.symbols.*
-import org.jetbrains.kotlin.analysis.api.types.KaTypeNullability
 import org.jetbrains.kotlin.analysis.api.types.symbol
 import org.jetbrains.kotlin.idea.base.psi.childrenDfsSequence
 import org.jetbrains.kotlin.idea.references.mainReference
@@ -319,7 +318,7 @@ fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaS
                 val paramType = if (paramSymbol.returnType.symbol != null) {
                     // Even if the parameter itself is nullable, we just want the underlying non-nulllable type, since
                     // we may want to import it, use its type with StyleVariable, etc.
-                    val paramSymbolReturnType = paramSymbol.returnType.withNullability(KaTypeNullability.NON_NULLABLE)
+                    val paramSymbolReturnType = paramSymbol.returnType.withNullability(isMarkedNullable = false)
 
                     // There HAS to be a better way than this, but I fought the IntelliJ APIs and could not find
                     // a way that worked with generic types, regular types, AND type-alias values. So what I do for
