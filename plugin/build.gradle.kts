@@ -157,6 +157,7 @@ intellijPlatform {
         ides {
             recommended()
         }
+        ignoredProblemsFile.set(file(".verifier/ignored-problems.txt"))
     }
 }
 

@@ -1,0 +1,3 @@
+# xml-psi-impl is a platform module that the verifier fails to resolve in 263 even though
+# the classes are present (verified in IDE 263.6800.24). Kobweb docs work at runtime.
+::Package 'com.intellij.documentation' is not found.*
