@@ -1,5 +1,7 @@
 package com.varabyte.kobweb.intellij.test.util
 
+import com.intellij.codeInsight.daemon.LineMarkerInfo
+import com.intellij.codeInsight.daemon.impl.DaemonCodeAnalyzerImpl
 import com.intellij.psi.PsiElement
 import com.intellij.testFramework.fixtures.CodeInsightTestFixture
 
@@ -37,4 +39,10 @@ fun CodeInsightTestFixture.checkResultAndHighlight(expected: String) {
     val withHighlightTagsStripped = expected.replace(regex, "")
     checkResult(withHighlightTagsStripped)
     configureByTextAndHighlight(file.name, expected)
+}
+
+fun CodeInsightTestFixture.findLineMarkers(test: (LineMarkerInfo<out PsiElement>) -> Boolean): List<LineMarkerInfo<*>> {
+    @Suppress("JetBrainsInternalApiUsage") // It's just a test, should be OK?
+    return DaemonCodeAnalyzerImpl.getLineMarkers(editor.document, project)
+        .filter { test(it) }
 }

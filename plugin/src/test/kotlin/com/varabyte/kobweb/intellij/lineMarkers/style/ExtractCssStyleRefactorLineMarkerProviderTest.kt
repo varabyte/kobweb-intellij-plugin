@@ -1,18 +1,11 @@
 package com.varabyte.kobweb.intellij.lineMarkers.style
 
-import com.intellij.codeInsight.daemon.impl.DaemonCodeAnalyzerImpl
-import com.varabyte.kobweb.intellij.test.fixtures.KobwebApplicationTestCase
+import com.varabyte.kobweb.intellij.lineMarkers.KobwebLineMarkerTestBase
 import com.varabyte.kobweb.intellij.wizards.style.ExtractCssStyleWizard
-import com.varabyte.truthish.assertAll
-import com.varabyte.truthish.assertWithMessage
 
-private const val GUTTER_COMMENT = "// Gutter"
-
-class ExtractCssStyleRefactorLineMarkerProviderTest : KobwebApplicationTestCase() {
+class ExtractCssStyleRefactorLineMarkerProviderTest : KobwebLineMarkerTestBase() {
     fun testGutterIconShownForInlineModifierChain() {
-        // Gutter icons only show up for modifiers inside @Composable contexts (excluding CssStyle extraModifier blocks.
-        val code =
-            // language=kotlin
+        doTest(
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.*
@@ -31,27 +24,12 @@ class ExtractCssStyleRefactorLineMarkerProviderTest : KobwebApplicationTestCase(
 
             @Composable
             fun SomePage() {
-                Modifier.fillMaxWidth().color(Colors.Green) $GUTTER_COMMENT
+                Modifier.fillMaxWidth().color(Colors.Green) $GUTTER_TAG
                 val id = "id"
-                Modifier.id(id).borderRadius(5.px) $GUTTER_COMMENT
+                Modifier.id(id).borderRadius(5.px) $GUTTER_TAG
             }
-            """.trimIndent()
-
-        val gutterLines = code.lines().mapIndexedNotNull { index, line -> index.takeIf { line.endsWith(GUTTER_COMMENT) } }
-
-        myFixture.configureByText("SomePage.kt", code)
-        myFixture.doHighlighting()
-        @Suppress("JetBrainsInternalApiUsage") // It's just a test, should be OK?
-        val markers = DaemonCodeAnalyzerImpl.getLineMarkers(myFixture.editor.document, project)
-            .filter { it.lineMarkerTooltip == ExtractCssStyleWizard.TITLE }
-
-        assertWithMessage("Expected number of gutters found").that(gutterLines.size).isEqualTo(markers.size)
-
-        assertAll {
-            markers.forEachIndexed { index, marker ->
-                val line = myFixture.editor.offsetToVisualLine(marker.startOffset, true)
-                withMessage("Line $line has a marker").that(line).isEqualTo(gutterLines[index])
-            }
-        }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip == ExtractCssStyleWizard.TITLE }
+        )
     }
 }

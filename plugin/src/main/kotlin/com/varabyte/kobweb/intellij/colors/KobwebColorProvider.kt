@@ -240,9 +240,13 @@ class KobwebColorProvider : ElementColorProvider {
     override fun setColorTo(element: PsiElement, color: Color) = Unit
 }
 
-// navigationElement returns the element where a feature like "Go to declaration" would point:
-// The source declaration, if found, and not a compiled one, which would make further analyzing impossible.
-private fun KtSimpleNameExpression.findDeclaration(): PsiElement? = this.mainReference.resolve()?.navigationElement
+private fun KtSimpleNameExpression.findDeclaration(): PsiElement? = try {
+    this.mainReference.resolve()?.navigationElement
+} catch (_: Exception) {
+    // Not sure if this is only in tests? But we have seen this happen because the element being resolved does not have
+    // a containing file. Anyway, returning null is fine -- worst case a user doesn't get their gutter color.
+    null
+}
 
 /**
  * Tries resolving references as deep as possible and checks if a Kobweb color is being referred to.
