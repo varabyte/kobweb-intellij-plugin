@@ -51,6 +51,7 @@ dependencies {
         // We generally aim to support about / at least 3 major versions back
         intellijIdea("2025.3")
 
+        // See https://jb.gg/ij-plugin-dependencies
         bundledPlugins(
             "org.jetbrains.kotlin",
             "org.jetbrains.plugins.gradle",
