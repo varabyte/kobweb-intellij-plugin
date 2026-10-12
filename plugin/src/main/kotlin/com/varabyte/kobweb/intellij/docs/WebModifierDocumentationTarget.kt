@@ -38,7 +38,7 @@ private object MdnDocFetcher {
      * Network call that must NOT be triggered on the EDT thread.
      */
     fun fetch(name: String, url: String): String? {
-        return cache.get(name) { attr ->
+        return cache.asMap().computeIfAbsent(name) { attr ->
             try {
                 val responseJson = HttpRequests.request(url)
                     .accept("application/json")
