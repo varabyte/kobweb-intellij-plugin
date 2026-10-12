@@ -15,7 +15,7 @@ class KobwebBundle internal constructor() {
     private val INSTANCE = DynamicBundle(KobwebBundle::class.java, BUNDLE_PATH)
 
     fun message(
-        key: @PropertyKey(resourceBundle = BUNDLE_PATH) String,
+        @PropertyKey(resourceBundle = BUNDLE_PATH) key: String,
         vararg params: Any
     ): String {
         return INSTANCE.getMessage(key, *params)
