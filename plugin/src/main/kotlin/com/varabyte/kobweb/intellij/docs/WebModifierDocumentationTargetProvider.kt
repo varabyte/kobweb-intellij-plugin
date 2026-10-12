@@ -9,6 +9,8 @@ import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebName
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebNames
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierChainingExtension
 import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.permissions.KaAllowAnalysisOnEdt
+import org.jetbrains.kotlin.analysis.api.permissions.allowAnalysisOnEdt
 import org.jetbrains.kotlin.idea.k2.codeinsight.quickDoc.KotlinPsiDocumentationTargetProvider
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.psi.KtCallExpression
@@ -49,12 +51,17 @@ class WebModifierDocumentationTargetProvider : PsiDocumentationTargetProvider {
                 }
     }
 
+    // In most cases, analysis is minimal / aborted. Usually quick docs are run off the EDT anyway. Seems to get run on
+    // the EDT if started from the Actions Window (Ctrl Shift A / Cmd Shift A) though!
+    @OptIn(KaAllowAnalysisOnEdt::class)
     private fun webDocumentationTargetsFor(element: PsiElement, originalElement: PsiElement?): List<DocumentationTarget> {
         val function = element as? KtNamedFunction ?: return emptyList()
 
-        analyze(function) {
-            if (function.isModifierChainingExtension()) {
-                return function.createDocumentationTargets()
+        allowAnalysisOnEdt {
+            analyze(function) {
+                if (function.isModifierChainingExtension()) {
+                    return function.createDocumentationTargets()
+                }
             }
         }
 
@@ -67,16 +74,18 @@ class WebModifierDocumentationTargetProvider : PsiDocumentationTargetProvider {
         // chain.
 
         val callSite = originalElement?.let { PsiTreeUtil.getParentOfType(it, KtCallExpression::class.java) } ?: return emptyList()
-        var currentCall: KtCallExpression? = callSite
-        analyze(callSite) {
-            while (currentCall != null) {
-                (currentCall.calleeExpression
-                    ?.mainReference
-                    ?.resolve() as? KtNamedFunction)
-                    ?.takeIf { it.isModifierChainingExtension() }
-                    ?.let { return function.createDocumentationTargets() }
+        allowAnalysisOnEdt {
+            var currentCall: KtCallExpression? = callSite
+            analyze(callSite) {
+                while (currentCall != null) {
+                    (currentCall.calleeExpression
+                        ?.mainReference
+                        ?.resolve() as? KtNamedFunction)
+                        ?.takeIf { it.isModifierChainingExtension() }
+                        ?.let { return function.createDocumentationTargets() }
 
-                currentCall = PsiTreeUtil.getParentOfType(currentCall, KtCallExpression::class.java)
+                    currentCall = PsiTreeUtil.getParentOfType(currentCall, KtCallExpression::class.java)
+                }
             }
         }
         return emptyList()
