@@ -131,6 +131,9 @@
         <platform.backend.documentation.psiTargetProvider
                 order="before KotlinDocumentationTargetProvider"
                 implementation="com.varabyte.kobweb.intellij.docs.WebModifierDocumentationTargetProvider"/>
+
+        <!-- https://blog.jetbrains.com/platform/2026/10/ui-freeze-reports-in-marketplace/ -->
+        <errorHandler implementation="com.intellij.diagnostic.JetBrainsMarketplaceErrorReportSubmitter"/>
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.plugins.gradle">
