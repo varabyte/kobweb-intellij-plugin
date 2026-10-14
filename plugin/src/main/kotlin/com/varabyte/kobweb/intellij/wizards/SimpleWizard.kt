@@ -321,7 +321,8 @@ abstract class SimpleWizard<I, R>(
                 backAction.isEnabled = history.isNotEmpty()
 
                 if (movingForward) {
-                    step.initialFocusedComponent?.let { toFocus ->
+                    val toFocusComponent = step.initialFocusedComponent ?: buttonMap[okAction]
+                    toFocusComponent?.let { toFocus ->
                         SwingUtilities.invokeLater { toFocus.requestFocusInWindow() }
                     }
                 }
