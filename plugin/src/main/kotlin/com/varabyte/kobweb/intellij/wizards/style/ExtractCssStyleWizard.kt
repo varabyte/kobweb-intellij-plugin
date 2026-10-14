@@ -532,8 +532,6 @@ class ExtractCssStyleWizard(
                         .panel
                 }
 
-                override val initialFocusedComponent = choices.component
-
                 init {
                     ctx.data.putUserData(
                         Keys.USE_CONCISE_SYNTAX,
@@ -672,8 +670,6 @@ class ExtractCssStyleWizard(
                         .addComponent(rememberCheckbox)
                         .panel
                 }
-
-                override val initialFocusedComponent = choices.component
 
                 override fun onNext() {
                     ctx.data.putUserData(Keys.EXTRACT_ATTRIBUTES, choices.targetInfo == extractChoice)
