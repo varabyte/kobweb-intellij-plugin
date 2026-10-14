@@ -1,9 +1,5 @@
-import com.jetbrains.plugin.structure.intellij.version.ProductReleaseVersion
-import org.gradle.kotlin.dsl.support.serviceOf
 import org.jetbrains.changelog.Changelog
-import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
-import org.jetbrains.intellij.platform.gradle.services.ProductReleasesService
 import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask.FailureLevel
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
