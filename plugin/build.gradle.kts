@@ -1,4 +1,5 @@
 import org.jetbrains.changelog.Changelog
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask.FailureLevel
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -58,6 +59,15 @@ dependencies {
 
         testFramework(TestFrameworkType.Platform)
         testFramework(TestFrameworkType.Plugin.Java)
+    }
+}
+
+intellijPlatformTesting {
+    runIde {
+        register("runLatestIde") {
+            type = IntelliJPlatformType.IntellijIdea
+            version = "latest"
+        }
     }
 }
 
