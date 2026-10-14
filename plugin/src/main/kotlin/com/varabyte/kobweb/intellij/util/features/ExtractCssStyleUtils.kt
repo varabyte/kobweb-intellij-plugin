@@ -4,6 +4,7 @@ import com.intellij.openapi.editor.Editor
 import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
 import com.intellij.psi.util.PsiTreeUtil
+import com.intellij.psi.util.parentOfType
 import com.varabyte.kobweb.intellij.util.kobweb.compose.COMPOSABLE_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierCompanion
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
@@ -86,7 +87,11 @@ object ExtractCssStyleUtils {
 
     fun handleExtractCssStyle(editor: Editor, modifierChainStart: KtDotQualifiedExpression) {
         val project = modifierChainStart.project
-        val wizard = ExtractCssStyleWizard(project, ExtractCssStyleWizard.Input(modifierChainStart))
+        val containingFun = modifierChainStart.parentOfType<KtNamedFunction>()
+        val wizard = ExtractCssStyleWizard(project, ExtractCssStyleWizard.Input(
+            modifierChainStart,
+            initialPrefix = containingFun?.name ?: "My"
+        ))
         val wizardResult = wizard.show() ?: return
         wizardResult.performRefactoring(editor, modifierChainStart)
     }

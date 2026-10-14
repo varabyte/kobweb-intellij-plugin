@@ -383,7 +383,7 @@ class ExtractCssStyleWizard(
 ) {
     class Input(
         val modifierChainStart: KtDotQualifiedExpression,
-        val initialPrefix: String = "My",
+        val initialPrefix: String,
     )
 
     interface Result {
