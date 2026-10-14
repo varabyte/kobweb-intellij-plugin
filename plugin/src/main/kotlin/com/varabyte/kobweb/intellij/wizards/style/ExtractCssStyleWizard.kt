@@ -453,7 +453,10 @@ class ExtractCssStyleWizard(
                         name
                     }
 
-                    JBTextField(initialName)
+                    JBTextField(initialName).apply {
+                        this.selectionStart = 0
+                        this.selectionEnd = this.text.length - CSS_STYLE_SUFFIX.length
+                    }
                 }
 
                 override fun produceComponent(): JComponent {
