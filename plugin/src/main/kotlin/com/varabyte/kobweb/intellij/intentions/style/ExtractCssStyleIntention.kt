@@ -5,6 +5,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
 import com.varabyte.kobweb.intellij.util.features.ExtractCssStyleUtils
 import com.varabyte.kobweb.intellij.util.idea.intentions.CacheDerivedPsiElementIntentionAction
+import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.wizards.style.ExtractCssStyleWizard
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 
@@ -15,6 +16,7 @@ class ExtractCssStyleIntention : CacheDerivedPsiElementIntentionAction<KtDotQual
     override fun startInWriteAction(): Boolean = false // We open a wizard which will handle write action behavior
 
     override fun PsiElement.tryDerivingElement(): KtDotQualifiedExpression? {
+        if (!isInWritableKobwebProject()) return null
         return ExtractCssStyleUtils.toInlineModifierChain(this, allowAnyElementInChain = true)
     }
 

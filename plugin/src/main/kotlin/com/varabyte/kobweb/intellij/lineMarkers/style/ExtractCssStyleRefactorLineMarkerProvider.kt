@@ -7,6 +7,7 @@ import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
 import com.varabyte.kobweb.intellij.util.features.ExtractCssStyleUtils
+import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.project.KobwebLineMarkerInfo
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import com.varabyte.kobweb.intellij.wizards.style.ExtractCssStyleWizard
@@ -19,6 +20,7 @@ class ExtractCssStyleRefactorLineMarkerProvider : LineMarkerProviderDescriptor()
 
     override fun getLineMarkerInfo(element: PsiElement): LineMarkerInfo<*>? {
         if (element !is LeafPsiElement) return null // The docs for this class say it should ideally point at leaf elements
+        if (!element.isInWritableKobwebProject()) return null
         val modifierChainStart = ExtractCssStyleUtils.toInlineModifierChain(element) ?: return null
 
         return KobwebLineMarkerInfo(

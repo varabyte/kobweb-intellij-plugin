@@ -6,6 +6,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.varabyte.kobweb.intellij.util.features.ExtractCssStyleUtils
 import com.varabyte.kobweb.intellij.util.idea.key
+import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtFile
 
@@ -35,6 +36,7 @@ class ExtractCssStyleAction : AnAction() {
         val editor = e.getData(CommonDataKeys.EDITOR) ?: return null
         val offset = editor.caretModel.offset
         val element = psiFile.findElementAt(offset) ?: return null
+        if (!element.isInWritableKobwebProject()) return null
 
         return ExtractCssStyleUtils.toInlineModifierChain(element, allowAnyElementInChain = true)
     }
