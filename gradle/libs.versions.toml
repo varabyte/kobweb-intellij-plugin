@@ -3,7 +3,7 @@ kobweb-ide-plugin="0.2.6-SNAPSHOT"
 #--------------------------------------
 intellij-platform = "2.19.0"
 jetbrains-changelog = "2.5.0"
-kotlin = "2.4.20"
+kotlin = "2.4.21"
 kotlinx-serialization = "1.11.0"
 truthish = "1.0.4"
 
