@@ -16,6 +16,6 @@ class MakePublicQuickFix(private val targetName: String) : LocalQuickFix {
     override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
         val modifierListOwner = PsiTreeUtil.getParentOfType(descriptor.psiElement, KtModifierListOwner::class.java) ?: return
         if ((modifierListOwner as? KtDeclaration)?.name != targetName) return
-        modifierListOwner.removeModifier(KtTokens.PRIVATE_KEYWORD)
+        modifierListOwner.modifierList?.getModifier(KtTokens.PRIVATE_KEYWORD)?.delete()
     }
 }
