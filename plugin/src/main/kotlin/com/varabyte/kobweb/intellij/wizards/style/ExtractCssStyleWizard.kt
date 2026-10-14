@@ -418,6 +418,7 @@ class ExtractCssStyleWizard(
             //                 ColorMode.DARK -> Colors.White
             //               }
             // ```
+            // so we can't just use trimIndent but need special logic to drop the indent on the latter lines.
             val indent = IndentHelper.getInstance()
                 .getIndent(input.modifierChainStart.containingKtFile, input.modifierChainStart.node)
             input.modifierChainStart.text
