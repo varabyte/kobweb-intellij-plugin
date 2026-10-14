@@ -1,5 +1,72 @@
 # Kobweb IntelliJ Plugin
 
+## [0.2.6]
+
+This is the first plugin release where we've added substantial features to help highlight and resolve commonly faced
+issues when working on a Kobweb site, particularly around CSS styles and modifier chains.
+
+This release also introduces a fair amount of groundwork behind the scenes that should enable us to iterate more quickly
+on future features and improvements moving forward.
+
+Starting with this release, we really hope users will begin noticing helpful inspections and quick fixes while they work
+on their Kobweb projects.
+
+### Added
+
+- Introduced a wizard flow that makes it easy to convert an inline `Modifier` chain into a `CssStyle`.
+  - For example, say you had <span style="white-space: nowrap">`Modifier.fontFamily("monospace").fontSize(12.px)`</span>
+    <br>You can now easily convert this into
+    ```kotlin
+    val CodeLabelStyle = CssStyle.base {
+       Modifier.fontFamily("monospace").fontSize(12.px)
+    }
+    ```
+    by going through the wizard steps.
+  - See the [official documentation](https://kobweb.varabyte.com/docs/concepts/presentation/styling-html-elements#inline-vs-stylesheet)
+    for more details on when and why we encourage doing this.
+  - We currently add Kobweb gutter icons that make it visually obvious when this functionality is available, but you can
+    also alt-click on inline modifiers as another way to access this functionality.
+- Unused `Modifier` chains are now emphasized with a greyed-out color formatting syntax.
+  - It has been occasionally easy to accidentally create modifiers inside style blocks outside a `base` block without
+    realizing it:
+    ```kotlin
+    // Bad
+    CssStyle {
+       Modifier.color(Colors.Magenta)
+    }
+    
+    // Good
+    CssStyle {
+       base {
+          Modifier.color(Colors.Magenta)
+       }
+    }
+    ```
+    Before, if you did this, the modifier simply got dropped without being used. Now, thanks to it being colored as
+    unused code, it is obvious that it is happening. We even provide a quick fix to wrap it into a `base` block for you.
+- <i>Attribute</i> modifiers found inside `CssStyle` blocks will now be highlighted as errors. This helps you avoid cases that
+  would have turned into runtime exceptions later that are harder to track down. (Only <i>style</i> modifiers belong in
+  a <i>style</i> block.)
+- You can now toggle `CssStyle` blocks between a concise format and a more relaxed format.
+  - In other words, <span style="white-space: nowrap">`CssStyle.base { Modifier }`</span> ⟷ <span style="white-space: nowrap">`CssStyle { base { Modifier } }`</span>
+  - The concise format is generally preferred (to reduce indentation), but the relaxed format lets you expand the
+    style block with additional CSS selectors (e.g. `hover`, `link`, `focus`, etc.).
+  - With this feature, now it is just an easy click to switch between the two formats.
+  - This works for other kinds of style blocks as well, such as <span style="white-space: nowrap">`CssStyle.extendedBy`</span> ⟷ <span style="white-space: nowrap">`CssStyle.extendedByBase`</span>,
+    <span style="white-space: nowrap">`CssStyle.addVariant`</span> ⟷ <span style="white-space: nowrap">`CssStyle.addVariantBase`</span>, and others.
+- Inlay hint for style and attribute modifiers has been added and can be configured.
+  - In this way, you can visually see that <span style="white-space: nowrap">`Modifier.id`</span> is associated with an
+    HTML attribute, while <span style="white-space: nowrap">`Modifier.color`</span> is a CSS style.
+  - By default, we only enable inlay hints for attribute modifiers, since they are much rarer.
+- Improvements to the HTML / CSS documentation page
+  - This builds on the quick docs features added in 0.2.5. 
+  - We now support methods that surface multiple doc pages, e.g. <span style="white-space: nowrap">`Modifier.size()`</span>
+    shows docs for both `width` and `height` CSS properties.
+  - We added a more useful page for when docs are not found, with options to search MDN directly as well as file a bug
+    against the Kobweb IntelliJ Plugin project.
+  - We now surface docs for event modifiers (e.g. <span style="white-space: nowrap">`Modifier.onClick()`</span>)
+  - We now show docs for HTML "data" and "aria" attributes
+
 ## [0.2.5]
 
 ### Added

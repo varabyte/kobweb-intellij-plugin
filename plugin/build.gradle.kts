@@ -90,9 +90,10 @@ intellijPlatform {
             <p>
             This official plugin provides functionality relevant to users working on Kobweb projects, including:
             <ul>
+                <li>Inspections and refactoring tools for CSS styles and Modifier chains</li>
                 <li>Suppressing warnings that don't apply to Kobweb projects</li>
                 <li>Surfacing Kobweb colors in the gutter</li>
-                <li>(More to come very soon!)</li>
+                <li>Extended quick docs for CSS style and HTML attribute modifiers</li>
             </ul>
             </p>
         
