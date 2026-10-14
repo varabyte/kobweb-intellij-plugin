@@ -108,9 +108,7 @@ abstract class SimpleWizard<I, R>(
                 }
             }
 
-            fun kotlinCode(code: String = "") = KotlinCodeTextField(code, project).apply {
-                setDisposedWith(disposable)
-            }
+            fun kotlinCode(code: String = "") = KotlinCodeTextField(code, project, disposable)
 
             fun rememberCheckbox(): JBCheckBox {
                 return JBCheckBox("Remember this choice for later")

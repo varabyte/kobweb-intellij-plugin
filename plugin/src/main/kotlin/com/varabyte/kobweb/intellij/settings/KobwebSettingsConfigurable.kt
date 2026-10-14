@@ -6,6 +6,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogPanel
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
+import com.intellij.openapi.util.Disposer
 import com.intellij.ui.awt.RelativePoint
 import com.intellij.ui.dsl.builder.Cell
 import com.intellij.ui.dsl.builder.bind
@@ -28,9 +29,9 @@ class KobwebSettingsConfigurable(private val project: Project)
                 override fun mouseEntered(e: MouseEvent) {
                     if (activePopup?.isVisible == true) return
 
-                    val codeTextField = KotlinCodeTextField(code, project).apply {
-                        disposable?.let { setDisposedWith(it) }
-                    }
+                    val codeDisposable = Disposer.newDisposable()
+                    // disposable should be set before createPanel is called
+                    val codeTextField = KotlinCodeTextField(code, project, codeDisposable)
 
                     activePopup = JBPopupFactory.getInstance()
                         .createComponentPopupBuilder(codeTextField, null)
@@ -38,8 +39,9 @@ class KobwebSettingsConfigurable(private val project: Project)
                         .setCancelOnClickOutside(true)
                         .setCancelOnOtherWindowOpen(true)
                         .createPopup()
-                        .also {
-                            it.show(RelativePoint.getSouthOf(this@installCodeTooltip))
+                        .also { popup ->
+                            Disposer.register(popup, codeDisposable)
+                            popup.show(RelativePoint.getSouthOf(this@installCodeTooltip))
                         }
                 }
 

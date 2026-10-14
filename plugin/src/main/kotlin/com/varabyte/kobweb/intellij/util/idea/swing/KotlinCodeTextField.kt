@@ -1,5 +1,6 @@
 package com.varabyte.kobweb.intellij.util.idea.swing
 
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.diff.DiffColors
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.event.DocumentEvent
@@ -13,7 +14,7 @@ import com.intellij.ui.JBColor
 import com.intellij.util.ui.JBUI
 import javax.swing.ScrollPaneConstants
 
-class KotlinCodeTextField(code: String, project: Project) :
+class KotlinCodeTextField(code: String, project: Project, disposable: Disposable) :
     EditorTextField(code, project, FileTypeManager.getInstance().getFileTypeByExtension("kt")) {
 
     private fun Editor.applyDiffHighlighting() {
@@ -57,7 +58,7 @@ class KotlinCodeTextField(code: String, project: Project) :
                 override fun documentChanged(event: DocumentEvent) {
                     editor.applyDiffHighlighting()
                 }
-            })
+            }, disposable)
         }
     }
 }
