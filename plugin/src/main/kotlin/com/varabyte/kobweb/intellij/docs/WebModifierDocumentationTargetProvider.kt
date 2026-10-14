@@ -4,7 +4,8 @@ import com.intellij.platform.backend.documentation.DocumentationTarget
 import com.intellij.platform.backend.documentation.PsiDocumentationTargetProvider
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.PsiTreeUtil
-import com.varabyte.kobweb.intellij.util.kobweb.isUsedInReadableKobwebProject
+import com.varabyte.kobweb.intellij.util.kobweb.isInKobwebSource
+import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebName
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebNames
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierChainingExtension
@@ -45,7 +46,7 @@ class WebModifierDocumentationTargetProvider : PsiDocumentationTargetProvider {
         originalElement: PsiElement?, // The actual element in the current editor that references `element`
     ): List<DocumentationTarget> {
         return kotlinDocProvider.documentationTargets(element, originalElement) +
-                if (originalElement != null && !originalElement.isUsedInReadableKobwebProject()) {
+                if (originalElement != null && !(originalElement.isInReadableKobwebProject() || originalElement.isInKobwebSource())) {
                     emptyList()
                 } else {
                     webDocumentationTargetsFor(element, originalElement)

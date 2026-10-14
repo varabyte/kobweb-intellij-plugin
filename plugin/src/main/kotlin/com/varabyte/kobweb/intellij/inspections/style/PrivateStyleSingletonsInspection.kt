@@ -6,7 +6,7 @@ import com.intellij.psi.PsiElementVisitor
 import com.varabyte.kobweb.intellij.quickfixes.AddSuppressionQuickFix
 import com.varabyte.kobweb.intellij.quickfixes.AddUnderscorePrefixQuickFix
 import com.varabyte.kobweb.intellij.quickfixes.MakePublicQuickFix
-import com.varabyte.kobweb.intellij.util.kobweb.isDeclaredInWritableKobwebProject
+import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.style.styleSheetSingletonClassId
 import com.varabyte.kobweb.intellij.util.psi.isSuppressedWith
 import com.varabyte.kobweb.intellij.util.text.camelCaseToScreamingSnakeCase
@@ -21,7 +21,7 @@ class PrivateStyleSingletonsInspection : LocalInspectionTool() {
         holder: ProblemsHolder,
         isOnTheFly: Boolean
     ): PsiElementVisitor {
-        if (!holder.file.isDeclaredInWritableKobwebProject()) return KtVisitorVoid.EMPTY_VISITOR
+        if (!holder.file.isInWritableKobwebProject()) return KtVisitorVoid.EMPTY_VISITOR
 
         return object : KtVisitorVoid() {
             override fun visitProperty(property: KtProperty) {

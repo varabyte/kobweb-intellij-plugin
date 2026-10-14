@@ -5,7 +5,7 @@ import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElementVisitor
 import com.varabyte.kobweb.intellij.quickfixes.style.DeleteAttrModifierQuickFix
 import com.varabyte.kobweb.intellij.quickfixes.style.MoveAttrModifierToExtraModifierQuickFix
-import com.varabyte.kobweb.intellij.util.kobweb.isDeclaredInWritableKobwebProject
+import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
@@ -21,7 +21,7 @@ class AttributeModifierInStyleSheetBlockInspection : LocalInspectionTool() {
         holder: ProblemsHolder,
         isOnTheFly: Boolean
     ): PsiElementVisitor {
-        if (!holder.file.isDeclaredInWritableKobwebProject()) return KtVisitorVoid.EMPTY_VISITOR
+        if (!holder.file.isInWritableKobwebProject()) return KtVisitorVoid.EMPTY_VISITOR
 
         return object : KtVisitorVoid() {
             override fun visitCallExpression(expression: KtCallExpression) {
