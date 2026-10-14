@@ -29,6 +29,58 @@ class TopLevelStyleSingletonsInspectionTest : KobwebInspectionTestBase() {
         )
     }
 
+    fun testStyleInsideClassIsFlagged() {
+        doTest(
+            """
+            @file:Suppress("UNUSED_VARIABLE")
+            import com.varabyte.kobweb.silk.style.CssStyle
+            
+            class Outer {
+                val <error>MyStyle</error> = CssStyle { }
+            }
+            """.trimIndent(),
+            thenFixWith<MovePropertyToTopLevelQuickFix>(
+            """
+            @file:Suppress("UNUSED_VARIABLE")
+            import com.varabyte.kobweb.silk.style.CssStyle
+            
+            val MyStyle = CssStyle { }
+
+            class Outer {
+            }
+            """.trimIndent()
+            )
+        )
+    }
+
+    fun testStyleInsideNonTopLevelObjectIsFlagged() {
+        doTest(
+            """
+            @file:Suppress("UNUSED_VARIABLE")
+            import com.varabyte.kobweb.silk.style.CssStyle
+            
+            class Outer {
+                object Inner {
+                    val <error>MyStyle</error> = CssStyle { }
+                }
+            }
+            """.trimIndent(),
+            thenFixWith<MovePropertyToTopLevelQuickFix>(
+            """
+            @file:Suppress("UNUSED_VARIABLE")
+            import com.varabyte.kobweb.silk.style.CssStyle
+            
+            val MyStyle = CssStyle { }
+
+            class Outer {
+                object Inner {
+                }
+            }
+            """.trimIndent()
+            )
+        )
+    }
+
     fun testStyleInsideObjectsIsNotFlagged() {
         doTest(
             """
@@ -36,6 +88,20 @@ class TopLevelStyleSingletonsInspectionTest : KobwebInspectionTestBase() {
              import com.varabyte.kobweb.silk.style.CssStyle
              object Outer {
                  object Inner {
+                     val MyStyle = CssStyle { }
+                 }
+             }
+            """.trimIndent(),
+        )
+    }
+
+    fun testStyleInsideCompanionObjectIsNotFlagged() {
+        doTest(
+            """
+             @file:Suppress("UNUSED_VARIABLE")
+             import com.varabyte.kobweb.silk.style.CssStyle
+             class Outer {
+                 companion object {
                      val MyStyle = CssStyle { }
                  }
              }

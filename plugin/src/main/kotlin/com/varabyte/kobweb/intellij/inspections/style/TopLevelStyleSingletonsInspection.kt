@@ -33,10 +33,16 @@ class TopLevelStyleSingletonsInspection : LocalInspectionTool() {
                 var isTopLevel = true
                 var curr: PsiElement? = property.parent
                 while (curr != null && curr !is KtFile) {
-                    // object { ... } is an object declaration parenting a class body
-                    if (!(curr is KtObjectDeclaration || curr is KtClassBody)) {
-                        isTopLevel = false
-                        break
+                    when (curr) {
+                        is KtObjectDeclaration -> {
+                            // Companion objects are special and can be considered top-level regardless of nesting
+                            if (curr.isCompanion()) break
+                        }
+                        is KtClassBody -> {}
+                        else -> {
+                            isTopLevel = false
+                            break
+                        }
                     }
                     curr = curr.parent
                 }
