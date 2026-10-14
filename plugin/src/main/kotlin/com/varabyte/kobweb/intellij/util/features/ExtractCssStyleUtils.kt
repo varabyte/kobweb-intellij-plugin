@@ -11,6 +11,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
 import com.varabyte.kobweb.intellij.util.psi.getEntireDotQualifiedExpression
 import com.varabyte.kobweb.intellij.util.psi.getRootReceiverExpression
 import com.varabyte.kobweb.intellij.util.psi.isAnnotatedWith
+import com.varabyte.kobweb.intellij.util.text.capitalized
 import com.varabyte.kobweb.intellij.wizards.style.ExtractCssStyleWizard
 import com.varabyte.kobweb.intellij.wizards.style.performRefactoring
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -90,7 +91,7 @@ object ExtractCssStyleUtils {
         val containingFun = modifierChainStart.parentOfType<KtNamedFunction>()
         val wizard = ExtractCssStyleWizard(project, ExtractCssStyleWizard.Input(
             modifierChainStart,
-            initialPrefix = containingFun?.name ?: "My"
+            initialPrefix = containingFun?.name?.capitalized() ?: "My"
         ))
         val wizardResult = wizard.show() ?: return
         wizardResult.performRefactoring(editor, modifierChainStart)
