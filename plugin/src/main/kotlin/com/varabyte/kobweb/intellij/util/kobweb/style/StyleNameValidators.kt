@@ -3,26 +3,13 @@ package com.varabyte.kobweb.intellij.util.kobweb.style
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.InputValidatorEx
 import com.intellij.openapi.ui.NonEmptyInputValidator
+import com.intellij.psi.JavaPsiFacade
+import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.kotlin.idea.refactoring.KotlinNamesValidator
-import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNamedDeclaration
+import org.jetbrains.kotlin.psi.KtPackageDirective
 
-/**
- * Get all top level declaration names, given a [KtFile], returning them as dot-separated paths.
- *
- * This also includes declarations nested in top-level objects.
- *
- * For example:
- * ```
- * class WidgetStyle = CssStyle { ... }
- * object Variables {
- *     val WidgetBackgroundColorVar by StyleVariable()
- * }
- * @Composable fun Widget() { /* ... */ }
- * ```
- * will return { "WidgetStyle", "Variables.WidgetBackgroundColorVar", "Widget" }.
- */
 private fun KtFile.getTopLevelDeclarationNames(): Set<String> {
     return declarations.asSequence()
         .mapNotNull { it as? KtNamedDeclaration }
@@ -30,14 +17,18 @@ private fun KtFile.getTopLevelDeclarationNames(): Set<String> {
         .toSet()
 }
 
-private fun collectTopLevelNames(
-    declaration: KtDeclaration,
-    results: MutableSet<String>
-) {
-    if (declaration !is KtNamedDeclaration) return
+private fun KtPackageDirective?.getTopLevelDeclarationNames(
+    project: Project,
+): Set<String> {
+    val packageFqName = this?.fqName?.asString() ?: ""
+    val psiPackage = JavaPsiFacade.getInstance(project).findPackage(packageFqName) ?: return emptySet()
 
-    val name = declaration.name ?: return
-    results.add(name)
+    val scope = GlobalSearchScope.projectScope(project)
+    return psiPackage.getFiles(scope)
+        .asSequence()
+        .filterIsInstance<KtFile>()
+        .flatMap { file -> file.getTopLevelDeclarationNames() }
+        .toSet()
 }
 
 class StyleNameErrorValidator(private val project: Project, private val existingDeclarations: Set<String>) : InputValidatorEx {
@@ -74,5 +65,5 @@ class StyleNameWarningValidator : InputValidatorEx {
 }
 
 fun KtFile.createStyleNameErrorValidator(): StyleNameErrorValidator {
-    return StyleNameErrorValidator(project, this.getTopLevelDeclarationNames())
+    return StyleNameErrorValidator(project, this.packageDirective.getTopLevelDeclarationNames(project))
 }
