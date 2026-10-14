@@ -43,8 +43,6 @@ abstract class CacheDerivedPsiElementIntentionAction<E: PsiElement>(private val 
     protected abstract fun PsiElement.tryDerivingElement(): E?
     protected abstract fun handleElementIsInvoked(project: Project, editor: Editor, element: E)
 
-    open fun handleElementIsAvailable(element: E) {}
-
     private fun getCachedDerivedElement(editor: Editor, sourceElement: PsiElement): E? {
         val (keyElement, cachedElement) = editor.getUserData(cacheKey) ?: return null
 
@@ -75,8 +73,6 @@ abstract class CacheDerivedPsiElementIntentionAction<E: PsiElement>(private val 
 
     final override fun isAvailable(project: Project, editor: Editor, element: PsiElement): Boolean {
         val derived = getCachedDerivedElementOrCreateIfPossible(editor, element)
-        derived?.let { handleElementIsAvailable(it) }
-
         return (derived != null)
     }
 
