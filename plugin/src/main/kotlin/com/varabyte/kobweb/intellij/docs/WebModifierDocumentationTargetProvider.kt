@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.idea.k2.codeinsight.quickDoc.KotlinPsiDocumentationT
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.psiUtil.referenceExpression
 import kotlin.collections.get
 
 // Although our plugin is usually good at surfacing styles and properties, we may occasionally need to intercept some
@@ -55,7 +56,11 @@ class WebModifierDocumentationTargetProvider : PsiDocumentationTargetProvider {
     // the EDT if started from the Actions Window (Ctrl Shift A / Cmd Shift A) though!
     @OptIn(KaAllowAnalysisOnEdt::class)
     private fun webDocumentationTargetsFor(element: PsiElement, originalElement: PsiElement?): List<DocumentationTarget> {
-        val function = element as? KtNamedFunction ?: return emptyList()
+        val function = when (element) {
+            is KtNamedFunction -> element
+            is KtCallExpression -> element.referenceExpression()?.mainReference?.resolve() as? KtNamedFunction
+            else -> null
+        } ?: return emptyList()
 
         allowAnalysisOnEdt {
             analyze(function) {
