@@ -3,8 +3,10 @@ package com.varabyte.kobweb.intellij.util.kobweb.style
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.InputValidatorEx
 import com.intellij.openapi.ui.NonEmptyInputValidator
-import com.intellij.psi.JavaPsiFacade
+import com.intellij.psi.PsiManager
+import com.intellij.psi.search.FileTypeIndex
 import com.intellij.psi.search.GlobalSearchScope
+import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.kotlin.idea.refactoring.KotlinNamesValidator
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNamedDeclaration
@@ -21,12 +23,13 @@ private fun KtPackageDirective?.getTopLevelDeclarationNames(
     project: Project,
 ): Set<String> {
     val packageFqName = this?.fqName?.asString() ?: ""
-    val psiPackage = JavaPsiFacade.getInstance(project).findPackage(packageFqName) ?: return emptySet()
+    val psiManager = PsiManager.getInstance(project)
 
     val scope = GlobalSearchScope.projectScope(project)
-    return psiPackage.getFiles(scope)
+    return FileTypeIndex.getFiles(KotlinFileType.INSTANCE, scope)
         .asSequence()
-        .filterIsInstance<KtFile>()
+        .mapNotNull { virtualFile -> psiManager.findFile(virtualFile) as? KtFile }
+        .filter { it.packageFqName.asString() == packageFqName }
         .flatMap { file -> file.getTopLevelDeclarationNames() }
         .toSet()
 }
