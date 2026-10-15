@@ -828,6 +828,63 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         )
     }
 
+    fun testUnrelatedMutableStateValueIsNotColorMode() {
+        myFixture.configureByTextAndHighlight(
+            "SomePage.kt",
+            """
+            import androidx.compose.runtime.Composable
+            import androidx.compose.runtime.MutableState
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import org.jetbrains.compose.web.css.CSSColorValue
+    
+            val activeColorState = object : MutableState<CSSColorValue> {
+                override var value: CSSColorValue = Colors.Red
+            }
+    
+            @Composable
+            fun SomePage() {
+                M<caret>odifier.color(activeColorState.value)
+            }
+            """.trimIndent()
+        )
+
+        val chain = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
+
+        val result = chain.createResult(
+            "MyStyle", useConciseSyntax = true
+        )
+        result.performRefactoring(myFixture.editor, chain)
+
+        myFixture.checkResultAndHighlight(
+            """
+            import androidx.compose.runtime.Composable
+            import androidx.compose.runtime.MutableState
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import org.jetbrains.compose.web.css.CSSColorValue
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.base
+            import com.varabyte.kobweb.silk.style.toModifier
+    
+            val activeColorState = object : MutableState<CSSColorValue> {
+                override var value: CSSColorValue = Colors.Red
+            }
+    
+            val MyStyle = CssStyle.base {
+                Modifier.color(activeColorState.value)
+            }
+    
+            @Composable
+            fun SomePage() {
+                MyStyle.toModifier()
+            }
+            """.trimIndent()
+        )
+    }
+
     fun testExtractionBringsCommentsAlong() {
         myFixture.configureByTextAndHighlight("SomePage.kt",
             // language=kotlin
@@ -1034,5 +1091,4 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             """.trimIndent()
         )
     }
-
 }

@@ -41,6 +41,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.style.createStyleNameErrorValida
 import com.varabyte.kobweb.intellij.util.psi.AttachedComments
 import com.varabyte.kobweb.intellij.util.psi.findAttachedComments
 import com.varabyte.kobweb.intellij.util.psi.getEntireDotQualifiedExpression
+import com.varabyte.kobweb.intellij.util.psi.resolvedClassId
 import com.varabyte.kobweb.intellij.util.text.capitalized
 import com.varabyte.kobweb.intellij.util.text.replaceAll
 import com.varabyte.kobweb.intellij.wizards.SimpleWizard
@@ -169,6 +170,7 @@ fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaS
                     context(kaSession: KaSession)
                     fun KtSimpleNameExpression.isColorModeReference(): Boolean = with(kaSession) {
                         val symbol = mainReference.resolveToSymbol() ?: return false
+                        val self = this@isColorModeReference
 
                         // Check direct property reference to ColorMode.current, ColorMode.currentState, or
                         // ColorMode.currentState.value.
@@ -179,11 +181,22 @@ fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaS
                                     symbol.name.asString().let { it == "currentState" || it == "current" }
                                 ) {
                                     return true
-                                } else if (
-                                    containingSymbol.classId == MUTABLE_STATE_CLASS_ID &&
-                                    symbol.name.asString() == "value"
-                                ) {
-                                    return true
+                                } else if (containingSymbol.classId == MUTABLE_STATE_CLASS_ID && symbol.name.asString() == "value") {
+                                    // If here, check specifically only for "ColorMode.currentState.value"; we don't
+                                    // want to accidentally replace something that shouldn't be substituted
+                                    val colorModeCurrentStateExpr = (self.parent as? KtDotQualifiedExpression)
+                                        // Verify we are looking at a dot qualified expr like `currentState.value`, not
+                                        // `value.isDark`
+                                        ?.takeIf { it.selectorExpression == self }
+                                        // should be `ColorMode.currentState`
+                                        ?.receiverExpression as? KtDotQualifiedExpression
+                                        ?: return false
+                                    // `ColorMode.currentState` -> `currentState`
+                                    val currentStateExpr = (colorModeCurrentStateExpr.selectorExpression) as? KtSimpleNameExpression ?: return false
+                                    if (currentStateExpr.getReferencedName() != "currentState") return false
+                                    // `ColorMode.currentState` -> `ColorMode`
+                                    val colorModeExpr = colorModeCurrentStateExpr.receiverExpression
+                                    return colorModeExpr.resolvedClassId == COLOR_MODE_COMPANION_CLASS_ID
                                 }
                             }
                         }
