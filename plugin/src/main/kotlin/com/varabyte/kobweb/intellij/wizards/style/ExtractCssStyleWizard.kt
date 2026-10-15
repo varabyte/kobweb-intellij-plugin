@@ -57,6 +57,7 @@ import org.jetbrains.kotlin.idea.base.psi.childrenDfsSequence
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.psi.psiUtil.getQualifiedExpressionForSelector
 import org.jetbrains.kotlin.types.Variance
 import javax.swing.JComponent
 
@@ -221,9 +222,24 @@ fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaS
                     fun List<KtSimpleNameExpression>.areAllGlobal(excludedReferences: Set<KtSimpleNameExpression>): Boolean = this.all { ref ->
                         if (excludedReferences.contains(ref)) return@all true
 
+                        // "this" and "super" always refer to a local scope and should never be extracted to a CssStyle,
+                        // where `this` would mean something else and `super` would be nonsense in that context.
+                        if (ref.parent is KtThisExpression || ref.parent is KtSuperExpression) return@all false
+
                         // Literals or unresolved names (e.g. '100', 'true') have no symbol
                         val refSymbol = ref.mainReference.resolveToSymbol() ?: return@all true
                         if (refSymbol is KaDeclarationSymbol && refSymbol.isTopLevel) return@all true
+
+                        // Figure out if this reference is the `member` part of a `receiver.member` expression. For
+                        // properties, the reference itself sits after the dot (`receiver.member`), but for method
+                        // calls, what sits after the dot is the whole call, not just its name (`receiver.member()` is
+                        // `receiver` + `member()`), so step up to the call first.
+                        val selector = (ref.parent as? KtCallExpression)?.takeIf { it.calleeExpression == ref } ?: ref
+                        val qualifiedReceiver = selector.getQualifiedExpressionForSelector()?.receiverExpression
+                        // For `receiver.member`, `member` is only as global as `receiver` is. Every name inside
+                        // `receiver` is also in this list and is checked on its own, so if any of them is local, the
+                        // overall check already failed there.
+                        if (qualifiedReceiver != null) return@all true
 
                         var containerSymbol: KaSymbol? = refSymbol.containingSymbol
 

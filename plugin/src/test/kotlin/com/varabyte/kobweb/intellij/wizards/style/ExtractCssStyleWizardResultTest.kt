@@ -237,6 +237,89 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         )
     }
 
+    fun testDeterminingLocallyBoundParametersAppliesToClassMembers() {
+        myFixture.configureByTextAndHighlight("SomePage.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import org.jetbrains.compose.web.css.percent
+            import org.jetbrains.compose.web.css.px
+
+            abstract class MyWidgetBase {
+                val height = 100.px
+            }
+
+            class MyWidget : MyWidgetBase() {
+                val padding = 10.percent
+                val br = 5.px
+
+                @Composable
+                fun Render() {
+                    M<caret>odifier
+                        .padding(padding)
+                        .borderRadius(this.br)
+                        .height(super.height)
+                }
+            }
+            """.trimIndent()
+        )
+
+        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
+        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = false)
+        result.performRefactoring(myFixture.editor, ktDotExpr)
+
+        myFixture.checkResultAndHighlight(
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import org.jetbrains.compose.web.css.percent
+            import org.jetbrains.compose.web.css.px
+            import com.varabyte.kobweb.compose.css.CSSLengthNumericValue
+            import com.varabyte.kobweb.compose.css.CSSLengthOrPercentageNumericValue
+            import com.varabyte.kobweb.compose.css.StyleVariable
+            import com.varabyte.kobweb.compose.ui.modifiers.setVariable
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.toModifier
+            
+            abstract class MyWidgetBase {
+                val height = 100.px
+            }
+
+            private val MyStyle_PaddingTopVar by StyleVariable<CSSLengthOrPercentageNumericValue>()
+            private val MyStyle_BorderRadiusVar by StyleVariable<CSSLengthNumericValue>()
+            private val MyStyle_HeightVar by StyleVariable<CSSLengthOrPercentageNumericValue>()
+            val MyStyle = CssStyle {
+                base {
+                    Modifier
+                        .padding(MyStyle_PaddingTopVar.value())
+                        .borderRadius(MyStyle_BorderRadiusVar.value())
+                        .height(MyStyle_HeightVar.value())
+                }
+            }
+
+            class MyWidget : MyWidgetBase() {
+                val padding = 10.percent
+                val br = 5.px
+
+                @Composable
+                fun Render() {
+                    MyStyle.toModifier()
+                        .setVariable(MyStyle_PaddingTopVar, padding)
+                        .setVariable(MyStyle_BorderRadiusVar, this.br)
+                        .setVariable(MyStyle_HeightVar, super.height)
+                }
+            }
+            """.trimIndent()
+        )
+    }
+
+
     fun testExtractAttributes() {
         myFixture.configureByTextAndHighlight("SomePage.kt",
             // language=kotlin
