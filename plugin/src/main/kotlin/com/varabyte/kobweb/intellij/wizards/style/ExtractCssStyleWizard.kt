@@ -517,7 +517,6 @@ class ExtractCssStyleWizard(
                     return ctx.utils.components.formBuilder()
                         .addComponent(JBLabel("Target for extraction:"))
                         .addComponentFillVertically(ctx.utils.components.kotlinCode(modifierDisplayText), 8)
-                        .addComponent(JBLabel("<html><i>You should not feel obligated to convert every single modifier chain into a CSS style. Inline modifiers can be useful for trivial formatting cases, like adding a gap or a bit of padding.</i></html>"))
                         .addComponent(JBLabel("<html>A good style name is one that is descriptive of what the style is for, while being as short as reasonably possible.</html>"))
                         .addLabeledComponent("Style name:", styleNameField)
                         .panel
