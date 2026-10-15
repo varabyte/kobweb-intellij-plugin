@@ -174,7 +174,7 @@ sealed interface StyleSheetBlock {
 
         val rootName: String
         // We expect the base call is almost always non-null, but it can be potentially missing from a style definition.
-        // For example, maybe it's a style that only defines a psuedo-selector, like `hover`. Or maybe it's extending
+        // For example, maybe it's a style that only defines a pseudo-selector, like `hover`. Or maybe it's extending
         // another CssStyle which already provides its own functional base block. It's even technically legitimate to
         // create a totally empty CssStyle just so it generates a classname, now that I think about it (not that I'd
         // recommend it)
