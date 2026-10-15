@@ -426,6 +426,120 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         )
     }
 
+    fun testExtractModifierWithVarArgValues() {
+        myFixture.configureByTextAndHighlight("SomePage.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+
+            @Composable
+            fun SomePage() {
+                M<caret>odifier.fontFamily("Arial", "Helvetica", "sans-serif")
+            }
+            """.trimIndent()
+        )
+
+        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
+        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
+        result.performRefactoring(myFixture.editor, ktDotExpr)
+
+        myFixture.checkResultAndHighlight(
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.base
+            import com.varabyte.kobweb.silk.style.toModifier
+
+            val MyStyle = CssStyle.base {
+                Modifier.fontFamily("Arial", "Helvetica", "sans-serif")
+            }
+
+            @Composable
+            fun SomePage() {
+                MyStyle.toModifier()
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testLocallyBoundVarargStyleModifierCannotBeExtracted() {
+        // NOTE: We might someday decide to support non-spread vararg parameters, as in:
+        // ```
+        // // Before
+        // val font1 = "Arial"
+        // val font2 = "Helvectica"
+        // fontFamily(font1, font2)
+        //
+        // // After
+        // private val MyStyle_FontFamily1Var by StyleProperty<String>()
+        // private val MyStyle_FontFamily2Var by StyleProperty<String>()
+        // ...
+        //
+        // MyStyle.toModifier()
+        //   .setVariable(MyStyle_FontFamily1Var, font1)
+        //   .setVariable(MyStyle_FontFamily2Var, font2)
+        // ```
+        // but that will add a fair amount of complexity to our code gen code and it's probably not something anyone
+        // will actually do in practice. So for now we just refuse to extract it.
+        //
+        // No matter what, we will never be able to extract the spread operator version, as we can't set StyleProperty
+        // to type Array<T> or whatever.
+
+        myFixture.configureByTextAndHighlight("SomePage.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+
+            @Composable
+            fun SomePage() {
+                val fonts = arrayOf("Arial", "Helvetica", "sans-serif")
+                val willChangeLeft = "Left"
+                val willChangeTop = "Top"
+                Modifie<caret>r
+                    .fontFamily(*fonts)
+                    .willChange(willChangeLeft, willChangeTop)
+            }
+            """.trimIndent()
+        )
+
+        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
+        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
+        result.performRefactoring(myFixture.editor, ktDotExpr)
+
+        myFixture.checkResultAndHighlight(
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.base
+            import com.varabyte.kobweb.silk.style.toModifier
+
+            val MyStyle = CssStyle.base {
+                Modifier
+            }
+
+            @Composable
+            fun SomePage() {
+                val fonts = arrayOf("Arial", "Helvetica", "sans-serif")
+                val willChangeLeft = "Left"
+                val willChangeTop = "Top"
+                MyStyle.toModifier()
+                    .fontFamily(*fonts)
+                    .willChange(willChangeLeft, willChangeTop)
+            }
+            """.trimIndent()
+        )
+    }
+
     fun testComposableValuesCannotBeExtracted() {
         myFixture.configureByTextAndHighlight("SomePage.kt",
             // language=kotlin

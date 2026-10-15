@@ -619,6 +619,11 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
             fun Modifier.fillMaxWidth() = width(100.percent)
 
             @Suppress("UnusedReceiverParameter")
+            fun Modifier.fontFamily(vararg values: String): Modifier = styleModifier {
+                property("font-family", STUB<String>())
+            }
+
+            @Suppress("UnusedReceiverParameter")
             fun Modifier.height(value: CSSLengthOrPercentageNumericValue) = styleModifier {
                 property("height", value)
             }
@@ -653,6 +658,11 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
             @Suppress("UnusedReceiverParameter")
             fun Modifier.width(value: CSSLengthOrPercentageNumericValue) = styleModifier {
                 property("width", value)
+            }
+
+            @Suppress("UnusedReceiverParameter")
+            fun Modifier.willChange(vararg values: String) = styleModifier {
+                property("will-change", STUB<String>())
             }
             """.trimIndent()
         )
