@@ -97,4 +97,44 @@ class ConvertExtendedStyleToConciseFormatIntentionTest : KobwebIntentionTestBase
             """.trimIndent(),
         )
     }
+
+    fun testQualifiedStyleReceiverCanBeConverted() {
+        doTest(
+            """
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.style.ComponentKind
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.extendedBy
+            import org.jetbrains.compose.web.css.px
+
+            object Code {
+                val LabelStyle = CssStyle {}
+            }
+            val LargeCodeLabelStyle = Code.Label<caret>Style.extendedBy {
+                base {
+                    Modifier.fontSize(20.px)
+                }
+            }
+            """.trimIndent(),
+            """
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.style.ComponentKind
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.extendedBy
+            import com.varabyte.kobweb.silk.style.extendedByBase
+            import org.jetbrains.compose.web.css.px
+
+            object Code {
+                val LabelStyle = CssStyle {}
+            }
+            val LargeCodeLabelStyle = Code.Label<caret>Style.extendedByBase {
+                Modifier.fontSize(20.px)
+            }
+            """.trimIndent()
+        )
+    }
 }

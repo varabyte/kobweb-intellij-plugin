@@ -163,7 +163,7 @@ sealed interface StyleSheetBlock {
                 return hasGenericReceiver(CSS_STYLE_CLASS_ID, genericTypeClassId)
             }
 
-            private fun KtDotQualifiedExpression.getRootName() = (receiverExpression as KtNameReferenceExpression).getReferencedName()
+            private fun KtDotQualifiedExpression.getRootName() = receiverExpression.text
             private fun KtCallExpression.getRootName() = (getCallReferencedName()!!)
 
             context(_: KaSession)

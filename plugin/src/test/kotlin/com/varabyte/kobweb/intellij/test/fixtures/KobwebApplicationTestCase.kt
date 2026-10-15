@@ -624,6 +624,11 @@ abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
             }
 
             @Suppress("UnusedReceiverParameter")
+            fun Modifier.fontSize(values: CSSLengthNumericValue): Modifier = styleModifier {
+                property("font-size", STUB<String>())
+            }
+
+            @Suppress("UnusedReceiverParameter")
             fun Modifier.height(value: CSSLengthOrPercentageNumericValue) = styleModifier {
                 property("height", value)
             }

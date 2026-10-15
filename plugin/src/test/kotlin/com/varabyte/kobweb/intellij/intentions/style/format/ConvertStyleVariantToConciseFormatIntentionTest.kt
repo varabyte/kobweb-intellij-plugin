@@ -104,4 +104,44 @@ class ConvertStyleVariantToConciseFormatIntentionTest : KobwebIntentionTestBase(
             """.trimIndent(),
         )
     }
+
+    fun testQualifiedStyleReceiverCanBeConverted() {
+        doTest(
+            """
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.style.ComponentKind
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.addVariant
+    
+            sealed interface WidgetKind : ComponentKind
+            object Theme {
+                val ButtonStyle = CssStyle<WidgetKind> {}
+            }
+            val HoverVariant = Theme.Button<caret>Style.addVariant {
+                base {
+                    Modifier.color(Colors.Red)
+                }
+            }
+            """.trimIndent(),
+            """
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.style.ComponentKind
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.addVariant
+            import com.varabyte.kobweb.silk.style.addVariantBase
+    
+            sealed interface WidgetKind : ComponentKind
+            object Theme {
+                val ButtonStyle = CssStyle<WidgetKind> {}
+            }
+            val HoverVariant = Theme.ButtonStyle.addVariantBase {
+                Modifier.color(Colors.Red)
+            }
+            """.trimIndent()
+        )
+    }
 }
