@@ -6,6 +6,7 @@ import com.varabyte.kobweb.intellij.test.util.checkResultAndHighlight
 import com.varabyte.kobweb.intellij.test.util.configureByTextAndHighlight
 import com.varabyte.kobweb.intellij.test.util.elementUnderCaret
 import com.varabyte.kobweb.intellij.util.psi.getEntireDotQualifiedExpression
+import org.intellij.lang.annotations.Language
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 
 class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
@@ -27,9 +28,26 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         }
     }
 
+    private fun doTest(
+        produceResult: KtDotQualifiedExpression.() -> ExtractCssStyleWizard.Result,
+        @Language("kotlin")
+        before: String,
+        @Language("kotlin")
+        after: String,
+    ) {
+        myFixture.configureByTextAndHighlight("SomePage.kt", before)
+
+        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
+        val result = produceResult(ktDotExpr)
+        result.performRefactoring(myFixture.editor, ktDotExpr)
+
+        myFixture.checkResultAndHighlight(after)
+    }
+
     fun testExtractConciseCssStyle() {
-        myFixture.configureByTextAndHighlight("SomePage.kt",
-            // language=kotlin
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = true) },
+            // Before
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -41,15 +59,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             fun SomePage() {
                 M<caret>odifier.width(70.percent).color(Colors.Green)
             }
-            """.trimIndent()
-        )
-
-        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
-        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
-        result.performRefactoring(myFixture.editor, ktDotExpr)
-
-        myFixture.checkResultAndHighlight(
-            // language=kotlin
+            """.trimIndent(),
+            // After
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -75,8 +86,9 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
     }
 
     fun testExtractRelaxedCssStyle() {
-        myFixture.configureByTextAndHighlight("SomePage.kt",
-            // language=kotlin
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = false) },
+            // Before
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -88,15 +100,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             fun SomePage() {
                 M<caret>odifier.width(70.percent).color(Colors.Green)
             }
-            """.trimIndent()
-        )
-
-        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
-        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = false)
-        result.performRefactoring(myFixture.editor, ktDotExpr)
-
-        myFixture.checkResultAndHighlight(
-            // language=kotlin
+            """.trimIndent(),
+            // After
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -123,8 +128,9 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
     }
 
     fun testTopLevelStyleValuesCanBeExtracted() {
-        myFixture.configureByTextAndHighlight("SomePage.kt",
-            // language=kotlin
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = true) },
+            // Before
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -139,15 +145,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             fun SomePage() {
                 M<caret>odifier.width(produceSize()).color(THEME_COLOR)
             }
-            """.trimIndent()
-        )
-
-        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
-        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
-        result.performRefactoring(myFixture.editor, ktDotExpr)
-
-        myFixture.checkResultAndHighlight(
-            // language=kotlin
+            """.trimIndent(),
+            // After
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -176,8 +175,9 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
     }
 
     fun testExtractStylesWithLocalBounds() {
-        myFixture.configureByTextAndHighlight("SomePage.kt",
-            // language=kotlin
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = false) },
+            // Before
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -192,15 +192,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                 
                 M<caret>odifier.width(w).color(c)
             }
-            """.trimIndent()
-        )
-
-        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
-        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = false)
-        result.performRefactoring(myFixture.editor, ktDotExpr)
-
-        myFixture.checkResultAndHighlight(
-            // language=kotlin
+            """.trimIndent(),
+            // After
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -238,8 +231,9 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
     }
 
     fun testDeterminingLocallyBoundParametersAppliesToClassMembers() {
-        myFixture.configureByTextAndHighlight("SomePage.kt",
-            // language=kotlin
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = false) },
+            // Before
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -264,15 +258,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                         .height(super.height)
                 }
             }
-            """.trimIndent()
-        )
-
-        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
-        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = false)
-        result.performRefactoring(myFixture.editor, ktDotExpr)
-
-        myFixture.checkResultAndHighlight(
-            // language=kotlin
+            """.trimIndent(),
+            // After
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -321,8 +308,9 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
 
 
     fun testExtractAttributes() {
-        myFixture.configureByTextAndHighlight("SomePage.kt",
-            // language=kotlin
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = false, extractAttributes = true) },
+            // Before
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -333,15 +321,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             fun SomePage() {
                 M<caret>odifier.id("hi").width(50.percent).tabIndex(0)
             }
-            """.trimIndent()
-        )
-
-        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
-        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = false, extractAttributes = true)
-        result.performRefactoring(myFixture.editor, ktDotExpr)
-
-        myFixture.checkResultAndHighlight(
-            // language=kotlin
+            """.trimIndent(),
+            // After
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -365,8 +346,9 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
     }
 
     fun testLeaveAttributesInline() {
-        myFixture.configureByTextAndHighlight("SomePage.kt",
-            // language=kotlin
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = false, extractAttributes = false) },
+            // Before
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -377,15 +359,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             fun SomePage() {
                 M<caret>odifier.id("hi").width(50.percent).tabIndex(0)
             }
-            """.trimIndent()
-        )
-
-        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
-        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = false, extractAttributes = false)
-        result.performRefactoring(myFixture.editor, ktDotExpr)
-
-        myFixture.checkResultAndHighlight(
-            // language=kotlin
+            """.trimIndent(),
+            // After
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -411,8 +386,9 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
     }
 
     fun testAttributesExtractedOnlyIfPossible() {
-        myFixture.configureByTextAndHighlight("SomePage.kt",
-            // language=kotlin
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = false, extractAttributes = true) },
+            // Before,
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -424,15 +400,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                 val tabIndex = 0
                 M<caret>odifier.id("hi").width(50.percent).tabIndex(tabIndex)
             }
-            """.trimIndent()
-        )
-
-        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
-        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = false, extractAttributes = true)
-        result.performRefactoring(myFixture.editor, ktDotExpr)
-
-        myFixture.checkResultAndHighlight(
-            // language=kotlin
+            """.trimIndent(),
+            // After
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -457,8 +426,9 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
     }
 
     fun testExtractModifierWithDefaultValues() {
-        myFixture.configureByTextAndHighlight("SomePage.kt",
-            // language=kotlin
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = true) },
+            // Before
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -472,15 +442,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                     .padding(right = 10.px)
                     .margin(top = marginTop)
             }
-            """.trimIndent()
-        )
-
-        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
-        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
-        result.performRefactoring(myFixture.editor, ktDotExpr)
-
-        myFixture.checkResultAndHighlight(
-            // language=kotlin
+            """.trimIndent(),
+            // After
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -505,13 +468,14 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                 val marginTop = 5.px
                 MyStyle.toModifier().setVariable(MyStyle_MarginTopVar, marginTop)
             }
-            """.trimIndent()
+            """.trimIndent(),
         )
     }
 
     fun testExtractModifierWithVarArgValues() {
-        myFixture.configureByTextAndHighlight("SomePage.kt",
-            // language=kotlin
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = true) },
+            // Before
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -521,15 +485,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             fun SomePage() {
                 M<caret>odifier.fontFamily("Arial", "Helvetica", "sans-serif")
             }
-            """.trimIndent()
-        )
-
-        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
-        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
-        result.performRefactoring(myFixture.editor, ktDotExpr)
-
-        myFixture.checkResultAndHighlight(
-            // language=kotlin
+            """.trimIndent(),
+            // After
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -546,7 +503,7 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             fun SomePage() {
                 MyStyle.toModifier()
             }
-            """.trimIndent()
+            """.trimIndent(),
         )
     }
 
@@ -573,8 +530,9 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         // No matter what, we will never be able to extract the spread operator version, as we can't set StyleProperty
         // to type Array<T> or whatever.
 
-        myFixture.configureByTextAndHighlight("SomePage.kt",
-            // language=kotlin
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = true) },
+            // Before
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -589,15 +547,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                     .fontFamily(*fonts)
                     .willChange(willChangeLeft, willChangeTop)
             }
-            """.trimIndent()
-        )
-
-        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
-        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
-        result.performRefactoring(myFixture.editor, ktDotExpr)
-
-        myFixture.checkResultAndHighlight(
-            // language=kotlin
+            """.trimIndent(),
+            // After
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -619,13 +570,14 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                     .fontFamily(*fonts)
                     .willChange(willChangeLeft, willChangeTop)
             }
-            """.trimIndent()
+            """.trimIndent(),
         )
     }
 
     fun testComposableValuesCannotBeExtracted() {
-        myFixture.configureByTextAndHighlight("SomePage.kt",
-            // language=kotlin
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = true) },
+            // Before
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -644,15 +596,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                     .padding(right = PADDING_RIGHT)
                     .margin(top = produceMarginTop())
             }
-            """.trimIndent()
-        )
-
-        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
-        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
-        result.performRefactoring(myFixture.editor, ktDotExpr)
-
-        myFixture.checkResultAndHighlight(
-            // language=kotlin
+            """.trimIndent(),
+            // After
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -685,7 +630,7 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                     .setVariable(MyStyle_PaddingRightVar, PADDING_RIGHT)
                     .setVariable(MyStyle_MarginTopVar, produceMarginTop())
             }
-            """.trimIndent()
+            """.trimIndent(),
         )
     }
 
@@ -696,8 +641,9 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         // 3) Indirectly via a variable (val colorMode = ColorMode.current)
         // 4) Indirectly via state delegate (val colorMode by ColorMode.currentState)
         // Our extract logic should intercept all of them.
-        myFixture.configureByTextAndHighlight("SomePage.kt",
-            // language=kotlin
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = true) },
+            // Before
             """
             import androidx.compose.runtime.*
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -718,15 +664,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                     .backgroundColor(if (ColorMode.current.isDark) Colors.Red else Colors.Green)
                     .accentColor(if (ColorMode.currentState.value.isDark) Colors.Magenta else Colors.Purple)
             }
-            """.trimIndent()
-        )
-
-        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
-        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
-        result.performRefactoring(myFixture.editor, ktDotExpr)
-
-        myFixture.checkResultAndHighlight(
-            // language=kotlin
+            """.trimIndent(),
+            // After
             """
             import androidx.compose.runtime.*
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -758,13 +697,14 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                 val colorMode = ColorMode.current
                 MyStyle.toModifier().setVariable(MyStyle_BorderWidthVar, borderWidth)
             }
-            """.trimIndent()
+            """.trimIndent(),
         )
     }
 
     fun testColorModeVariableMayStillNeedToBeSetByStyleVariable() {
-        myFixture.configureByTextAndHighlight("SomePage.kt",
-            // language=kotlin
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = true) },
+            // Before
             """
             import androidx.compose.runtime.*
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -785,15 +725,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                 val color = ColorMode.current.toColor()
                 M<caret>odifier.color(color)
             }
-            """.trimIndent()
-        )
-
-        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
-        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
-        result.performRefactoring(myFixture.editor, ktDotExpr)
-
-        myFixture.checkResultAndHighlight(
-            // language=kotlin
+            """.trimIndent(),
+            // After
             """
             import androidx.compose.runtime.*
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -824,13 +757,14 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                 val color = ColorMode.current.toColor()
                 MyStyle.toModifier().setVariable(MyStyle_ColorVar, color)
             }
-            """.trimIndent()
+            """.trimIndent(),
         )
     }
 
     fun testUnrelatedMutableStateValueIsNotColorMode() {
-        myFixture.configureByTextAndHighlight(
-            "SomePage.kt",
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = true) },
+            // Before
             """
             import androidx.compose.runtime.Composable
             import androidx.compose.runtime.MutableState
@@ -847,17 +781,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             fun SomePage() {
                 M<caret>odifier.color(activeColorState.value)
             }
-            """.trimIndent()
-        )
-
-        val chain = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
-
-        val result = chain.createResult(
-            "MyStyle", useConciseSyntax = true
-        )
-        result.performRefactoring(myFixture.editor, chain)
-
-        myFixture.checkResultAndHighlight(
+            """.trimIndent(),
+            // After
             """
             import androidx.compose.runtime.Composable
             import androidx.compose.runtime.MutableState
@@ -881,13 +806,14 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             fun SomePage() {
                 MyStyle.toModifier()
             }
-            """.trimIndent()
+            """.trimIndent(),
         )
     }
 
     fun testExtractionBringsCommentsAlong() {
-        myFixture.configureByTextAndHighlight("SomePage.kt",
-            // language=kotlin
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = true) },
+            // Before
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -905,15 +831,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                     // Overhead comment and...
                     .color(Colors.Green) // ... trailing comment
             }
-            """.trimIndent()
-        )
-
-        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
-        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
-        result.performRefactoring(myFixture.editor, ktDotExpr)
-
-        myFixture.checkResultAndHighlight(
-            // language=kotlin
+            """.trimIndent(),
+            // After
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -938,7 +857,7 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             fun SomePage() {
                 MyStyle.toModifier()
             }
-            """.trimIndent()
+            """.trimIndent(),
         )
     }
 
@@ -946,8 +865,9 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         // Normally, extract CSS style logic for single modifiers uses a one-liner concise syntax, but if we have an
         // overhead comment, it forces the less concise syntax so it has a place to add the comment.
 
-        myFixture.configureByTextAndHighlight("SomePage.kt",
-            // language=kotlin
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = true) },
+            // Before
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -960,15 +880,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                     // Overhead comment
                     .width(70.percent)
             }
-            """.trimIndent()
-        )
-
-        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
-        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
-        result.performRefactoring(myFixture.editor, ktDotExpr)
-
-        myFixture.checkResultAndHighlight(
-            // language=kotlin
+            """.trimIndent(),
+            // After
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -988,13 +901,14 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             fun SomePage() {
                 MyStyle.toModifier()
             }
-            """.trimIndent()
+            """.trimIndent(),
         )
     }
 
     fun testExtractionMovesCommentsForAttributeModifiers() {
-        myFixture.configureByTextAndHighlight("SomePage.kt",
-            // language=kotlin
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = true, extractAttributes = true) },
+            // Before
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -1009,15 +923,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                     // Overhead comment #2
                     .tabIndex(0) // Trailing comment #2
             }
-            """.trimIndent()
-        )
-
-        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
-        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true, extractAttributes = true)
-        result.performRefactoring(myFixture.editor, ktDotExpr)
-
-        myFixture.checkResultAndHighlight(
-            // language=kotlin
+            """.trimIndent(),
+            // After
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -1041,13 +948,14 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             fun SomePage() {
                 MyStyle.toModifier()
             }
-            """.trimIndent()
+            """.trimIndent(),
         )
     }
 
     fun testExtractionDoesNotDeleteFinalTrailingCommentIfAssociatedModifierIsNotExtracted() {
-        myFixture.configureByTextAndHighlight("SomePage.kt",
-            // language=kotlin
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = true) },
+            // Before
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -1061,15 +969,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                     .width(70.percent) // Trailing comment moved
                     .id(id) // Trailing comment left in place
             }
-            """.trimIndent()
-        )
-
-        val ktDotExpr = myFixture.elementUnderCaret.getEntireDotQualifiedExpression()!!
-        val result = ktDotExpr.createResult("MyStyle", useConciseSyntax = true)
-        result.performRefactoring(myFixture.editor, ktDotExpr)
-
-        myFixture.checkResultAndHighlight(
-            // language=kotlin
+            """.trimIndent(),
+            // After
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -1088,7 +989,7 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                 val id = "hi"
                 MyStyle.toModifier().id(id) // Trailing comment left in place
             }
-            """.trimIndent()
+            """.trimIndent(),
         )
     }
 }
