@@ -1,19 +1,44 @@
 package com.varabyte.kobweb.intellij.test.fixtures
 
 import com.intellij.openapi.components.service
+import com.intellij.openapi.module.Module
+import com.intellij.openapi.projectRoots.Sdk
+import com.intellij.openapi.roots.ContentEntry
+import com.intellij.openapi.roots.LanguageLevelModuleExtension
+import com.intellij.openapi.roots.ModifiableRootModel
+import com.intellij.pom.java.LanguageLevel
+import com.intellij.testFramework.IdeaTestUtil
 import com.intellij.testFramework.LightProjectDescriptor
+import com.intellij.testFramework.PsiTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
-import com.intellij.testFramework.fixtures.LightJavaCodeInsightFixtureTestCase
+import com.intellij.testFramework.fixtures.DefaultLightProjectDescriptor
+import com.intellij.util.PathUtil
 import com.varabyte.kobweb.intellij.model.KobwebProjectType
 import com.varabyte.kobweb.intellij.project.KobwebProject
 import com.varabyte.kobweb.intellij.services.project.KobwebProjectCacheService
 import com.varabyte.kobweb.intellij.util.kobweb.KobwebPluginState
 import com.varabyte.kobweb.intellij.util.kobweb.kobwebPluginState
+import java.io.File
 
 abstract class KobwebApplicationTestCase : BasePlatformTestCase() {
+    companion object {
+        // Provides JDK and Kotlin calls which we can use in tests
+        private val KOTLIN_JDK_11 = object : DefaultLightProjectDescriptor() {
+            override fun getSdk(): Sdk = IdeaTestUtil.getMockJdk11()
+
+            override fun configureModule(module: Module, model: ModifiableRootModel, contentEntry: ContentEntry) {
+                super.configureModule(module, model, contentEntry)
+                model.getModuleExtension(LanguageLevelModuleExtension::class.java).languageLevel = LanguageLevel.JDK_11
+
+                // KotlinVersion lives in kotlin-stdlib, so this locates the stdlib jar on the test classpath
+                val stdlibJar = File(PathUtil.getJarPathForClass(KotlinVersion::class.java))
+                PsiTestUtil.addLibrary(model, "kotlin-stdlib", stdlibJar.parent, stdlibJar.name)
+            }
+        }
+    }
+
     override fun getProjectDescriptor(): LightProjectDescriptor {
-        // Provides a JDK that the Kotlin classes need or else highlights break as unresolved
-        return LightJavaCodeInsightFixtureTestCase.JAVA_11
+        return KOTLIN_JDK_11
     }
 
     override fun setUp() {
