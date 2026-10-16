@@ -701,6 +701,7 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         )
     }
 
+    // We need to be careful that we aren't too aggressive in converting colormode variables into `colorMode`.
     fun testColorModeVariableMayStillNeedToBeSetByStyleVariable() {
         doTest(
             produceResult = { createResult("MyStyle", useConciseSyntax = true) },
@@ -711,6 +712,7 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import com.varabyte.kobweb.compose.ui.modifiers.*
             import com.varabyte.kobweb.compose.ui.graphics.Colors
             import com.varabyte.kobweb.silk.theme.colors.ColorMode
+            import kotlin.random.Random
             import org.jetbrains.compose.web.css.CSSColorValue
 
             @Composable
@@ -723,7 +725,10 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                 }
 
                 val color = ColorMode.current.toColor()
-                M<caret>odifier.color(color)
+                val colorModeOrLight = if (Random.nextBoolean()) ColorMode.current else ColorMode.LIGHT
+                M<caret>odifier
+                    .color(color)
+                    .backgroundColor(colorModeOrLight.toColor())
             }
             """.trimIndent(),
             // After
@@ -733,6 +738,7 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import com.varabyte.kobweb.compose.ui.modifiers.*
             import com.varabyte.kobweb.compose.ui.graphics.Colors
             import com.varabyte.kobweb.silk.theme.colors.ColorMode
+            import kotlin.random.Random
             import org.jetbrains.compose.web.css.CSSColorValue
             import com.varabyte.kobweb.compose.css.StyleVariable
             import com.varabyte.kobweb.compose.ui.modifiers.setVariable
@@ -741,8 +747,11 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import com.varabyte.kobweb.silk.style.toModifier
 
             private val MyStyle_ColorVar by StyleVariable<CSSColorValue>()
+            private val MyStyle_BackgroundColorVar by StyleVariable<CSSColorValue>()
             val MyStyle = CssStyle.base {
-                Modifier.color(MyStyle_ColorVar.value())
+                Modifier
+                    .color(MyStyle_ColorVar.value())
+                    .backgroundColor(MyStyle_BackgroundColorVar.value())
             }
 
             @Composable
@@ -755,7 +764,10 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                 }
 
                 val color = ColorMode.current.toColor()
-                MyStyle.toModifier().setVariable(MyStyle_ColorVar, color)
+                val colorModeOrLight = if (Random.nextBoolean()) ColorMode.current else ColorMode.LIGHT
+                MyStyle.toModifier()
+                    .setVariable(MyStyle_ColorVar, color)
+                    .setVariable(MyStyle_BackgroundColorVar, colorModeOrLight.toColor())
             }
             """.trimIndent(),
         )

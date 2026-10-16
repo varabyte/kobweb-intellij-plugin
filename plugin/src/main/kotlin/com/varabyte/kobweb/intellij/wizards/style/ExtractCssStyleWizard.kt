@@ -203,19 +203,24 @@ fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaS
 
                         // Check variable assigned to / delegate property bound to ColorMode.current / by ColorMode.currentState
                         if (symbol is KaLocalVariableSymbol && symbol.returnType.expandedSymbol?.classId == COLOR_MODE_CLASS_ID) {
-                            (symbol.psi as? KtProperty)?.let { property ->
-                                (property.delegateExpression ?: property.initializer)?.let { assignmentExpr ->
-                                    val delegateCalls = PsiTreeUtil.findChildrenOfType(
-                                        assignmentExpr,
-                                        KtSimpleNameExpression::class.java
-                                    )
-                                    if (delegateCalls.any { it.isColorModeReference() }) {
-                                        return true
-                                    }
-                                }
-                            }
-                        }
+                            val property = symbol.psi as? KtProperty ?: return false
 
+                            // A plain `var` could be reassigned to some other value later (while
+                            // `var by ColorMode.currentState` is bound to a color mode reference for its lifetime.)
+                            if (property.isVar && property.delegateExpression == null) return false
+
+                            // The whole expression must *be* a color mode reference, not just contain one somewhere. In other words,
+                            // `val c = ColorMode.current` but not `val c = if (cond) ColorMode.current else ColorMode.LIGHT.
+                            val rhsExpr = (property.delegateExpression ?: property.initializer)
+                                ?.let { KtPsiUtil.safeDeparenthesize(it) }
+                                ?: return false
+
+                            // `ColorMode.current` -> `current`, `ColorMode.currentState.value` -> `value`, `current` -> `current`
+                            val lastName =
+                                (((rhsExpr as? KtDotQualifiedExpression)?.selectorExpression ?: rhsExpr) as? KtSimpleNameExpression)
+                                    ?: return false
+                            return lastName.isColorModeReference()
+                        }
                         return false
                     }
 
