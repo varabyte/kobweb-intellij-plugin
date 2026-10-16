@@ -15,7 +15,7 @@ class ConvertExtendedStyleToConciseFormatIntention : FormatStyleSheetSingletonBa
     // Do not allow compressing a CssStyle block that has pseudo-selectors already declared, e.g. `hover`, `focus`
     castStyleBlock = { (it as? StyleSheetBlock.Style.Extended.Expanded)?.takeIf { it.blockIsEmptyOrOnlyContainsBaseBlock() } }
 ) {
-    override fun getText() = "Convert to concise CssStyle format"
+    override fun getText() = "Convert to concise extended CssStyle format"
 
     override val imports: List<FqName> = listOf(
         EXTENDED_BY_BASE_CALLABLE_ID.asSingleFqName(),

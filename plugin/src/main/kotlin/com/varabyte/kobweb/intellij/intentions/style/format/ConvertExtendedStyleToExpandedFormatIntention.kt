@@ -13,7 +13,7 @@ class ConvertExtendedStyleToExpandedFormatIntention : FormatStyleSheetSingletonB
     DERIVED_CONCISE_EXTENDED_STYLE_KEY,
     castStyleBlock = { (it as? StyleSheetBlock.Style.Extended.Concise) }
 ) {
-    override fun getText() = "Convert to expanded CssStyle format"
+    override fun getText() = "Convert to expanded extended CssStyle format"
 
     override val imports: List<FqName> = listOf(EXTENDED_BY_CALLABLE_ID.asSingleFqName())
     override fun StyleSheetBlock.Style.Extended.Concise.createReplacementCode(): String {

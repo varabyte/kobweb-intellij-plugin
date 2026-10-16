@@ -33,7 +33,7 @@ abstract class CacheDerivedPsiElementIntentionAction<E: PsiElement>(private val 
         }
     }
 
-    final override fun getFamilyName(): String = UxGlobals.FAMILY_NAME
+    final override fun getFamilyName(): String = text
 
     /**
      * Attempt to create the derivative element.
