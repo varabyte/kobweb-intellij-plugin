@@ -442,7 +442,7 @@ class ExtractCssStyleWizard(
 ) {
     class Input(
         val modifierChainStart: KtDotQualifiedExpression,
-        val initialPrefix: String,
+        val initialPrefix: String?,
     )
 
     interface Result {
@@ -502,11 +502,18 @@ class ExtractCssStyleWizard(
                 override val headerText = "Specify CssStyle Name"
 
                 private val styleNameField = run {
+                    val initialPrefixNormalized =
+                        ctx.input.initialPrefix
+                            ?.capitalized()
+                            ?.filter { it.isLetterOrDigit() }
+                            ?.takeIf { it.isNotEmpty() }
+                            ?: "My"
+
                     val initialName = run {
                         var attempt = 1
                         var name: String
                         do {
-                            name = "${ctx.input.initialPrefix}${if (attempt == 1) "" else attempt.toString()}$CSS_STYLE_SUFFIX"
+                            name = "$initialPrefixNormalized${if (attempt == 1) "" else attempt.toString()}$CSS_STYLE_SUFFIX"
                             attempt++
                         } while (!styleNameErrorValidator.checkInput(name))
                         name
