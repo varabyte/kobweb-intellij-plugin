@@ -8,17 +8,17 @@ import org.intellij.lang.annotations.Language
 private const val TEST_FILE_NAME = "KobwebIntentionTest.kt"
 
 abstract class KobwebIntentionTestBase : KobwebApplicationTestCase() {
-    protected abstract val intentionName: String
+    protected abstract val intentionFamilyName: String
 
     protected fun doTest(
         @Language("kotlin") before: String,
         @Language("kotlin") after: String,
     ) {
-        val intentionName = intentionName
+        val intentionFamily = this@KobwebIntentionTestBase.intentionFamilyName
         myFixture.configureByText(TEST_FILE_NAME, before)
         myFixture.checkHighlighting()
-        val intention = myFixture.getAvailableIntention(intentionName)
-            ?: error("Intention \"$intentionName\" was not available for code:\n\n$before")
+        val intention = myFixture.availableIntentions.firstOrNull { it.familyName == intentionFamily }
+            ?: error("Intention \"$intentionFamily\" was not available for code:\n\n$before")
         myFixture.launchAction(intention)
         myFixture.checkResultAndHighlight(after)
     }
@@ -26,20 +26,20 @@ abstract class KobwebIntentionTestBase : KobwebApplicationTestCase() {
     protected fun assertIntentionNotAvailable(
         @Language("kotlin") code: String,
     ) {
-        val intentionName = intentionName
+        val intentionFamily = this@KobwebIntentionTestBase.intentionFamilyName
         myFixture.configureByText(TEST_FILE_NAME, code)
         myFixture.checkHighlighting()
-        val intention = myFixture.getAvailableIntention(intentionName)
-        assertWithMessage("Intention \"$intentionName\" was (unexpectedly) available for code:\n\n$code").that(intention).isNull()
+        val intention = myFixture.availableIntentions.firstOrNull { it.familyName == intentionFamily }
+        assertWithMessage("Intention \"$intentionFamily\" was (unexpectedly) available for code:\n\n$code").that(intention).isNull()
     }
 
     protected fun assertIntentionIsAvailable(
         @Language("kotlin") code: String,
     ) {
-        val intentionName = intentionName
+        val intentionFamily = this@KobwebIntentionTestBase.intentionFamilyName
         myFixture.configureByText(TEST_FILE_NAME, code)
         myFixture.checkHighlighting()
-        val intention = myFixture.getAvailableIntention(intentionName)
-        assertWithMessage("Intention \"$intentionName\" was (unexpectedly) unavailable for code:\n\n$code").that(intention).isNotNull()
+        val intention = myFixture.availableIntentions.firstOrNull { it.familyName == intentionFamily }
+        assertWithMessage("Intention \"$intentionFamily\" was (unexpectedly) unavailable for code:\n\n$code").that(intention).isNotNull()
     }
 }

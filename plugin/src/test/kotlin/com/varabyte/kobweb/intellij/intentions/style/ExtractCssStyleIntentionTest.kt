@@ -6,7 +6,7 @@ import com.varabyte.kobweb.intellij.wizards.style.ExtractCssStyleWizard
 // We cannot run the intention (because it would try to bring up a dialog popup), but we can at least assert that it is
 // available in expected locations. See ExtractCssStyleWizardResultTest for code that tests the actual extract behavior.
 class ExtractCssStyleIntentionTest : KobwebIntentionTestBase() {
-    override val intentionName: String = ExtractCssStyleWizard.TITLE
+    override val intentionFamilyName: String = ExtractCssStyleWizard.TITLE
 
     fun testExtractCssStyleIntentionAvailableAnywhereInModifierChain() {
         assertIntentionIsAvailable(

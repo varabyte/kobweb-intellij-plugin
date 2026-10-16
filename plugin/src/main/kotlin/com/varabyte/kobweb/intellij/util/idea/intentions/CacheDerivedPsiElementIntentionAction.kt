@@ -44,6 +44,7 @@ abstract class CacheDerivedPsiElementIntentionAction<E: PsiElement>(private val 
      * If it can't be created, then this means the action will be treated as unavailable.
      */
     protected abstract fun PsiElement.tryDerivingElement(): E?
+    protected open fun handleElementIsAvailable(project: Project, editor: Editor, element: E) {}
     protected abstract fun handleElementIsInvoked(project: Project, editor: Editor, element: E)
 
     private fun getCachedDerivedElement(editor: Editor, sourceElement: PsiElement): E? {
@@ -76,6 +77,7 @@ abstract class CacheDerivedPsiElementIntentionAction<E: PsiElement>(private val 
 
     final override fun isAvailable(project: Project, editor: Editor, element: PsiElement): Boolean {
         val derived = getCachedDerivedElementOrCreateIfPossible(editor, element)
+        derived?.let { handleElementIsAvailable(project, editor, it) }
         return (derived != null)
     }
 

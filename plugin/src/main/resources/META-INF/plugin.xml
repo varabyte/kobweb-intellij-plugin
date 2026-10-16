@@ -77,46 +77,15 @@
             <language>kotlin</language>
         </intentionAction>
         <intentionAction>
-            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertStyleDefinitionToConciseFormatIntention</className>
+            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertStyleToConciseFormatIntention</className>
             <categoryKey>kobweb.name</categoryKey>
             <language>kotlin</language>
         </intentionAction>
         <intentionAction>
-            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertStyleDefinitionToExpandedFormatIntention</className>
+            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertStyleToExpandedFormatIntention</className>
             <categoryKey>kobweb.name</categoryKey>
             <language>kotlin</language>
         </intentionAction>
-        <intentionAction>
-            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertExtendedStyleToConciseFormatIntention</className>
-            <categoryKey>kobweb.name</categoryKey>
-            <language>kotlin</language>
-        </intentionAction>
-        <intentionAction>
-            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertExtendedStyleToExpandedFormatIntention</className>
-            <categoryKey>kobweb.name</categoryKey>
-            <language>kotlin</language>
-        </intentionAction>
-        <intentionAction>
-            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertStyleVariantToConciseFormatIntention</className>
-            <categoryKey>kobweb.name</categoryKey>
-            <language>kotlin</language>
-        </intentionAction>
-        <intentionAction>
-            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertStyleVariantToExpandedFormatIntention</className>
-            <categoryKey>kobweb.name</categoryKey>
-            <language>kotlin</language>
-        </intentionAction>
-        <intentionAction>
-            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertExtendedStyleVariantToConciseFormatIntention</className>
-            <categoryKey>kobweb.name</categoryKey>
-            <language>kotlin</language>
-        </intentionAction>
-        <intentionAction>
-            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertExtendedStyleVariantToExpandedFormatIntention</className>
-            <categoryKey>kobweb.name</categoryKey>
-            <language>kotlin</language>
-        </intentionAction>
-
         <colorProvider implementation="com.varabyte.kobweb.intellij.colors.KobwebColorProvider" />
         <codeInsight.inlayProvider
                 language="kotlin"

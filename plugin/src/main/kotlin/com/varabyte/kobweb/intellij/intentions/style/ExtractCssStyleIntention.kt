@@ -6,12 +6,14 @@ import com.intellij.psi.PsiElement
 import com.varabyte.kobweb.intellij.util.features.ExtractCssStyleUtils
 import com.varabyte.kobweb.intellij.util.idea.intentions.CacheDerivedPsiElementIntentionAction
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
-import com.varabyte.kobweb.intellij.wizards.style.ExtractCssStyleWizard
+import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 
 private val DERIVED_MODIFIER_CHAIN_KEY by CacheDerivedPsiElementIntentionAction.key<KtDotQualifiedExpression>()
 
-class ExtractCssStyleIntention : CacheDerivedPsiElementIntentionAction<KtDotQualifiedExpression>(DERIVED_MODIFIER_CHAIN_KEY, ExtractCssStyleWizard.TITLE) {
+class ExtractCssStyleIntention : CacheDerivedPsiElementIntentionAction<KtDotQualifiedExpression>(DERIVED_MODIFIER_CHAIN_KEY,
+    UxGlobals.textBundle.message("intentions.extract_css_style.name")
+) {
     override fun startInWriteAction(): Boolean = false // We open a wizard which will handle write action behavior
 
     override fun PsiElement.tryDerivingElement(): KtDotQualifiedExpression? {
