@@ -87,10 +87,30 @@
             <language>kotlin</language>
         </intentionAction>
         <colorProvider implementation="com.varabyte.kobweb.intellij.colors.KobwebColorProvider" />
-        <codeInsight.inlayProvider
+        <codeInsight.declarativeInlayProvider
+                implementationClass="com.varabyte.kobweb.intellij.inlay.KobwebModifierInlayHintsProvider"
                 language="kotlin"
-                implementationClass="com.varabyte.kobweb.intellij.inlay.KobwebInlayHintsProvider"
-        />
+                providerId="kobweb.modifier.hints"
+                nameKey="kobweb.inlay.hints.name"
+                isEnabledByDefault="true"
+                group="OTHER_GROUP"
+                bundle="bundles.KobwebBundle">
+            <option
+                    optionId="kobweb.modifier.hints.attr"
+                    bundle="bundles.KobwebBundle"
+                    nameKey="kobweb.inlay.hints.modifier.attr.name"
+                    descriptionKey="kobweb.inlay.hints.modifier.attr.desc"
+                    enabledByDefault="true"
+            />
+            <option
+                    optionId="kobweb.modifier.hints.style"
+                    bundle="bundles.KobwebBundle"
+                    nameKey="kobweb.inlay.hints.modifier.style.name"
+                    descriptionKey="kobweb.inlay.hints.modifier.style.desc"
+                    enabledByDefault="false"
+            />
+        </codeInsight.declarativeInlayProvider>
+
         <notificationGroup displayType="BALLOON" id="Kobweb"/>
 
         <platform.backend.documentation.psiTargetProvider
