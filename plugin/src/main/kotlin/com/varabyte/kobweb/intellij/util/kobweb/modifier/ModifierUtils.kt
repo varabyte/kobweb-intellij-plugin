@@ -82,7 +82,7 @@ fun KtNamedFunction.isModifierExtension(): Boolean {
 context(kaSession: KaSession)
 fun KtNamedFunction.isModifierFunction(): Boolean = with(kaSession) {
     val owner = symbol.containingSymbol as? KaClassSymbol ?: return false
-    return owner.classId == MODIFIER_COMPANION_CLASS_ID
+    return (owner.classId == MODIFIER_COMPANION_CLASS_ID || owner.classId == MODIFIER_CLASS_ID)
 }
 
 /**
