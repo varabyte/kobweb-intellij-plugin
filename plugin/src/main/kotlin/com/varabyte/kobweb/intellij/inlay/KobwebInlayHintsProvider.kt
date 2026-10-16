@@ -15,6 +15,8 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.panel
+import com.varabyte.kobweb.intellij.util.kobweb.isInKobwebSource
+import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierChainingExtension
@@ -117,11 +119,14 @@ class KobwebInlayHintsProvider : InlayHintsProvider<KobwebInlayHintsProvider.Set
         editor: Editor,
         settings: Settings,
         sink: InlayHintsSink
-    ): InlayHintsCollector {
-        return if (file.isPhysical) {
+    ): InlayHintsCollector? {
+        return if (!file.isPhysical) {
+            // Used for the settings page
+            createPreviewCollector(editor, settings)
+        } else if (file.isInReadableKobwebProject() || file.isInKobwebSource()) {
             createActualCollector(file, editor, settings)
         } else {
-            createPreviewCollector(editor, settings)
+            null // Don't waste time in non-Kobweb modules
         }
     }
 
