@@ -1,6 +1,7 @@
 package com.varabyte.kobweb.intellij.inspections
 
 import com.varabyte.kobweb.intellij.inspections.modifier.DanglingModifierInspection
+import com.varabyte.kobweb.intellij.quickfixes.style.WrapModifierInBaseBlockQuickFix
 
 class DanglingModifierInspectionTest : KobwebInspectionTestBase() {
     override fun produceInspection() = DanglingModifierInspection()
@@ -67,4 +68,32 @@ class DanglingModifierInspectionTest : KobwebInspectionTestBase() {
         )
     }
 
+    fun testUnusedModifierInCssStyleBlockCanBeWrapped() {
+        doTest(
+            """
+            import com.varabyte.kobweb.compose.ui.*
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.style.CssStyle
+
+            val MyStyle = CssStyle {
+                val color = Colors.Blue
+                <warning descr="This modifier is dangling. You should instead use it or remove it.">Modifier.color(color)</warning>
+            }
+            """.trimIndent(),
+            thenFixWith<WrapModifierInBaseBlockQuickFix>(
+            """
+            import com.varabyte.kobweb.compose.ui.*
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.style.CssStyle
+
+            val MyStyle = CssStyle {
+                val color = Colors.Blue
+                base { Modifier.color(color) }
+            }
+            """.trimIndent()
+            )
+        )
+    }
 }
