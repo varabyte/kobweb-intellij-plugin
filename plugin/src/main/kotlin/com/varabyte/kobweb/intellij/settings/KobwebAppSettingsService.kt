@@ -11,7 +11,7 @@ import com.intellij.util.xmlb.annotations.Property
 class KobwebAppSettingsService : PersistentStateComponent<KobwebAppSettingsService.State> {
 
     object ExtractCssStyle {
-        enum class Format { CONCISE, RELAXED, ASK_ME }
+        enum class Format { CONCISE, EXPANDED, ASK_ME }
         enum class AttributeModifiersStrategy { EXTRACT, INLINE, ASK_ME }
     }
 

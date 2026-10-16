@@ -44,7 +44,7 @@ class AttributeModifierInStyleSheetBlockInspection : LocalInspectionTool() {
                 val styleExtraModifierSuggestedFix = when (cssStyleBlock) {
                     is StyleSheetBlock.Style.Definition.Concise ->
                         "${cssStyleBlock.rootName}.base(extraModifier = { Modifier.${expression.text} })"
-                    is StyleSheetBlock.Style.Definition.Relaxed ->
+                    is StyleSheetBlock.Style.Definition.Expanded ->
                         """
                         ${cssStyleBlock.rootName}(extraModifier = { Modifier.${expression.text} }) {
                             base { ... }
@@ -53,7 +53,7 @@ class AttributeModifierInStyleSheetBlockInspection : LocalInspectionTool() {
 
                     is StyleSheetBlock.Style.Extended.Concise ->
                         "${cssStyleBlock.rootName}.extendedByBase(extraModifier = { Modifier.${expression.text} })"
-                    is StyleSheetBlock.Style.Extended.Relaxed ->
+                    is StyleSheetBlock.Style.Extended.Expanded ->
                         """
                         ${cssStyleBlock.rootName}.extendedBy(extraModifier = { Modifier.${expression.text} }) {
                             base { ... }
@@ -62,7 +62,7 @@ class AttributeModifierInStyleSheetBlockInspection : LocalInspectionTool() {
 
                     is StyleSheetBlock.Style.Variant.Definition.Concise ->
                         "${cssStyleBlock.rootName}.addVariantBase(extraModifier = { Modifier.${expression.text} })"
-                    is StyleSheetBlock.Style.Variant.Definition.Relaxed ->
+                    is StyleSheetBlock.Style.Variant.Definition.Expanded ->
                         """
                         ${cssStyleBlock.rootName}.addVariant(extraModifier = { Modifier.${expression.text} }) {
                             base { ... }
@@ -71,7 +71,7 @@ class AttributeModifierInStyleSheetBlockInspection : LocalInspectionTool() {
 
                     is StyleSheetBlock.Style.Variant.Extended.Concise ->
                         "${cssStyleBlock.rootName}.extendedByBase(extraModifier = { Modifier.${expression.text} })"
-                    is StyleSheetBlock.Style.Variant.Extended.Relaxed ->
+                    is StyleSheetBlock.Style.Variant.Extended.Expanded ->
                         """
                         ${cssStyleBlock.rootName}.extendedBy(extraModifier = { Modifier.${expression.text} }) {
                             base { ... }

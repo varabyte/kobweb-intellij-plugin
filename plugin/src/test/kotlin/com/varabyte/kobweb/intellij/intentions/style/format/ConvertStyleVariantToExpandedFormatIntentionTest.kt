@@ -2,10 +2,10 @@ package com.varabyte.kobweb.intellij.intentions.style.format
 
 import com.varabyte.kobweb.intellij.intentions.KobwebIntentionTestBase
 
-class ConvertExtendedStyleVariantToRelaxedFormatIntentionTest : KobwebIntentionTestBase() {
-    override val intentionName: String = ConvertExtendedStyleVariantToRelaxedFormatIntention().text
+class ConvertStyleVariantToExpandedFormatIntentionTest : KobwebIntentionTestBase() {
+    override val intentionName: String = ConvertStyleVariantToExpandedFormatIntention().text
 
-    fun testConciseFormatCanBeConvertedToRelaxed() {
+    fun testConciseFormatCanBeConvertedToExpanded() {
         doTest(
             """
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -13,14 +13,12 @@ class ConvertExtendedStyleVariantToRelaxedFormatIntentionTest : KobwebIntentionT
             import com.varabyte.kobweb.compose.ui.graphics.Colors
             import com.varabyte.kobweb.silk.style.ComponentKind
             import com.varabyte.kobweb.silk.style.CssStyle
-            import com.varabyte.kobweb.silk.style.addVariant
-            import com.varabyte.kobweb.silk.style.extendedByBase
+            import com.varabyte.kobweb.silk.style.addVariantBase
             import org.jetbrains.compose.web.css.percent
 
             sealed interface WidgetKind : ComponentKind
             val ExampleStyle = CssStyle<WidgetKind> {}
-            val ExampleBaseVariant = ExampleStyle.addVariant {}
-            val ExampleExtendedVariant = Exampl<caret>eBaseVariant.extendedByBase {
+            val ExampleVariant = Exa<caret>mpleStyle.addVariantBase {
                 Modifier
                     .width(70.percent)
                     .color(Colors.Green)
@@ -33,14 +31,12 @@ class ConvertExtendedStyleVariantToRelaxedFormatIntentionTest : KobwebIntentionT
             import com.varabyte.kobweb.silk.style.ComponentKind
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.addVariant
-            import com.varabyte.kobweb.silk.style.extendedBy
-            import com.varabyte.kobweb.silk.style.extendedByBase
+            import com.varabyte.kobweb.silk.style.addVariantBase
             import org.jetbrains.compose.web.css.percent
 
             sealed interface WidgetKind : ComponentKind
             val ExampleStyle = CssStyle<WidgetKind> {}
-            val ExampleBaseVariant = ExampleStyle.addVariant {}
-            val ExampleExtendedVariant = Exampl<caret>eBaseVariant.extendedBy {
+            val ExampleVariant = Exa<caret>mpleStyle.addVariant {
                 base {
                     Modifier
                         .width(70.percent)

@@ -571,7 +571,7 @@ class ExtractCssStyleWizard(
                     """.trimIndent()
                 )).setText("Concise")
 
-                private val relaxedChoice = TabInfo(ctx.utils.components.kotlinCode(
+                private val expandedChoice = TabInfo(ctx.utils.components.kotlinCode(
                     """
                         CssStyle {
                             base {
@@ -579,18 +579,18 @@ class ExtractCssStyleWizard(
                             }
                         }
                     """.trimIndent()
-                )).setText("Relaxed")
+                )).setText("Expanded")
 
                 private val choices = ctx.utils.components.tabs {
                     addTab(conciseChoice)
-                    addTab(relaxedChoice)
+                    addTab(expandedChoice)
                 }
 
                 private val rememberCheckbox = ctx.utils.components.rememberCheckbox()
 
                 override fun produceComponent(): JComponent {
                     return ctx.utils.components.formBuilder()
-                        .addComponent(JBLabel("Would you like to use a concise or relaxed CssStyle syntax?"))
+                        .addComponent(JBLabel("Would you like to use a concise or expanded CssStyle syntax?"))
                         .addComponentFillVertically(choices.component, 8)
                         .addComponent(JBLabel(
                             "<html>The <b>concise</b> format is generally recommended as it reduces indentation, unless you plan to add <a href=\"https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Selectors\">additional selectors</a> soon (e.g., <code>hover</code>, <code>focus</code>, <code>link</code>).",
@@ -606,7 +606,7 @@ class ExtractCssStyleWizard(
                         when (appSettings.extractCssStyle.format) {
                             KobwebAppSettingsService.ExtractCssStyle.Format.CONCISE,
                             KobwebAppSettingsService.ExtractCssStyle.Format.ASK_ME -> true
-                            KobwebAppSettingsService.ExtractCssStyle.Format.RELAXED -> false
+                            KobwebAppSettingsService.ExtractCssStyle.Format.EXPANDED -> false
                         }
                     )
                 }
@@ -863,7 +863,7 @@ class ExtractCssStyleWizard(
         if (data.getUserData(Keys.REMEMBER_SYNTAX_CHOICE)!!) {
             appSettings.extractCssStyle.format = if (result.useConciseSyntax) {
                 KobwebAppSettingsService.ExtractCssStyle.Format.CONCISE
-            } else KobwebAppSettingsService.ExtractCssStyle.Format.RELAXED
+            } else KobwebAppSettingsService.ExtractCssStyle.Format.EXPANDED
         }
         if (data.getUserData(Keys.REMEMBER_EXTRACT_ATTRIBUTES_CHOICE)!!) {
             appSettings.extractCssStyle.attributeModifiersStrategy = if (result.extractAttributes) {

@@ -82,7 +82,7 @@
             <language>kotlin</language>
         </intentionAction>
         <intentionAction>
-            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertStyleDefinitionToRelaxedFormatIntention</className>
+            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertStyleDefinitionToExpandedFormatIntention</className>
             <categoryKey>kobweb.name</categoryKey>
             <language>kotlin</language>
         </intentionAction>
@@ -92,7 +92,7 @@
             <language>kotlin</language>
         </intentionAction>
         <intentionAction>
-            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertExtendedStyleToRelaxedFormatIntention</className>
+            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertExtendedStyleToExpandedFormatIntention</className>
             <categoryKey>kobweb.name</categoryKey>
             <language>kotlin</language>
         </intentionAction>
@@ -102,7 +102,7 @@
             <language>kotlin</language>
         </intentionAction>
         <intentionAction>
-            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertStyleVariantToRelaxedFormatIntention</className>
+            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertStyleVariantToExpandedFormatIntention</className>
             <categoryKey>kobweb.name</categoryKey>
             <language>kotlin</language>
         </intentionAction>
@@ -112,7 +112,7 @@
             <language>kotlin</language>
         </intentionAction>
         <intentionAction>
-            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertExtendedStyleVariantToRelaxedFormatIntention</className>
+            <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertExtendedStyleVariantToExpandedFormatIntention</className>
             <categoryKey>kobweb.name</categoryKey>
             <language>kotlin</language>
         </intentionAction>

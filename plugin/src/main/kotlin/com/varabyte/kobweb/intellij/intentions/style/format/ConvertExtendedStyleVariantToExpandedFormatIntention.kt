@@ -6,18 +6,18 @@ import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 
-private val DERIVED_CONCISE_EXTENDED_STYLE_KEY by CacheDerivedPsiElementIntentionAction.key<KtNameReferenceExpression>()
+private val DERIVED_CONCISE_EXTENDED_STYLE_VARIANT_KEY by CacheDerivedPsiElementIntentionAction.key<KtNameReferenceExpression>()
 
-// It might seem opposite, but we accept *concise* blocks (so we can convert them to relaxed)
-class ConvertExtendedStyleToRelaxedFormatIntention : FormatStyleSheetSingletonBaseIntention<StyleSheetBlock.Style.Extended.Concise>(
-    DERIVED_CONCISE_EXTENDED_STYLE_KEY,
-    castStyleBlock = { (it as? StyleSheetBlock.Style.Extended.Concise) }
+// It might seem opposite, but we accept *concise* blocks (so we can convert them to expanded)
+class ConvertExtendedStyleVariantToExpandedFormatIntention : FormatStyleSheetSingletonBaseIntention<StyleSheetBlock.Style.Variant.Extended.Concise>(
+    DERIVED_CONCISE_EXTENDED_STYLE_VARIANT_KEY,
+    castStyleBlock = { (it as? StyleSheetBlock.Style.Variant.Extended.Concise) }
 ) {
-    override fun getText() = "Convert to relaxed CssStyle format"
+    override fun getText() = "Convert to expanded CssStyleVariant format"
 
     override val imports: List<FqName> = listOf(EXTENDED_BY_CALLABLE_ID.asSingleFqName())
-    override fun StyleSheetBlock.Style.Extended.Concise.createReplacementCode(): String {
-        // Transform: `SomeStyle.extendedByBase(...) { ... }` to `SomeStyle.extendedBy(...) { base { ... } }`
+    override fun StyleSheetBlock.Style.Variant.Extended.Concise.createReplacementCode(): String {
+        // Transform: `SomeVariant.extendedByBase(...) { ... }` to `SomeVariant.extendedBy(...) { base { ... } }`
         val argStr = extraModifierArg?.wrapInParentheses().orEmpty()
         val bodyStr = baseBodyText.orEmpty()
 

@@ -85,7 +85,7 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         )
     }
 
-    fun testExtractRelaxedCssStyle() {
+    fun testExtractExpandedCssStyle() {
         doTest(
             produceResult = { createResult("MyStyle", useConciseSyntax = false) },
             // Before

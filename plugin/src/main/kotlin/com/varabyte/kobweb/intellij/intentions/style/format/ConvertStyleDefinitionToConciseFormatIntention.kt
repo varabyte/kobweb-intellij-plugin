@@ -7,13 +7,13 @@ import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 
-private val DERIVED_RELAXED_STYLE_DEFINITION_KEY by CacheDerivedPsiElementIntentionAction.key<KtNameReferenceExpression>()
+private val DERIVED_EXPANDED_STYLE_DEFINITION_KEY by CacheDerivedPsiElementIntentionAction.key<KtNameReferenceExpression>()
 
-// It might seem opposite, but we accept *relaxed* blocks (so we can convert them to concise)
-class ConvertStyleDefinitionToConciseFormatIntention : FormatStyleSheetSingletonBaseIntention<StyleSheetBlock.Style.Definition.Relaxed>(
-    DERIVED_RELAXED_STYLE_DEFINITION_KEY,
+// It might seem opposite, but we accept *expanded* blocks (so we can convert them to concise)
+class ConvertStyleDefinitionToConciseFormatIntention : FormatStyleSheetSingletonBaseIntention<StyleSheetBlock.Style.Definition.Expanded>(
+    DERIVED_EXPANDED_STYLE_DEFINITION_KEY,
     // Do not allow compressing a CssStyle block that has pseudo-selectors already declared, e.g. `hover`, `focus`
-    castStyleBlock = { (it as? StyleSheetBlock.Style.Definition.Relaxed)?.takeIf { it.blockIsEmptyOrOnlyContainsBaseBlock() } }
+    castStyleBlock = { (it as? StyleSheetBlock.Style.Definition.Expanded)?.takeIf { it.blockIsEmptyOrOnlyContainsBaseBlock() } }
 ) {
     override fun getText() = "Convert to concise CssStyle format"
 
@@ -21,7 +21,7 @@ class ConvertStyleDefinitionToConciseFormatIntention : FormatStyleSheetSingleton
         CSS_STYLE_BASE_EXTENSION_CALLABLE_ID.asSingleFqName(),
         MODIFIER_CLASS_ID.asSingleFqName(),
     )
-    override fun StyleSheetBlock.Style.Definition.Relaxed.createReplacementCode(): String {
+    override fun StyleSheetBlock.Style.Definition.Expanded.createReplacementCode(): String {
         // Transform: `CssStyle(...) { base { ... } }` to `CssStyle.base(...) { ... }`
 
         // It's pretty rare, but you can have type arguments in your CssStyle method, as in CssStyle<T>, at which point

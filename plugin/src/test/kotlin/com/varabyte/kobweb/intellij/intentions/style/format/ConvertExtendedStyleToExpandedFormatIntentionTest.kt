@@ -2,10 +2,10 @@ package com.varabyte.kobweb.intellij.intentions.style.format
 
 import com.varabyte.kobweb.intellij.intentions.KobwebIntentionTestBase
 
-class ConvertExtendedStyleToRelaxedFormatIntentionTest : KobwebIntentionTestBase() {
-    override val intentionName: String = ConvertExtendedStyleToRelaxedFormatIntention().text
+class ConvertExtendedStyleToExpandedFormatIntentionTest : KobwebIntentionTestBase() {
+    override val intentionName: String = ConvertExtendedStyleToExpandedFormatIntention().text
 
-    fun testConciseFormatCanBeConvertedToRelaxed() {
+    fun testConciseFormatCanBeConvertedToExpanded() {
         doTest(
             """
             import com.varabyte.kobweb.compose.ui.Modifier

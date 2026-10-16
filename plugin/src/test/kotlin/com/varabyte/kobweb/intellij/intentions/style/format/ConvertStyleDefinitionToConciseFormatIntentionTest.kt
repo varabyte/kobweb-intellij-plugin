@@ -5,7 +5,7 @@ import com.varabyte.kobweb.intellij.intentions.KobwebIntentionTestBase
 class ConvertStyleDefinitionToConciseFormatIntentionTest : KobwebIntentionTestBase() {
     override val intentionName = ConvertStyleDefinitionToConciseFormatIntention().text
 
-    fun testRelaxedStyleCanBeConvertedToConcise() {
+    fun testExpandedStyleCanBeConvertedToConcise() {
         doTest(
             """
             import com.varabyte.kobweb.compose.ui.Modifier

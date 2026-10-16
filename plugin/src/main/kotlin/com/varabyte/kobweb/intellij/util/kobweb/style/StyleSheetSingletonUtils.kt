@@ -63,16 +63,16 @@ sealed interface StyleSheetBlock {
             if (dotExpr != null) {
                 Definition.Concise.tryConvert(dotExpr)?.let { return it }
                 Extended.Concise.tryConvert(dotExpr)?.let { return it }
-                Extended.Relaxed.tryConvert(dotExpr)?.let { return it }
-                Variant.Definition.Relaxed.tryConvert(dotExpr)?.let { return it }
+                Extended.Expanded.tryConvert(dotExpr)?.let { return it }
+                Variant.Definition.Expanded.tryConvert(dotExpr)?.let { return it }
                 Variant.Definition.Concise.tryConvert(dotExpr)?.let { return it }
-                Variant.Extended.Relaxed.tryConvert(dotExpr)?.let { return it }
+                Variant.Extended.Expanded.tryConvert(dotExpr)?.let { return it }
                 Variant.Extended.Concise.tryConvert(dotExpr)?.let { return it }
             }
 
             val callExpr = element as? KtCallExpression
             if (callExpr != null) {
-                Definition.Relaxed.tryConvert(callExpr)?.let { return it }
+                Definition.Expanded.tryConvert(callExpr)?.let { return it }
                 Keyframes.tryConvert(callExpr)?.let { return it }
             }
             return null
@@ -179,7 +179,7 @@ sealed interface StyleSheetBlock {
         // create a totally empty CssStyle just so it generates a classname, now that I think about it (not that I'd
         // recommend it)
         //
-        // Note that only relaxed formats might be missing one; it will always be non-null for concise format, e.g.
+        // Note that only expanded formats might be missing one; it will always be non-null for concise format, e.g.
         // CssStyle.base { ... }, as the whole point of the concise format is for styles that ONLY provide a base block.
         val baseCall: KtCallExpression?
 
@@ -234,7 +234,7 @@ sealed interface StyleSheetBlock {
                 override val extraModifierFunc: KtCallExpression = baseCall
             }
 
-            class Relaxed(
+            class Expanded(
                 override val rootExpression: KtCallExpression,
                 override val baseCall: KtCallExpression?,
                 override val extraModifierFunc: KtCallExpression,
@@ -250,14 +250,14 @@ sealed interface StyleSheetBlock {
                     }
 
                     context(_: KaSession)
-                    internal fun tryConvert(callExpr: KtCallExpression): Relaxed? {
+                    internal fun tryConvert(callExpr: KtCallExpression): Expanded? {
                         if (callExpr.isCssStyleCall()) {
                             val lambdaBody =
                                 callExpr.lambdaArguments.firstOrNull()?.getLambdaExpression()?.bodyExpression
                             if (lambdaBody != null) {
                                 val topLevelCalls = lambdaBody.statements.filterIsInstance<KtCallExpression>()
                                 val baseCall = topLevelCalls.firstOrNull { it.isBaseCall() }
-                                return Relaxed(
+                                return Expanded(
                                     rootExpression = callExpr,
                                     extraModifierFunc = callExpr,
                                     extraModifierArg = callExpr.findExtraModifierArg(),
@@ -325,7 +325,7 @@ sealed interface StyleSheetBlock {
                 override val extraModifierFunc: KtCallExpression = baseCall
             }
 
-            class Relaxed(
+            class Expanded(
                 override val rootExpression: KtDotQualifiedExpression,
                 override val baseCall: KtCallExpression?,
                 override val extraModifierFunc: KtCallExpression,
@@ -338,9 +338,9 @@ sealed interface StyleSheetBlock {
                         getMatchingExtendedByCall(EXTENDED_BY_CALLABLE_ID)
 
                     context(_: KaSession)
-                    internal fun tryConvert(dotExpr: KtDotQualifiedExpression): Relaxed? {
+                    internal fun tryConvert(dotExpr: KtDotQualifiedExpression): Expanded? {
                         dotExpr.getExtendedByCall()?.let { addVariantCall ->
-                            return Relaxed(
+                            return Expanded(
                                 rootExpression = dotExpr,
                                 extraModifierFunc = addVariantCall,
                                 extraModifierArg = addVariantCall.findExtraModifierArg(),
@@ -411,7 +411,7 @@ sealed interface StyleSheetBlock {
                     override val extraModifierFunc: KtCallExpression = baseCall
                 }
 
-                class Relaxed(
+                class Expanded(
                     override val rootExpression: KtDotQualifiedExpression,
                     override val baseCall: KtCallExpression?,
                     override val extraModifierFunc: KtCallExpression,
@@ -424,9 +424,9 @@ sealed interface StyleSheetBlock {
                             getMatchingAddVariantCall(ADD_VARIANT_CALLABLE_ID)
 
                         context(_: KaSession)
-                        internal fun tryConvert(dotExpr: KtDotQualifiedExpression): Relaxed? {
+                        internal fun tryConvert(dotExpr: KtDotQualifiedExpression): Expanded? {
                             dotExpr.getAddVariantCall()?.let { addVariantCall ->
-                                return Relaxed(
+                                return Expanded(
                                     rootExpression = dotExpr,
                                     extraModifierFunc = addVariantCall,
                                     extraModifierArg = addVariantCall.findExtraModifierArg(),
@@ -493,7 +493,7 @@ sealed interface StyleSheetBlock {
                     override val extraModifierFunc: KtCallExpression = baseCall
                 }
 
-                class Relaxed(
+                class Expanded(
                     override val rootExpression: KtDotQualifiedExpression,
                     override val baseCall: KtCallExpression?,
                     override val extraModifierFunc: KtCallExpression,
@@ -506,9 +506,9 @@ sealed interface StyleSheetBlock {
                             getMatchingExtendedByCall(EXTENDED_BY_CALLABLE_ID)
 
                         context(_: KaSession)
-                        internal fun tryConvert(dotExpr: KtDotQualifiedExpression): Relaxed? {
+                        internal fun tryConvert(dotExpr: KtDotQualifiedExpression): Expanded? {
                             dotExpr.getExtendedByCall()?.let { addVariantCall ->
-                                return Relaxed(
+                                return Expanded(
                                     rootExpression = dotExpr,
                                     extraModifierFunc = addVariantCall,
                                     extraModifierArg = addVariantCall.findExtraModifierArg(),

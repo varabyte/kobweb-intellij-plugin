@@ -69,7 +69,7 @@ class KobwebSettingsConfigurable(private val project: Project)
                                 }
                                 """.trimIndent()
                             )
-                        radioButton("Relaxed", KobwebAppSettingsService.ExtractCssStyle.Format.RELAXED)
+                        radioButton("Expanded", KobwebAppSettingsService.ExtractCssStyle.Format.EXPANDED)
                             .installCodeTooltip(
                                 """
                                 CssStyle {

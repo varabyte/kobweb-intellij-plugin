@@ -8,12 +8,12 @@ import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 
 private val DERIVED_CONCISE_STYLE_VARIANT_KEY by CacheDerivedPsiElementIntentionAction.key<KtNameReferenceExpression>()
 
-// It might seem opposite, but we accept *concise* blocks (so we can convert them to relaxed)
-class ConvertStyleVariantToRelaxedFormatIntention : FormatStyleSheetSingletonBaseIntention<StyleSheetBlock.Style.Variant.Definition.Concise>(
+// It might seem opposite, but we accept *concise* blocks (so we can convert them to expanded)
+class ConvertStyleVariantToExpandedFormatIntention : FormatStyleSheetSingletonBaseIntention<StyleSheetBlock.Style.Variant.Definition.Concise>(
     DERIVED_CONCISE_STYLE_VARIANT_KEY,
     castStyleBlock = { (it as? StyleSheetBlock.Style.Variant.Definition.Concise) }
 ) {
-    override fun getText() = "Convert to relaxed CssStyleVariant format"
+    override fun getText() = "Convert to expanded CssStyleVariant format"
 
     override val imports: List<FqName> = listOf(ADD_VARIANT_CALLABLE_ID.asSingleFqName())
     override fun StyleSheetBlock.Style.Variant.Definition.Concise.createReplacementCode(): String {

@@ -7,13 +7,13 @@ import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 
-private val DERIVED_RELAXED_EXTENDED_STYLE_KEY by CacheDerivedPsiElementIntentionAction.key<KtNameReferenceExpression>()
+private val DERIVED_EXPANDED_EXTENDED_STYLE_KEY by CacheDerivedPsiElementIntentionAction.key<KtNameReferenceExpression>()
 
-// It might seem opposite, but we accept *relaxed* blocks (so we can convert them to concise)
-class ConvertExtendedStyleToConciseFormatIntention : FormatStyleSheetSingletonBaseIntention<StyleSheetBlock.Style.Extended.Relaxed>(
-    DERIVED_RELAXED_EXTENDED_STYLE_KEY,
+// It might seem opposite, but we accept *expanded* blocks (so we can convert them to concise)
+class ConvertExtendedStyleToConciseFormatIntention : FormatStyleSheetSingletonBaseIntention<StyleSheetBlock.Style.Extended.Expanded>(
+    DERIVED_EXPANDED_EXTENDED_STYLE_KEY,
     // Do not allow compressing a CssStyle block that has pseudo-selectors already declared, e.g. `hover`, `focus`
-    castStyleBlock = { (it as? StyleSheetBlock.Style.Extended.Relaxed)?.takeIf { it.blockIsEmptyOrOnlyContainsBaseBlock() } }
+    castStyleBlock = { (it as? StyleSheetBlock.Style.Extended.Expanded)?.takeIf { it.blockIsEmptyOrOnlyContainsBaseBlock() } }
 ) {
     override fun getText() = "Convert to concise CssStyle format"
 
@@ -21,7 +21,7 @@ class ConvertExtendedStyleToConciseFormatIntention : FormatStyleSheetSingletonBa
         EXTENDED_BY_BASE_CALLABLE_ID.asSingleFqName(),
         MODIFIER_CLASS_ID.asSingleFqName(),
     )
-    override fun StyleSheetBlock.Style.Extended.Relaxed.createReplacementCode(): String {
+    override fun StyleSheetBlock.Style.Extended.Expanded.createReplacementCode(): String {
         // Transform: `SomeStyle.extendedBy(...) { base { ... } }` to `SomeStyle.extendedByBase(...) { ... }`
         val argStr = extraModifierArg?.wrapInParentheses().orEmpty()
         val bodyStr = baseBodyText ?: MODIFIER_CLASS_ID.shortClassName.asString()
