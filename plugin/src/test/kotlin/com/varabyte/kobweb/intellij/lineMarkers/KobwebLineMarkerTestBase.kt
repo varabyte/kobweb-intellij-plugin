@@ -25,12 +25,12 @@ abstract class KobwebLineMarkerTestBase : KobwebApplicationTestCase() {
 
         val markers = myFixture.findLineMarkers(acceptLineMarker)
 
-        assertWithMessage("Expected number of line markers found").that(gutterLines.size).isEqualTo(markers.size)
+        assertWithMessage("Expected number of line markers were not found").that(markers.size).isEqualTo(gutterLines.size)
 
         assertAll {
             markers.forEachIndexed { index, marker ->
                 val line = myFixture.editor.offsetToVisualLine(marker.startOffset, true)
-                withMessage("Line $line has a marker").that(line).isEqualTo(gutterLines[index])
+                withMessage("Line marker is not on $line as expected").that(line).isEqualTo(gutterLines[index])
                 assertLineMarker(index, marker)
             }
         }
