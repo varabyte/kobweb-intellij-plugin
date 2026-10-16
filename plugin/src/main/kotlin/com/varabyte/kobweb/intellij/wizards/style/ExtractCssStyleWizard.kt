@@ -508,6 +508,7 @@ class ExtractCssStyleWizard(
                             ?.capitalized()
                             ?.filter { it.isLetterOrDigit() }
                             ?.takeIf { it.isNotEmpty() }
+                            ?.let { if (it.first().isLetter()) it else "_$it" }
                             ?: "My"
 
                     val initialName = run {
