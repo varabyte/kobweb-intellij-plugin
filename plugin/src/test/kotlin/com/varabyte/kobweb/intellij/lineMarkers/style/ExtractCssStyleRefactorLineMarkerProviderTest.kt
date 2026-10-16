@@ -32,4 +32,52 @@ class ExtractCssStyleRefactorLineMarkerProviderTest : KobwebLineMarkerTestBase()
             acceptLineMarker = { it.lineMarkerTooltip == ExtractCssStyleWizard.TITLE }
         )
     }
+
+    fun testGutterIconExcludedFromNonComposableBlocks() {
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.*
+            import com.varabyte.kobweb.compose.ui.graphics.*
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.silk.style.*
+            import org.jetbrains.compose.web.css.*
+
+            fun nonComposableBlock(block: () -> Modifier) {
+                block()
+            }
+
+            @Composable
+            fun SomePage() {
+                Modifier.color(Colors.Green) $GUTTER_TAG
+                nonComposableBlock { Modifier.color(Colors.Red) }
+            }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip == ExtractCssStyleWizard.TITLE }
+        )
+    }
+
+    fun testInlineLambdasAllowGutterIconsToShowUp() {
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.*
+            import com.varabyte.kobweb.compose.ui.graphics.*
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.silk.style.*
+            import org.jetbrains.compose.web.css.*
+
+            @Composable
+            fun SomePage() {
+                Modifier.color(Colors.Green) $GUTTER_TAG
+                run {
+                    with(Unit) {
+                        Modifier.color(Colors.Green) $GUTTER_TAG
+                    }
+                }
+            }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip == ExtractCssStyleWizard.TITLE }
+        )
+    }
 }

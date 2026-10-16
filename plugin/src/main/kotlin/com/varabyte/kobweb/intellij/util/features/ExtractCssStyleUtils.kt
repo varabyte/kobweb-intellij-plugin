@@ -16,8 +16,9 @@ import com.varabyte.kobweb.intellij.wizards.style.ExtractCssStyleWizard
 import com.varabyte.kobweb.intellij.wizards.style.performRefactoring
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.resolution.successfulFunctionCallOrNull
+import org.jetbrains.kotlin.analysis.api.resolution.symbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
-import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
 
 object ExtractCssStyleUtils {
@@ -36,37 +37,40 @@ object ExtractCssStyleUtils {
             ?: return null
 
         run {
-            fun PsiElement.isInsideComposableFunction(): Boolean {
-                val enclosingFunction = PsiTreeUtil.getParentOfType(this, KtNamedFunction::class.java) ?: return false
-                return enclosingFunction.isAnnotatedWith(COMPOSABLE_CLASS_ID)
-            }
-            fun PsiElement.isInsideComposableLambda(): Boolean {
-                val enclosingLambda = PsiTreeUtil.getParentOfType(this, KtLambdaExpression::class.java) ?: return false
-                val callExpr = PsiTreeUtil.getParentOfType(enclosingLambda, KtCallExpression::class.java) ?: return false
+            fun PsiElement.isInComposableContext(): Boolean {
+                // We intentionally stop at the first method context. For example, if we're in a non-composable lambda
+                // block inside a composable function, we are essentially in a non-composable context then (unless the
+                // lambda is inlined, in which case it inherits the Composable-ness of the parent).
+                val enclosing = PsiTreeUtil.getParentOfType(this, KtNamedFunction::class.java, KtLambdaExpression::class.java)
+                    ?: return false
 
-                // Find the callback parameter associated with this lambda and see if it is Composable
-                analyze(enclosingLambda) {
-                    val functionCall = callExpr.resolveToCall()
-                        ?.successfulFunctionCallOrNull()
-                        ?: return false
+                return when (enclosing) {
+                    is KtNamedFunction -> enclosing.isAnnotatedWith(COMPOSABLE_CLASS_ID)
+                    is KtLambdaExpression -> {
+                        // If we're in a lambda, resolve the signature of the lambda parameter we are associated with,
+                        // as that's what we'll need to check for Composable-ness. For example, something like
+                        // `block: @Composable () -> Unit`
+                        val callExpr = PsiTreeUtil.getParentOfType(enclosing, KtCallExpression::class.java) ?: return false
 
-                    val paramSymbol = functionCall.argumentMapping[enclosingLambda]?.symbol ?: return false
-                    val paramType = paramSymbol.returnType as? KaFunctionType ?: return false
-                    if (paramType.annotations.contains(COMPOSABLE_CLASS_ID)) return true
+                        val inheritsParentContext = analyze(enclosing) {
+                            val functionCall = callExpr.resolveToCall()?.successfulFunctionCallOrNull() ?: return false
+                            val paramSymbol = functionCall.argumentMapping[enclosing]?.symbol ?: return false
+                            val paramType = paramSymbol.returnType as? KaFunctionType ?: return false
+                            if (paramType.annotations.contains(COMPOSABLE_CLASS_ID)) return true
 
-                    // If this lambda is not composable but is inline (like `run { ... }`, then it can inherit its
-                    // parent's Composable-ness.
-                    if (paramSymbol.isNoinline) return false // Inline disabled for this callback
-                    val paramOwningFunction = PsiTreeUtil.getParentOfType(paramSymbol.psi, KtNamedFunction::class.java) ?: return false
-                    if (paramOwningFunction.hasModifier(KtTokens.INLINE_KEYWORD)) {
-                        return enclosingLambda.isInsideComposableLambda()
+                            // If this lambda is not composable but is inlined (like `run { ... }`), then it inherits the
+                            // Composable-ness of wherever it is called from.
+                            !paramSymbol.isNoinline && (functionCall.symbol as? KaNamedFunctionSymbol)?.isInline == true
+                        }
+
+                        // Keep climbing, starting from the lambda, to the next function or lambda boundary
+                        inheritsParentContext && enclosing.isInComposableContext()
                     }
-
-                    return false
+                    else -> false
                 }
             }
 
-            if (!(modifierChainStart.isInsideComposableFunction() || modifierChainStart.isInsideComposableLambda())) {
+            if (!modifierChainStart.isInComposableContext()) {
                 return null
             }
         }
