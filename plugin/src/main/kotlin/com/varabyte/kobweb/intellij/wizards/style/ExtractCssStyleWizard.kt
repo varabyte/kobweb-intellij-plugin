@@ -463,8 +463,7 @@ class ExtractCssStyleWizard(
     }
 
     companion object {
-        val TITLE get() = UxGlobals.textBundle.message("intentions.extract_css_style.name")
-            .split(" ").joinToString(" ") { it.capitalized() }
+        val TITLE get() = UxGlobals.textBundle.message("wizards.extract_css_style.title")
     }
 
     override fun createSteps(ctx: SimpleWizard<Input, Result>.StepContext): List<Step> {
