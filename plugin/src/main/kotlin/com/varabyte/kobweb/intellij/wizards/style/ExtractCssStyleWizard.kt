@@ -32,7 +32,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.compose.COMPOSABLE_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.compose.MUTABLE_STATE_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebModifierType
-import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierChainingExtension
+import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierChainingFunction
 import com.varabyte.kobweb.intellij.util.kobweb.silk.COLOR_MODE_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.silk.COLOR_MODE_COMPANION_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.style.CSS_STYLE_SUFFIX
@@ -139,7 +139,7 @@ fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaS
                 as? KtNamedFunction
 
         if (namedFun != null) {
-            if (!namedFun.isModifierChainingExtension()) {
+            if (!namedFun.isModifierChainingFunction()) {
                 check(chainTerminator == null) { "There should only ever be at most one non-Modifier function in a Modifier chain (which, if present, terminates it!)"}
                 chainTerminator = callExpression
             } else {

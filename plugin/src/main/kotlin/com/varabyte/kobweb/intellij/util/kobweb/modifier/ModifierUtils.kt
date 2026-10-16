@@ -6,6 +6,7 @@ import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.base.KaConstantValue
 import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
+import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
@@ -76,6 +77,15 @@ fun KtNamedFunction.isModifierExtension(): Boolean {
 }
 
 /**
+ * Checks if this function is part of Kobweb's `Modifier` companion object.
+ */
+context(kaSession: KaSession)
+fun KtNamedFunction.isModifierFunction(): Boolean = with(kaSession) {
+    val owner = symbol.containingSymbol as? KaClassSymbol ?: return false
+    return owner.classId == MODIFIER_COMPANION_CLASS_ID
+}
+
+/**
  * Checks if this function returns Kobweb's `Modifier` interface.
  *
  * e.g. `fun generateModifier(): Modifier = Modifier...`
@@ -117,6 +127,14 @@ fun KtExpression.resolvesToModifier(): Boolean = with(kaSession) {
 context(_: KaSession)
 fun KtNamedFunction.isModifierChainingExtension(): Boolean {
     return isModifierExtension() && returnsModifier()
+}
+
+/**
+ * Like [isModifierChainingExtension] but also includes
+ */
+context(kaSession: KaSession)
+fun KtNamedFunction.isModifierChainingFunction(): Boolean {
+    return (isModifierExtension() || isModifierFunction()) && returnsModifier()
 }
 
 /**
