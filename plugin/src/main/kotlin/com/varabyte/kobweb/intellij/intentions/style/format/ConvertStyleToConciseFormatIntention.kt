@@ -6,6 +6,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.style.ADD_VARIANT_BASE_CALLABLE_
 import com.varabyte.kobweb.intellij.util.kobweb.style.CSS_STYLE_BASE_EXTENSION_CALLABLE_ID
 import com.varabyte.kobweb.intellij.util.kobweb.style.EXTENDED_BY_BASE_CALLABLE_ID
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
+import com.varabyte.kobweb.intellij.util.psi.findAttachedComments
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 
@@ -112,12 +113,14 @@ class ConvertStyleToConciseFormatIntention : FormatStyleBaseIntention(
     }
 
     override fun StyleSheetBlock.Style.createReplacementCode(): ReplacementCode {
+        val extractedComments = baseCall?.findAttachedComments()?.overhead.orEmpty()
+
         return when (this) {
             is StyleSheetBlock.Style.Definition.Expanded -> createReplacementCode()
             is StyleSheetBlock.Style.Extended.Expanded -> createReplacementCode()
             is StyleSheetBlock.Style.Variant.Definition.Expanded -> createReplacementCode()
             is StyleSheetBlock.Style.Variant.Extended.Expanded -> createReplacementCode()
             else -> error("Unexpected style type: ${this::class.simpleName}")
-        }
+        }.copy(extractedComments = extractedComments)
     }
 }

@@ -39,6 +39,46 @@ class ConvertStyleToConciseFormatIntentionTest : KobwebIntentionTestBase() {
         )
     }
 
+    fun testStyleDefinition_OverheadCommentsArePreserved() {
+        doTest(
+            """
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import org.jetbrains.compose.web.css.percent
+
+            val MyStyle = Css<caret>Style {
+                // This is an import comment that I worked hard on
+                // and I don't want to lose it!
+                base {
+                    // This comment should also survive
+                    Modifier
+                        .width(70.percent)
+                        .color(Colors.Green)
+                }
+            }
+            """.trimIndent(),
+            """
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.base
+            import org.jetbrains.compose.web.css.percent
+
+            // This is an import comment that I worked hard on
+            // and I don't want to lose it!
+            val MyStyle = CssStyle.base {
+                // This comment should also survive
+                Modifier
+                    .width(70.percent)
+                    .color(Colors.Green)
+            }
+            """.trimIndent()
+        )
+    }
+
     fun testStyleDefinition_EmptyStyleCanBeConvertedToConcise() {
         // Dummy Modifier has to be added so the concise format can compile
         doTest(
@@ -115,6 +155,46 @@ class ConvertStyleToConciseFormatIntentionTest : KobwebIntentionTestBase() {
             import org.jetbrains.compose.web.css.percent
 
             val BaseStyle = CssStyle {}
+            val ExtendedStyle = BaseStyle.extendedByBase {
+                Modifier
+                    .width(70.percent)
+                    .color(Colors.Green)
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testExtendedStyle_OverheadCommentsArePreserved() {
+        doTest(
+            """
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.extendedBy
+            import org.jetbrains.compose.web.css.percent
+
+            val BaseStyle = CssStyle {}
+            val ExtendedStyle = Base<caret>Style.extendedBy {
+                // This comment will not get erased
+                base {
+                    Modifier
+                        .width(70.percent)
+                        .color(Colors.Green)
+                }
+            }
+            """.trimIndent(),
+            """
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.extendedBy
+            import com.varabyte.kobweb.silk.style.extendedByBase
+            import org.jetbrains.compose.web.css.percent
+
+            val BaseStyle = CssStyle {}
+            // This comment will not get erased
             val ExtendedStyle = BaseStyle.extendedByBase {
                 Modifier
                     .width(70.percent)
@@ -261,6 +341,50 @@ class ConvertStyleToConciseFormatIntentionTest : KobwebIntentionTestBase() {
         )
     }
 
+    fun testStyleVariant_OverheadCommentsArePreserved() {
+        doTest(
+            """
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.style.ComponentKind
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.addVariant
+            import org.jetbrains.compose.web.css.percent
+
+            sealed interface WidgetKind : ComponentKind
+            val ExampleStyle = CssStyle<WidgetKind> {}
+            val ExampleVariant = Exa<caret>mpleStyle.addVariant {
+                // This comment will survive
+                base {
+                    Modifier
+                        .width(70.percent)
+                        .color(Colors.Green)
+                }
+            }
+            """.trimIndent(),
+            """
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.style.ComponentKind
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.addVariant
+            import com.varabyte.kobweb.silk.style.addVariantBase
+            import org.jetbrains.compose.web.css.percent
+
+            sealed interface WidgetKind : ComponentKind
+            val ExampleStyle = CssStyle<WidgetKind> {}
+            // This comment will survive
+            val ExampleVariant = ExampleStyle.addVariantBase {
+                Modifier
+                    .width(70.percent)
+                    .color(Colors.Green)
+            }
+            """.trimIndent()
+        )
+    }
+
     fun testStyleVariant_EmptyVariantCanBeConvertedToConcise() {
         // Dummy Modifier has to be added so the concise format can compile
         doTest(
@@ -396,6 +520,54 @@ class ConvertStyleToConciseFormatIntentionTest : KobwebIntentionTestBase() {
             sealed interface WidgetKind : ComponentKind
             val ExampleStyle = CssStyle<WidgetKind> {}
             val ExampleBaseVariant = ExampleStyle.addVariant {}
+            val ExampleExtendedVariant = ExampleBaseVariant.extendedByBase {
+                Modifier
+                    .width(70.percent)
+                    .color(Colors.Green)
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testExtendedStyleVariant_OverheadCommentsArePreserved() {
+        doTest(
+            """
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.style.ComponentKind
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.addVariant
+            import com.varabyte.kobweb.silk.style.extendedBy
+            import org.jetbrains.compose.web.css.percent
+
+            sealed interface WidgetKind : ComponentKind
+            val ExampleStyle = CssStyle<WidgetKind> {}
+            val ExampleBaseVariant = ExampleStyle.addVariant {}
+            val ExampleExtendedVariant = ExampleB<caret>aseVariant.extendedBy {
+                // This comment will not get discarded!
+                base {
+                    Modifier
+                        .width(70.percent)
+                        .color(Colors.Green)
+                }
+            }
+            """.trimIndent(),
+            """
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.style.ComponentKind
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.addVariant
+            import com.varabyte.kobweb.silk.style.extendedBy
+            import com.varabyte.kobweb.silk.style.extendedByBase
+            import org.jetbrains.compose.web.css.percent
+
+            sealed interface WidgetKind : ComponentKind
+            val ExampleStyle = CssStyle<WidgetKind> {}
+            val ExampleBaseVariant = ExampleStyle.addVariant {}
+            // This comment will not get discarded!
             val ExampleExtendedVariant = ExampleBaseVariant.extendedByBase {
                 Modifier
                     .width(70.percent)
