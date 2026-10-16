@@ -44,6 +44,7 @@ import com.varabyte.kobweb.intellij.util.psi.getEntireDotQualifiedExpression
 import com.varabyte.kobweb.intellij.util.psi.resolvedClassId
 import com.varabyte.kobweb.intellij.util.text.capitalized
 import com.varabyte.kobweb.intellij.util.text.replaceAll
+import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import com.varabyte.kobweb.intellij.wizards.SimpleWizard
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
@@ -462,7 +463,7 @@ class ExtractCssStyleWizard(
     }
 
     companion object {
-        const val TITLE = "Extract Inline Modifier to CssStyle"
+        val TITLE get() = UxGlobals.textBundle.message("wizards.extract_css_style.title")
     }
 
     override fun createSteps(ctx: SimpleWizard<Input, Result>.StepContext): List<Step> {

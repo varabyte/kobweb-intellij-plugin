@@ -23,8 +23,9 @@ internal fun StyleSheetBlock.Style.blockIsEmptyOrOnlyContainsBaseBlock(): Boolea
 
 abstract class FormatStyleSheetSingletonBaseIntention<S: StyleSheetBlock.Style>(
     cacheKey: Key<Pair<PsiElement, KtNameReferenceExpression>>,
+    familyName: String,
     private val castStyleBlock: (StyleSheetBlock.Style) -> S?)
-    : CacheDerivedPsiElementIntentionAction<KtNameReferenceExpression>(cacheKey) {
+    : CacheDerivedPsiElementIntentionAction<KtNameReferenceExpression>(cacheKey, familyName) {
 
     protected fun PsiElement.getStyleBlock(): S? {
         @Suppress("UNCHECKED_CAST")

@@ -4,6 +4,7 @@ import com.varabyte.kobweb.intellij.util.idea.intentions.CacheDerivedPsiElementI
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.MODIFIER_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.style.EXTENDED_BY_BASE_CALLABLE_ID
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
+import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 
@@ -12,11 +13,10 @@ private val DERIVED_EXPANDED_EXTENDED_STYLE_KEY by CacheDerivedPsiElementIntenti
 // It might seem opposite, but we accept *expanded* blocks (so we can convert them to concise)
 class ConvertExtendedStyleToConciseFormatIntention : FormatStyleSheetSingletonBaseIntention<StyleSheetBlock.Style.Extended.Expanded>(
     DERIVED_EXPANDED_EXTENDED_STYLE_KEY,
+    UxGlobals.textBundle.message("intentions.convert_extended_style_to_concise_format.name"),
     // Do not allow compressing a CssStyle block that has pseudo-selectors already declared, e.g. `hover`, `focus`
     castStyleBlock = { (it as? StyleSheetBlock.Style.Extended.Expanded)?.takeIf { it.blockIsEmptyOrOnlyContainsBaseBlock() } }
 ) {
-    override fun getText() = "Convert to concise extended CssStyle format"
-
     override val imports: List<FqName> = listOf(
         EXTENDED_BY_BASE_CALLABLE_ID.asSingleFqName(),
         MODIFIER_CLASS_ID.asSingleFqName(),

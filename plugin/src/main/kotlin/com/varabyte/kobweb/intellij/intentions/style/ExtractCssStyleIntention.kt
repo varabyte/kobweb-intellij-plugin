@@ -11,8 +11,7 @@ import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 
 private val DERIVED_MODIFIER_CHAIN_KEY by CacheDerivedPsiElementIntentionAction.key<KtDotQualifiedExpression>()
 
-class ExtractCssStyleIntention : CacheDerivedPsiElementIntentionAction<KtDotQualifiedExpression>(DERIVED_MODIFIER_CHAIN_KEY) {
-    override fun getText(): String = ExtractCssStyleWizard.TITLE
+class ExtractCssStyleIntention : CacheDerivedPsiElementIntentionAction<KtDotQualifiedExpression>(DERIVED_MODIFIER_CHAIN_KEY, ExtractCssStyleWizard.TITLE) {
     override fun startInWriteAction(): Boolean = false // We open a wizard which will handle write action behavior
 
     override fun PsiElement.tryDerivingElement(): KtDotQualifiedExpression? {

@@ -23,7 +23,7 @@ import kotlin.properties.ReadOnlyProperty
  *   `val YOUR_CACHE_KEY by CacheDerivedPsiElementIntentionAction.key<SomePsiElementType>()` to create it. Ideally the
  *   variable name you use for your key will be globally unique within your plugin.
  */
-abstract class CacheDerivedPsiElementIntentionAction<E: PsiElement>(private val cacheKey: Key<Pair<PsiElement, E>>) : PsiElementBaseIntentionAction() {
+abstract class CacheDerivedPsiElementIntentionAction<E: PsiElement>(private val cacheKey: Key<Pair<PsiElement, E>>, private val familyName: String) : PsiElementBaseIntentionAction() {
     companion object {
         fun <E: PsiElement> key(): PropertyDelegateProvider<Any?, ReadOnlyProperty<Any?, Key<Pair<PsiElement, E>>>> {
             return PropertyDelegateProvider { _, property ->
@@ -33,7 +33,10 @@ abstract class CacheDerivedPsiElementIntentionAction<E: PsiElement>(private val 
         }
     }
 
-    final override fun getFamilyName(): String = text
+    final override fun getFamilyName(): String = familyName
+    init {
+        text = familyName
+    }
 
     /**
      * Attempt to create the derivative element.
