@@ -60,7 +60,10 @@ dependencies {
     intellijPlatform {
         // See all versions here: https://www.jetbrains.com/idea/download/other/
         // We generally aim to support about / at least 3 major versions back
-        intellijIdea("2025.3")
+        // NOTE: We build against 2025.3.2 (instead of 2025.3) because earlier versions crash when indexing Kobweb
+        // 0.25+ libraries (which tests depend on). The plugin still declares support for all of 2025.3, since
+        // `sinceBuild` is derived from the branch number (253) and not the patch version.
+        intellijIdea("2025.3.2")
 
         // See https://jb.gg/ij-plugin-dependencies
         bundledPlugins(
@@ -177,6 +180,10 @@ intellijPlatform {
     pluginVerification {
         ides {
             recommended()
+            // We build against a 2025.3.x patch release (see `intellijIdea(...)` above) but declare support for all of
+            // 2025.3, so we declare the following to make sure we stay compatible with the original release. This line
+            // can be removed in the future if we update the `intelijIdea(...)` declaration above.
+            create(IntelliJPlatformType.IntellijIdea, "2025.3")
         }
         ignoredProblemsFile.set(file(".verifier/ignored-problems.txt"))
     }
