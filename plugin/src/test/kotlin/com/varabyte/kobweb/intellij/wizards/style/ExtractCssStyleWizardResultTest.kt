@@ -267,7 +267,6 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import com.varabyte.kobweb.compose.ui.graphics.Colors
             import org.jetbrains.compose.web.css.percent
             import org.jetbrains.compose.web.css.px
-            import com.varabyte.kobweb.compose.css.CSSLengthNumericValue
             import com.varabyte.kobweb.compose.css.CSSLengthOrPercentageNumericValue
             import com.varabyte.kobweb.compose.css.StyleVariable
             import com.varabyte.kobweb.compose.ui.modifiers.setVariable
@@ -278,13 +277,13 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                 val height = 100.px
             }
 
-            private val MyStyle_PaddingTopVar by StyleVariable<CSSLengthOrPercentageNumericValue>()
-            private val MyStyle_BorderRadiusVar by StyleVariable<CSSLengthNumericValue>()
+            private val MyStyle_PaddingVar by StyleVariable<CSSLengthOrPercentageNumericValue>()
+            private val MyStyle_BorderRadiusVar by StyleVariable<CSSLengthOrPercentageNumericValue>()
             private val MyStyle_HeightVar by StyleVariable<CSSLengthOrPercentageNumericValue>()
             val MyStyle = CssStyle {
                 base {
                     Modifier
-                        .padding(MyStyle_PaddingTopVar.value())
+                        .padding(MyStyle_PaddingVar.value())
                         .borderRadius(MyStyle_BorderRadiusVar.value())
                         .height(MyStyle_HeightVar.value())
                 }
@@ -297,7 +296,7 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                 @Composable
                 fun Render() {
                     MyStyle.toModifier()
-                        .setVariable(MyStyle_PaddingTopVar, padding)
+                        .setVariable(MyStyle_PaddingVar, padding)
                         .setVariable(MyStyle_BorderRadiusVar, this.br)
                         .setVariable(MyStyle_HeightVar, super.height)
                 }
@@ -787,6 +786,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
     
             val activeColorState = object : MutableState<CSSColorValue> {
                 override var value: CSSColorValue = Colors.Red
+                override fun component1() = value
+                override fun component2(): (CSSColorValue) -> Unit = { value = it }
             }
     
             @Composable
@@ -808,6 +809,8 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
     
             val activeColorState = object : MutableState<CSSColorValue> {
                 override var value: CSSColorValue = Colors.Red
+                override fun component1() = value
+                override fun component2(): (CSSColorValue) -> Unit = { value = it }
             }
     
             val MyStyle = CssStyle.base {
