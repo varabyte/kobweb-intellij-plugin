@@ -19,6 +19,7 @@ version = libs.versions.kobweb.ide.plugin.get()
 
 repositories {
     mavenCentral()
+    google() // For androidx.compose.runtime
     intellijPlatform {
         defaultRepositories()
     }
@@ -36,12 +37,25 @@ intellijPlatform {
     }
 }
 
+// Real Kobweb (JS) libraries which tests run against. `KobwebApplicationTestCase` attaches them to the test project,
+// finding them via system properties set on the test task (see the bottom of this file).
+val kobwebTestLibs = configurations.create("kobwebTestLibs") {
+    isCanBeConsumed = false
+    attributes {
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, "kotlin-runtime"))
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.LIBRARY))
+        attribute(Attribute.of("org.jetbrains.kotlin.platform.type", String::class.java), "js")
+        attribute(Attribute.of("org.jetbrains.kotlin.js.compiler", String::class.java), "ir")
+    }
+}
+
 dependencies {
     // `kobweb-model` is bundled as an external jar (intentionally not an `intellijPlatform.pluginModule`, which would
     // get merged into the final jar instead). Its purpose is to get injected into a running Gradle process.
     implementation(project(":kobweb-model"))
     testImplementation(libs.truthish)
     testImplementation(kotlin("test"))
+    kobwebTestLibs(libs.kobweb.silk)
 
     intellijPlatform {
         // See all versions here: https://www.jetbrains.com/idea/download/other/
@@ -184,4 +198,26 @@ tasks.withType<KotlinCompile>().configureEach {
     compilerOptions {
         jvmTarget.set(targetJvm)
     }
+}
+
+tasks.withType<Test>().configureEach {
+    val klibs = kobwebTestLibs.incoming.files
+    // Sources are needed as the plugin inspects library function bodies
+    val sources = kobwebTestLibs.incoming.artifactView {
+        // Lets this view select the sources variant of each resolved dependency (not just its klib)
+        @Suppress("UnstableApiUsage")
+        withVariantReselection()
+        lenient(true)
+        attributes {
+            attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.DOCUMENTATION))
+            attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType::class.java, DocsType.SOURCES))
+        }
+    }.files
+    inputs.files(klibs, sources)
+    jvmArgumentProviders.add(CommandLineArgumentProvider {
+        listOf(
+            "-Dkobweb.test.klibs=${klibs.files.joinToString(File.pathSeparator)}",
+            "-Dkobweb.test.sources=${sources.files.joinToString(File.pathSeparator)}",
+        )
+    })
 }

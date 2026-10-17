@@ -1,5 +1,8 @@
 [versions]
 kobweb-ide-plugin="0.2.7-SNAPSHOT"
+# The Kobweb version tests run against. We may use an older version here, as older versions of the IDE might not support
+# running against newer versions of Kobweb (which is tied to newer versions of Kotlin)
+kobweb = "0.23.0"
 #--------------------------------------
 intellij-platform = "2.19.0"
 jetbrains-changelog = "2.5.0"
@@ -10,6 +13,8 @@ truthish = "1.0.4"
 [libraries]
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+# For testing
+kobweb-silk = { module = "com.varabyte.kobweb:kobweb-silk", version.ref = "kobweb" }
 truthish = { module = "com.varabyte.truthish:truthish", version.ref = "truthish" }
 
 [bundles]
