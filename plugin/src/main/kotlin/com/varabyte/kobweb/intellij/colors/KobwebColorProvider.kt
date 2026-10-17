@@ -442,7 +442,7 @@ private fun tryCreateRgbColor(rgb: Int) =
 private fun tryCreateHslColor(hue: Int, saturation: Float, lightness: Float): Color? {
     // https://en.wikipedia.org/wiki/HSL_and_HSV#Color_conversion_formulae
     val chroma = (1 - abs(2 * lightness - 1)) * saturation
-    val intermediateValue = chroma * (1 - abs(((hue / 60) % 2) - 1))
+    val intermediateValue = chroma * (1 - abs(((hue / 60f) % 2) - 1))
     val hueSection = (hue % 360) / 60
     val r: Float
     val g: Float
