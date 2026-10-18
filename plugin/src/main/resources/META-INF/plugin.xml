@@ -134,5 +134,6 @@
 
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
         <supportsKotlinPluginMode supportsK2="true" />
+        <kaResolveExtensionProvider implementation="com.varabyte.kobweb.intellij.resolve.worker.WorkerResolveExtensionProvider" />
     </extensions>
 </idea-plugin>

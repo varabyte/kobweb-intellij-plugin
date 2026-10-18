@@ -3,6 +3,7 @@ package com.varabyte.kobweb.intellij.project
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.vfs.VirtualFile
 import com.varabyte.kobweb.intellij.model.KobwebProjectType
+import com.varabyte.kobweb.intellij.model.WorkerBlock
 
 /**
  * A Kobweb Project is a module that has applied one of the Kobweb Gradle Plugins.
@@ -10,11 +11,13 @@ import com.varabyte.kobweb.intellij.model.KobwebProjectType
  * It can either be a local project inside the user's workspace or an external dependency (e.g. a maven artifact).
  *
  * @property name A human-readable name for this project.
+ * @property worker Values from the `kobweb { worker { ... } }` block. Only ever set for local worker projects.
  */
 data class KobwebProject(
     val name: String,
     val type: KobwebProjectType,
     val source: Source,
+    val worker: WorkerBlock? = null,
 ) {
     /**
      * Where the code for this Kobweb project lives, i.e. in the user's project or as an external dependency.

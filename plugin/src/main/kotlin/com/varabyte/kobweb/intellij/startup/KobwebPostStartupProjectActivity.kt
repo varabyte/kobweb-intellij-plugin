@@ -1,6 +1,8 @@
 package com.varabyte.kobweb.intellij.startup
 
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.externalSystem.autoimport.ExternalSystemProjectTracker
 import com.intellij.openapi.externalSystem.service.project.manage.ProjectDataImportListener
@@ -15,6 +17,7 @@ import com.varabyte.kobweb.intellij.notification.KobwebNotifier
 import com.varabyte.kobweb.intellij.services.project.KobwebProjectCacheService
 import com.varabyte.kobweb.intellij.util.kobweb.KobwebPluginState
 import com.varabyte.kobweb.intellij.util.kobweb.kobwebPluginState
+import org.jetbrains.kotlin.analysis.api.platform.modification.publishGlobalSourceModuleStateModificationEvent
 
 /**
  * A simple heuristic for checking if this project has code in it somewhere that depends on Kobweb.
@@ -62,6 +65,18 @@ class KobwebPostStartupProjectActivity : ProjectActivity {
             // After an import / gradle sync, let's just clear the cache, which should get automatically rebuilt
             // as users interact with their code.
             project.service<KobwebProjectCacheService>().clear()
+
+            // Tell the Kotlin plugin to throw away its cached analysis of every source module in the project (that's
+            // what "publish global source module state modification event" means), so that it re-analyzes code using
+            // Kobweb settings that may have changed during the sync.
+            //
+            // For example, the worker class we synthesize is named using `kobweb.worker.fqcn`, but the Kotlin plugin
+            // caches it after creating it once. The Kotlin plugin only discards such caches when it sees a change it
+            // knows about, such as a code edit or a change to a module's dependencies. Without this, the IDE could keep
+            // using the old worker class name.
+            ApplicationManager.getApplication().invokeLater({
+                runWriteAction { project.publishGlobalSourceModuleStateModificationEvent() }
+            }, project.disposed)
         }
     }
 

@@ -37,7 +37,8 @@ private fun Module.findKobwebProject(kobwebProjectsCache: KobwebProjectCacheServ
         KobwebProject(
             gradleModule.name,
             kobwebModel.projectType,
-            KobwebProject.Source.Local(gradleModule)
+            KobwebProject.Source.Local(gradleModule),
+            kobwebModel.worker,
         ).also {
             kobwebProjectsCache.add(it)
         }
@@ -90,4 +91,15 @@ fun PsiElement.findKobwebProject(): KobwebProject? {
     if (kobwebProject == null) kobwebProjectsCache.markNotKobweb(this)
 
     return kobwebProject
+}
+
+/**
+ * Returns the local Kobweb project associated with this module, or null if none is found.
+ *
+ * The result is cached for subsequent calls.
+ */
+fun Module.findKobwebProject(): KobwebProject? {
+    if (!project.isKobwebPluginEnabled) return null
+
+    return findKobwebProject(project.service<KobwebProjectCacheService>())
 }

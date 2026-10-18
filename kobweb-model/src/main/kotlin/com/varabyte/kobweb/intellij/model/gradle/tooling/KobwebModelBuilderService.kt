@@ -2,13 +2,37 @@ package com.varabyte.kobweb.intellij.model.gradle.tooling
 
 import com.varabyte.kobweb.intellij.model.KobwebModel
 import com.varabyte.kobweb.intellij.model.KobwebProjectType
+import com.varabyte.kobweb.intellij.model.WorkerBlock
 import org.gradle.api.Project
+import org.gradle.api.plugins.ExtensionAware
+import org.gradle.api.provider.Provider
 import org.jetbrains.plugins.gradle.tooling.AbstractModelBuilderService
 import org.jetbrains.plugins.gradle.tooling.ModelBuilderContext
 
 private class KobwebModelImpl(
     override val projectType: KobwebProjectType,
+    override val worker: WorkerBlock?,
 ) : KobwebModel
+
+/**
+ * Read the `kobweb { worker { fqcn.set(...) } }` value from a worker project's build script, if set.
+ */
+private fun Project.findWorkerFqcn(): String? {
+    // We can't depend on the Kobweb Gradle plugin directly (since this code runs against whatever version of it the
+    // user's project uses), so we look things up dynamically instead.
+
+    return try {
+        val kobwebBlock = extensions.findByName("kobweb") as? ExtensionAware ?: return null
+        val workerBlock = kobwebBlock.extensions.findByName("worker") ?: return null
+        val fqcn = workerBlock.javaClass.getMethod("getFqcn").invoke(workerBlock) as? Provider<*> ?: return null
+        fqcn.orNull as? String
+    } catch (_: Exception) {
+        // Shouldn't happen but no harm protecting against it just in case
+        null
+    }
+}
+
+private fun Project.createWorkerBlock() = WorkerBlock(fqcn = findWorkerFqcn())
 
 private fun Project.toKobwebModel(): KobwebModel? {
     val projectType = with(pluginManager) {
@@ -20,7 +44,10 @@ private fun Project.toKobwebModel(): KobwebModel? {
         }
     }
 
-    return KobwebModelImpl(projectType)
+    return KobwebModelImpl(
+        projectType,
+        if (projectType == KobwebProjectType.Worker) createWorkerBlock() else null
+    )
 }
 
 /**

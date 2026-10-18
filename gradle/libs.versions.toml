@@ -2,6 +2,7 @@
 kobweb-ide-plugin="0.2.7-SNAPSHOT"
 # The Kobweb version tests run against. It's not urgent to keep it up to date (unless IDE features specifically target
 # features from newer versions), but we'll try to keep it current over time.
+# If a new Kobweb release updated workers, consider regenerating worker golden files (see testData/worker/README.md)
 kobweb = "0.25.1"
 #--------------------------------------
 intellij-platform = "2.19.0"
@@ -15,6 +16,7 @@ kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 # For testing
 kobweb-silk = { module = "com.varabyte.kobweb:kobweb-silk", version.ref = "kobweb" }
+kobweb-worker = { module = "com.varabyte.kobweb:kobweb-worker", version.ref = "kobweb" }
 truthish = { module = "com.varabyte.truthish:truthish", version.ref = "truthish" }
 
 [bundles]

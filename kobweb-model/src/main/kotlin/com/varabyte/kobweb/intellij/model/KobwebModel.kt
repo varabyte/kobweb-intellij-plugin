@@ -19,4 +19,18 @@ enum class KobwebProjectType {
  */
 interface KobwebModel : Serializable {
     val projectType: KobwebProjectType
+
+    /**
+     * Values from the `kobweb { worker { ... } }` block in a worker project's build script.
+     *
+     * This is always null for non-worker projects.
+     */
+    val worker: WorkerBlock?
 }
+
+/**
+ * A subset of the `kobweb.worker` extension from the upstream Kobweb Gradle plugin.
+ */
+data class WorkerBlock(
+    val fqcn: String? = null,
+) : Serializable
