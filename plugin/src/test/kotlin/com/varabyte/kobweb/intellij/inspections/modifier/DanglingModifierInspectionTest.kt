@@ -1,5 +1,6 @@
-package com.varabyte.kobweb.intellij.inspections
+package com.varabyte.kobweb.intellij.inspections.modifier
 
+import com.varabyte.kobweb.intellij.inspections.KobwebInspectionTestBase
 import com.varabyte.kobweb.intellij.inspections.modifier.DanglingModifierInspection
 import com.varabyte.kobweb.intellij.quickfixes.style.WrapModifierInBaseBlockQuickFix
 
