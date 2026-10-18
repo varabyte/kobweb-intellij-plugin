@@ -11,6 +11,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.resolvesToModifier
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
+import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.KtBlockExpression
 import org.jetbrains.kotlin.psi.KtVisitorVoid
@@ -48,7 +49,7 @@ class DanglingModifierInspection : LocalInspectionTool() {
                             }
                             holder.registerProblem(
                                 statement,
-                                "This modifier is dangling. You should instead use it or remove it.",
+                                UxGlobals.textBundle.message("inspection.dangling.modifier.display.text"),
                                 ProblemHighlightType.LIKE_UNUSED_SYMBOL,
                                 *quickFixes.toTypedArray()
                             )

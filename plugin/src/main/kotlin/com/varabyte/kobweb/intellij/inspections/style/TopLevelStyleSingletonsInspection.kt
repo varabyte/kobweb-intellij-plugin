@@ -7,6 +7,7 @@ import com.intellij.psi.PsiElementVisitor
 import com.varabyte.kobweb.intellij.quickfixes.style.MovePropertyToTopLevelQuickFix
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.style.styleSheetSingletonClassId
+import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.psi.*
@@ -49,7 +50,7 @@ class TopLevelStyleSingletonsInspection : LocalInspectionTool() {
                 if (!isTopLevel) {
                     holder.registerProblem(
                         nameIdentifier,
-                        "Properties of type `${matchingClassId.shortClassName}` must be declared at the top level of your file (or inside top-level objects).",
+                        UxGlobals.textBundle.message("inspection.top.level.style.singletons.display.text", matchingClassId.shortClassName),
                         MovePropertyToTopLevelQuickFix(nameIdentifier.text)
                     )
                 }

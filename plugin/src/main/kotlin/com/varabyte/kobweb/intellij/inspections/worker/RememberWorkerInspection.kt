@@ -9,6 +9,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.worker.REMEMBER_WORKER_CALLABLE_ID
 import com.varabyte.kobweb.intellij.util.kobweb.worker.WORKER_CLASS_ID
 import com.varabyte.kobweb.intellij.util.psi.resolveToCallableId
+import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
@@ -60,7 +61,7 @@ class RememberWorkerInspection : LocalInspectionTool() {
                 if (returnsWorker) {
                     holder.registerProblem(
                         calleeExpr,
-                        "Workers wrapped in `${REMEMBER_CALLABLE_ID.callableName.asString()}` should instead be wrapped in `${REMEMBER_WORKER_CALLABLE_ID.callableName.asString()}`.",
+                        UxGlobals.textBundle.message("inspection.remember.worker.display.text"),
                         ReplaceCalleeQuickFix(REMEMBER_WORKER_CALLABLE_ID.asSingleFqName())
                     )
                 }

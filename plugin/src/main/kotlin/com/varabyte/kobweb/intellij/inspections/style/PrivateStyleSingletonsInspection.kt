@@ -10,6 +10,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.style.styleSheetSingletonClassId
 import com.varabyte.kobweb.intellij.util.psi.isSuppressedWith
 import com.varabyte.kobweb.intellij.util.text.camelCaseToScreamingSnakeCase
+import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.ClassId
@@ -47,7 +48,7 @@ class PrivateStyleSingletonsInspection : LocalInspectionTool() {
 
                     holder.registerProblem(
                         problemElement,
-                        "Properties of type `${matchingClassId.shortClassName}` should be public, so that Kobweb can discover and register them.",
+                        UxGlobals.textBundle.message("inspection.private.style.singletons.display.text", matchingClassId.shortClassName),
                         MakePublicQuickFix(nameIdentifier.text),
                         AddSuppressionQuickFix(suppressKey),
                         AddUnderscorePrefixQuickFix(nameIdentifier.text),
