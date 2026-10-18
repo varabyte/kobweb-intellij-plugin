@@ -71,6 +71,13 @@
                 enabledByDefault="true"
                 level="WARNING"
                 implementationClass="com.varabyte.kobweb.intellij.inspections.modifier.DanglingModifierInspection"/>
+        <localInspection
+                language="kotlin"
+                groupKey="kobweb.name"
+                key="inspection.remember.worker.display.name"
+                enabledByDefault="true"
+                level="WARNING"
+                implementationClass="com.varabyte.kobweb.intellij.inspections.worker.RememberWorkerInspection"/>
         <intentionAction>
             <className>com.varabyte.kobweb.intellij.intentions.style.ExtractCssStyleIntention</className>
             <categoryKey>kobweb.name</categoryKey>

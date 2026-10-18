@@ -1,0 +1,21 @@
+<html lang="en">
+<body>
+Reports the use of <code>remember</code> when <code>rememberWorker</code> should be used instead.
+<p>
+The <code>rememberWorker</code> method ensures that a worker will be terminated when the current composable scope is
+exited, e.g., if the user navigates away from the current page.
+<pre><code>
+// Not OK. Can leave a worker running
+// forever in the background.
+val worker = remember {
+    SomeWorker()
+}
+
+// Recommended!
+val worker = rememberWorker {
+    SomeWorker()
+}
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>
