@@ -26,10 +26,10 @@ import com.intellij.ui.components.JBTextField
 import com.intellij.ui.tabs.TabInfo
 import com.intellij.util.ui.JBUI
 import com.varabyte.kobweb.intellij.settings.KobwebAppSettingsService
-import com.varabyte.kobweb.intellij.util.compose.STYLE_PROPERTY_VALUE_CLASS_ID
+import com.varabyte.kobweb.intellij.util.compose.COMPOSABLE_CLASS_ID
+import com.varabyte.kobweb.intellij.util.compose.MUTABLE_STATE_CLASS_ID
+import com.varabyte.kobweb.intellij.util.compose.html.STYLE_PROPERTY_VALUE_CLASS_ID
 import com.varabyte.kobweb.intellij.util.idea.key
-import com.varabyte.kobweb.intellij.util.kobweb.compose.COMPOSABLE_CLASS_ID
-import com.varabyte.kobweb.intellij.util.kobweb.compose.MUTABLE_STATE_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierChainingFunction

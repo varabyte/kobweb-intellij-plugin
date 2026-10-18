@@ -1,4 +1,4 @@
-package com.varabyte.kobweb.intellij.util.compose
+package com.varabyte.kobweb.intellij.util.compose.html
 
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName

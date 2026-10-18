@@ -5,7 +5,7 @@ import com.intellij.codeInspection.SuppressQuickFix
 import com.intellij.openapi.util.Key
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.CachedValue
-import com.varabyte.kobweb.intellij.util.kobweb.compose.COMPOSABLE_CLASS_ID
+import com.varabyte.kobweb.intellij.util.compose.COMPOSABLE_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.isInKobwebSource
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.psi.hasAnyAnnotation
