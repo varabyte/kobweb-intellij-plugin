@@ -56,6 +56,7 @@ dependencies {
     testImplementation(libs.truthish)
     testImplementation(kotlin("test"))
     kobwebTestLibs(libs.kobweb.silk)
+    kobwebTestLibs(libs.kobweb.worker)
 
     intellijPlatform {
         // The version of IntelliJ IDEA we build against.
@@ -218,11 +219,15 @@ tasks.withType<Test>().configureEach {
             attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType::class.java, DocsType.SOURCES))
         }
     }.files
+    // Golden files for `WorkerClassSynthesizerParityTest` (see the README next to them)
+    val workerCases = layout.projectDirectory.dir("src/test/testData/worker/cases")
     inputs.files(klibs, sources)
+    inputs.dir(workerCases).withPathSensitivity(PathSensitivity.RELATIVE)
     jvmArgumentProviders.add(CommandLineArgumentProvider {
         listOf(
             "-Dkobweb.test.klibs=${klibs.files.joinToString(File.pathSeparator)}",
             "-Dkobweb.test.sources=${sources.files.joinToString(File.pathSeparator)}",
+            "-Dkobweb.test.worker.cases=${workerCases.asFile}",
         )
     })
 }
