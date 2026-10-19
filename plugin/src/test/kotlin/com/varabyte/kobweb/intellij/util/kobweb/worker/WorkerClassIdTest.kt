@@ -7,9 +7,7 @@ import org.junit.Test
 class WorkerClassIdTest {
     private fun computeWorkerFqcn(factoryFqcn: String, fqcnOverride: String? = null): String? {
         val factoryFqName = FqName(factoryFqcn)
-        val dummyWorkerFactoryInfo = WorkerFactoryInfo(factoryFqName, factoryFqName.parent(), "String", "String", emptyList())
-
-        return dummyWorkerFactoryInfo.computeWorkerClassId(fqcnOverride)?.asFqNameString()
+        return WorkerFactoryClass.computeWorkerClassId(factoryFqName, factoryFqName.parent(), fqcnOverride)?.asFqNameString()
     }
 
     // See also: the examples in the `WorkerBlock.fqcn` documentation in Kobweb

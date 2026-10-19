@@ -4,7 +4,7 @@ import com.intellij.openapi.module.Module
 import org.jetbrains.kotlin.idea.base.util.module
 import org.jetbrains.kotlin.idea.stubindex.KotlinSuperClassIndex
 import org.jetbrains.kotlin.lexer.KtTokens
-import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtUserType
@@ -60,44 +60,68 @@ private fun KtClassOrObject.canBeInstantiatedByWorker(): Boolean {
 }
 
 /**
- * Convert this class into a [WorkerFactoryInfo], or return null if it isn't a valid `WorkerFactory` implementation.
+ * A user's `WorkerFactory<I, O>` implementation, which Kobweb generates a `Worker` class from.
+ *
+ * Use [from] to create one, which returns null if the target class isn't a valid `WorkerFactory` implementation.
+ *
+ * @property ktClass The factory class itself.
+ * @property factoryFqName The fully qualified name of the factory class, e.g. `com.example.CalculatePiWorkerFactory`.
+ * @property packageFqName The package the factory class lives in, e.g. `com.example`. This usually matches the parent
+ *   of [factoryFqName], except for nested factory classes (e.g. `com.example.Outer.CalculatePiWorkerFactory`).
+ * @property inputType The `I` type argument, as written in the source code.
+ * @property outputType The `O` type argument, as written in the source code.
+ * @property imports The import directives of the file containing the factory, e.g. `import com.example.data.Input`.
+ *   Since [inputType] and [outputType] are written relative to them, we need to copy them into the synthesized file.
  */
-fun KtClassOrObject.toWorkerFactoryInfo(): WorkerFactoryInfo? {
-    if (!canBeInstantiatedByWorker()) return null
-    val factoryFqName = fqName ?: return null
-    val typeArguments = findWorkerFactorySupertype()?.typeArgumentsAsTypes ?: return null
-    if (typeArguments.size != 2) return null
-    val inputType = typeArguments[0]?.text ?: return null
-    val outputType = typeArguments[1]?.text ?: return null
+class WorkerFactoryClass private constructor(
+    val ktClass: KtClassOrObject,
+    val factoryFqName: FqName,
+    val packageFqName: FqName,
+    val inputType: String,
+    val outputType: String,
+    val imports: List<String>,
+) {
+    companion object {
+        fun from(ktClass: KtClassOrObject): WorkerFactoryClass? {
+            if (!ktClass.canBeInstantiatedByWorker()) return null
+            val factoryFqName = ktClass.fqName ?: return null
+            val typeArguments = ktClass.findWorkerFactorySupertype()?.typeArgumentsAsTypes ?: return null
+            if (typeArguments.size != 2) return null
+            val inputType = typeArguments[0]?.text ?: return null
+            val outputType = typeArguments[1]?.text ?: return null
 
-    val file = containingKtFile
-    return WorkerFactoryInfo(
-        factoryFqName,
-        file.packageFqName,
-        inputType,
-        outputType,
-        file.importDirectives.map { it.text },
-    )
+            val file = ktClass.containingKtFile
+            return WorkerFactoryClass(
+                ktClass,
+                factoryFqName,
+                file.packageFqName,
+                inputType,
+                outputType,
+                file.importDirectives.map { it.text },
+            )
+        }
+    }
 }
 
 /**
- * Search the production sources of this module for the class that implements `WorkerFactory`.
+ * Search the production sources of this module for its `WorkerFactory` implementation.
  *
- * Returns null if none are found or if there are multiple (as Kobweb requires there be exactly one).
+ * Returns null if none are found, if there are multiple (as Kobweb requires there be exactly one), or if the one found
+ * isn't valid (see [WorkerFactoryClass.from]).
  */
-fun Module.findWorkerFactoryClass(): KtClassOrObject? {
+fun Module.findWorkerFactoryClass(): WorkerFactoryClass? {
     return KotlinSuperClassIndex
         .Helper[WORKER_FACTORY_CLASS_ID.shortClassName.asString(), project, getModuleScope(false)]
         .singleOrNull { it.findWorkerFactorySupertype() != null }
+        ?.let { WorkerFactoryClass.from(it) }
 }
 
 /**
- * Returns the [ClassId] of the `Worker` class Kobweb would generate from this class, or null if Kobweb wouldn't
- * generate one from it (e.g. it isn't a `WorkerFactory`, or its module has multiple of them).
+ * Returns this class as a [WorkerFactoryClass], but only if it's the one its module's worker is generated from.
  *
- * @param fqcnOverride The value of `kobweb.worker.fqcn`, if set.
+ * In other words, this returns null not only if this class isn't a valid `WorkerFactory` implementation, but also if
+ * its module has multiple of them (in which case Kobweb doesn't generate a worker at all).
  */
-fun KtClassOrObject.computeGeneratedWorkerClassId(fqcnOverride: String?): ClassId? {
-    if (module?.findWorkerFactoryClass() != this) return null
-    return toWorkerFactoryInfo()?.computeWorkerClassId(fqcnOverride)
+fun KtClassOrObject.asWorkerFactoryClass(): WorkerFactoryClass? {
+    return module?.findWorkerFactoryClass()?.takeIf { it.ktClass == this }
 }

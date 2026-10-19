@@ -13,7 +13,8 @@ import com.varabyte.kobweb.intellij.resolve.worker.WorkerResolveExtensionProvide
 import com.varabyte.kobweb.intellij.util.kobweb.KobwebProjectTypes
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
-import com.varabyte.kobweb.intellij.util.kobweb.worker.computeGeneratedWorkerClassId
+import com.varabyte.kobweb.intellij.util.kobweb.worker.asWorkerFactoryClass
+import com.varabyte.kobweb.intellij.util.kobweb.worker.computeWorkerClassId
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.KtClassOrObject
 
@@ -42,8 +43,9 @@ class WorkerFactoryUsageSearcher : CustomUsageSearcher() {
  */
 private fun PsiElement.findSynthesizedWorkerClass(): PsiElement? {
     if (!isInReadableKobwebProject(KobwebProjectTypes.WorkerOnly)) return null
-    val factoryClass = this as? KtClassOrObject ?: return null
+    val ktClass = this as? KtClassOrObject ?: return null
+    val factoryClass = ktClass.asWorkerFactoryClass() ?: return null
     val fqcnOverride = findKobwebProject()?.worker?.fqcn
-    val workerClassId = factoryClass.computeGeneratedWorkerClassId(fqcnOverride) ?: return null
-    return analyze(factoryClass) { findClass(workerClassId)?.psi }
+    val workerClassId = factoryClass.computeWorkerClassId(fqcnOverride) ?: return null
+    return analyze(ktClass) { findClass(workerClassId)?.psi }
 }

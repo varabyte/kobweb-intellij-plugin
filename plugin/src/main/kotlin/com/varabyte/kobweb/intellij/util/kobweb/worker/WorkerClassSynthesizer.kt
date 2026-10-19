@@ -15,26 +15,7 @@ private const val WORKER_SUFFIX = "Worker"
 private const val WORKER_FACTORY_SUFFIX = "${WORKER_SUFFIX}Factory"
 
 /**
- * Information about a user's `WorkerFactory<I, O>` implementation, needed to synthesize its `Worker` class.
- *
- * @property factoryFqName The fully qualified name of the factory class, e.g. `com.example.CalculatePiWorkerFactory`.
- * @property packageFqName The package the factory class lives in, e.g. `com.example`. This usually matches the parent
- *   of [factoryFqName], except for nested factory classes (e.g. `com.example.Outer.CalculatePiWorkerFactory`).
- * @property inputType The `I` type argument, as written in the source code.
- * @property outputType The `O` type argument, as written in the source code.
- * @property imports The import directives of the file containing the factory, e.g. `import com.example.data.Input`.
- *   Since [inputType] and [outputType] are written relative to them, we need to copy them into the synthesized file.
- */
-class WorkerFactoryInfo(
-    val factoryFqName: FqName,
-    val packageFqName: FqName,
-    val inputType: String,
-    val outputType: String,
-    val imports: List<String>,
-)
-
-/**
- * Compute the [ClassId] of the `Worker` class that Kobweb would generate for the target factory.
+ * Compute the [ClassId] of the `Worker` class that Kobweb would generate for this factory.
  *
  * @param fqcnOverride The value of `kobweb.worker.fqcn`, if set. See the `WorkerBlock.fqcn` documentation in Kobweb for
  *   examples of how this value is interpreted.
@@ -42,7 +23,21 @@ class WorkerFactoryInfo(
  * @return null if Kobweb would refuse to generate a class, i.e. if the factory's name doesn't end with "WorkerFactory"
  *   and no class name override was provided.
  */
-fun WorkerFactoryInfo.computeWorkerClassId(fqcnOverride: String?): ClassId? {
+fun WorkerFactoryClass.computeWorkerClassId(fqcnOverride: String?): ClassId? {
+    return WorkerFactoryClass.computeWorkerClassId(factoryFqName, packageFqName, fqcnOverride)
+}
+
+/**
+ * Like the [WorkerFactoryClass.computeWorkerClassId] extension, but working on names alone (which is useful for tests).
+ *
+ * @param factoryFqName See [WorkerFactoryClass.factoryFqName].
+ * @param packageFqName See [WorkerFactoryClass.packageFqName].
+ */
+fun WorkerFactoryClass.Companion.computeWorkerClassId(
+    factoryFqName: FqName,
+    packageFqName: FqName,
+    fqcnOverride: String?
+): ClassId? {
     val classNameOverride = fqcnOverride?.substringAfterLast('.')?.takeIf { it.isNotBlank() }
     if (classNameOverride == null) {
         val factoryName = factoryFqName.shortName().asString()
@@ -75,7 +70,7 @@ fun WorkerFactoryInfo.computeWorkerClassId(fqcnOverride: String?): ClassId? {
  *
  * Only the API is meaningful here. Implementations are stubbed out, since this code is never compiled or run.
  */
-fun WorkerFactoryInfo.synthesizeWorkerClassSource(workerClassId: ClassId): String {
+fun WorkerFactoryClass.synthesizeWorkerClassSource(workerClassId: ClassId): String {
     val factory = this
     val workerPackage = workerClassId.packageFqName
     val inputType = factory.inputType

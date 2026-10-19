@@ -15,7 +15,6 @@ import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.worker.computeWorkerClassId
 import com.varabyte.kobweb.intellij.util.kobweb.worker.findWorkerFactoryClass
 import com.varabyte.kobweb.intellij.util.kobweb.worker.synthesizeWorkerClassSource
-import com.varabyte.kobweb.intellij.util.kobweb.worker.toWorkerFactoryInfo
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
@@ -89,13 +88,12 @@ private class WorkerResolveExtension(
 
     private fun createWorkerFile(): WorkerResolveExtensionFile? {
         val factoryClass = module.findWorkerFactoryClass() ?: return null
-        val factoryInfo = factoryClass.toWorkerFactoryInfo() ?: return null
-        val workerClassId = factoryInfo.computeWorkerClassId(fqcnOverride) ?: return null
+        val workerClassId = factoryClass.computeWorkerClassId(fqcnOverride) ?: return null
 
         return WorkerResolveExtensionFile(
             workerClassId,
-            factoryInfo.synthesizeWorkerClassSource(workerClassId),
-            SmartPointerManager.createPointer(factoryClass),
+            factoryClass.synthesizeWorkerClassSource(workerClassId),
+            SmartPointerManager.createPointer(factoryClass.ktClass),
             KspOutputFileScope(module.project, workerClassId),
         )
     }
