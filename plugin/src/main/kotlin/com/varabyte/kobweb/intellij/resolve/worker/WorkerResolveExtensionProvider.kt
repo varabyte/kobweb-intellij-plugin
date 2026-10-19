@@ -1,22 +1,25 @@
 package com.varabyte.kobweb.intellij.resolve.worker
 
 import com.intellij.openapi.module.Module
+import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.IndexNotReadyException
-import com.intellij.openapi.project.Project
+import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.testFramework.LightVirtualFile
 import com.intellij.psi.PsiElement
 import com.intellij.psi.SmartPointerManager
 import com.intellij.psi.SmartPsiElementPointer
 import com.intellij.psi.search.GlobalSearchScope
 import com.varabyte.kobweb.intellij.model.KobwebProjectType
-import com.varabyte.kobweb.intellij.project.KobwebProject
+import com.varabyte.kobweb.intellij.util.kobweb.worker.WorkerFactoryClass
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.worker.computeWorkerClassId
 import com.varabyte.kobweb.intellij.util.kobweb.worker.findWorkerFactoryClass
 import com.varabyte.kobweb.intellij.util.kobweb.worker.synthesizeWorkerClassSource
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
+import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaSourceModule
 import org.jetbrains.kotlin.analysis.api.resolve.extensions.KaResolveExtension
@@ -53,9 +56,7 @@ class WorkerResolveExtensionProvider : KaResolveExtensionProvider() {
 
         val ideaModule = module.openapiModule
         val kobwebProject = ideaModule.findKobwebProject() ?: return emptyList()
-        if (kobwebProject.type != KobwebProjectType.Worker || kobwebProject.source !is KobwebProject.Source.Local) {
-            return emptyList()
-        }
+        if (kobwebProject.type != KobwebProjectType.Worker) return emptyList()
 
         return listOf(WorkerResolveExtension(ideaModule, kobwebProject.worker?.fqcn))
     }
@@ -94,15 +95,19 @@ private class WorkerResolveExtension(
             workerClassId,
             factoryClass.synthesizeWorkerClassSource(workerClassId),
             SmartPointerManager.createPointer(factoryClass.ktClass),
-            KspOutputFileScope(module.project, workerClassId),
         )
     }
+
+    private val kspOutputScope = KspOutputScope(module)
 
     override fun getKtFiles(): List<KaResolveExtensionFile> = listOfNotNull(workerFile)
 
     override fun getContainedPackages(): Set<FqName> = setOfNotNull(workerFile?.classId?.packageFqName)
 
-    override fun getShadowedScope(): GlobalSearchScope = workerFile?.kspOutputScope ?: GlobalSearchScope.EMPTY_SCOPE
+    // NOTE: Unlike the methods above, this one must NOT depend on the worker file, as computing that requires searching
+    // indices, and the Kotlin plugin calls this method at arbitrary times (including in the middle of PSI changes, when
+    // searching indices isn't allowed).
+    override fun getShadowedScope(): GlobalSearchScope = kspOutputScope
 }
 
 @OptIn(KaExperimentalApi::class)
@@ -110,8 +115,6 @@ private class WorkerResolveExtensionFile(
     val classId: ClassId,
     private val source: String,
     private val factoryClass: SmartPsiElementPointer<KtClassOrObject>,
-    /** A scope matching the real KSP output for this class, which our synthesized version replaces. */
-    val kspOutputScope: GlobalSearchScope,
 ) : KaResolveExtensionFile() {
     override fun getFileName() = "${classId.shortClassName}.kt"
     override fun getFilePackageName() = classId.packageFqName
@@ -128,25 +131,63 @@ private class WorkerResolveExtensionFile(
 }
 
 /**
- * A scope that matches the file KSP generates for the worker class with the given [ClassId].
+ * A scope that matches all Kotlin files KSP generates for the target worker module.
  *
  * KSP output lives somewhere like `build/generated/ksp/js/jsMain/kotlin/com/example/CalculatePiWorker.kt`.
+ *
+ * Our synthesized worker class replaces the one KSP generates. We hide all of the module's KSP output, instead of only
+ * the file for the current worker class, which also hides stale output (e.g. if the factory was renamed since the last
+ * build). The only other file Kobweb generates there is the worker's entry point, which user code never references.
+ *
+ * This scope must be cheap to query and must not search indices, since the Kotlin plugin uses it at arbitrary times.
  */
-private class KspOutputFileScope(project: Project, workerClassId: ClassId) : GlobalSearchScope(project) {
-    private val relativePath = buildString {
-        if (!workerClassId.packageFqName.isRoot) {
-            append(workerClassId.packageFqName.asString().replace('.', '/'))
-            append('/')
-        }
-        append("${workerClassId.shortClassName}.kt")
-    }
+private class KspOutputScope(private val module: Module) : GlobalSearchScope(module.project) {
+    private val fileIndex = ProjectFileIndex.getInstance(module.project)
 
     override fun contains(file: VirtualFile): Boolean {
         // e.g. "js/jsMain/kotlin/com/example/CalculatePiWorker.kt" -> ["js", "jsMain", "kotlin", "com/example/..."]
         val segments = file.path.substringAfter("/generated/ksp/", missingDelimiterValue = "").split('/', limit = 4)
-        return segments.size == 4 && segments[2] == "kotlin" && segments[3] == relativePath
+        @Suppress("RedundantIf") // Breaking up if condition is more readable
+        if (segments.size != 4 || segments[2] != "kotlin") return false
+
+        // Other modules (e.g. a Kobweb site) generate KSP output too, which we must leave alone
+        return fileIndex.getModuleForFile(file) == module
     }
 
-    override fun isSearchInModuleContent(aModule: Module) = true
+    override fun isSearchInModuleContent(aModule: Module) = aModule == module
     override fun isSearchInLibraries() = false
+}
+
+/**
+ * Returns the synthesized `Worker` class (provided by [WorkerResolveExtensionProvider]) with the given [ClassId], if
+ * any.
+ *
+ * This function should be called inside an [analyze] block for the factory's module (e.g. `analyze(ktClass)`), since
+ * that's where the synthesized class lives.
+ *
+ * @param workerClassId The ID of the worker class generated from this factory (see `computeWorkerClassId`).
+ */
+@Suppress("UnusedReceiverParameter") // Useful for scoping functionality
+context(kaSession: KaSession)
+fun WorkerFactoryClass.findSynthesizedWorkerClass(workerClassId: ClassId): KtClassOrObject? = with(kaSession) {
+    findClass(workerClassId)?.psi as? KtClassOrObject
+}
+
+/**
+ * If this is a synthesized `Worker` class (provided by [WorkerResolveExtensionProvider]), returns the factory it was
+ * generated from.
+ */
+fun KtClassOrObject.findSourceWorkerFactoryClass(): WorkerFactoryClass? {
+    // Synthesized classes only exist in memory, which lets us quickly skip pretty much every other class
+    if (containingFile.virtualFile !is LightVirtualFile) return null
+    val classId = getClassId() ?: return null
+
+    // NOTE: Only local modules get synthesized worker classes (library workers ship with the real one already)
+    return ModuleManager.getInstance(project).modules.asSequence()
+        .mapNotNull { module ->
+            val kobwebProject = module.findKobwebProject() ?: return@mapNotNull null
+            if (kobwebProject.type != KobwebProjectType.Worker) return@mapNotNull null
+            module.findWorkerFactoryClass()?.takeIf { it.computeWorkerClassId(kobwebProject.worker?.fqcn) == classId }
+        }
+        .firstOrNull()
 }

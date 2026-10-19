@@ -94,6 +94,32 @@ class WorkerResolveExtensionTest : KobwebWorkerTestCase() {
         assertThat(classExists("com.example.OtherWorker")).isFalse()
     }
 
+    fun testStaleKspOutputForOldWorkerNameIsHidden() {
+        addWorkerFactoryToProject()
+        // Simulate KSP output from a previous build, before the factory was renamed (from `OldEchoWorkerFactory`)
+        myFixture.addFileToProject(
+            "build/generated/ksp/js/jsMain/kotlin/com/example/OldEchoWorker.kt",
+            // language=kotlin
+            """
+            package com.example
+
+            class OldEchoWorker
+            """.trimIndent()
+        )
+
+        myFixture.configureByTextAndHighlight(
+            "Usage.kt",
+            // language=kotlin
+            """
+            import com.example.<error>OldEchoWorker</error>
+
+            fun useWorker() {
+                <error>OldEchoWorker</error>()
+            }
+            """.trimIndent()
+        )
+    }
+
     fun testKspOutputIsShadowedBySynthesizedClass() {
         addWorkerFactoryToProject()
         // Simulate stale KSP output, generated when the factory used different input / output types

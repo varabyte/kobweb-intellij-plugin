@@ -9,7 +9,7 @@ import com.intellij.usageView.UsageInfo
 import com.intellij.usages.Usage
 import com.intellij.usages.UsageInfo2UsageAdapter
 import com.intellij.util.Processor
-import com.varabyte.kobweb.intellij.resolve.worker.WorkerResolveExtensionProvider
+import com.varabyte.kobweb.intellij.resolve.worker.findSynthesizedWorkerClass
 import com.varabyte.kobweb.intellij.util.kobweb.KobwebProjectTypes
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
@@ -30,22 +30,16 @@ import org.jetbrains.kotlin.psi.KtClassOrObject
  */
 class WorkerFactoryUsageSearcher : CustomUsageSearcher() {
     override fun processElementUsages(element: PsiElement, processor: Processor<in Usage>, options: FindUsagesOptions) {
-        val workerClass = ReadAction.compute<PsiElement?, Throwable> { element.findSynthesizedWorkerClass() } ?: return
+        val workerClass = ReadAction.compute<PsiElement?, Throwable> {
+            if (!element.isInReadableKobwebProject(KobwebProjectTypes.WorkerOnly)) return@compute null
+            val factoryClass = (element as? KtClassOrObject)?.asWorkerFactoryClass() ?: return@compute null
+            val fqcnOverride = element.findKobwebProject()?.worker?.fqcn
+            val workerClassId = factoryClass.computeWorkerClassId(fqcnOverride) ?: return@compute null
+            analyze(factoryClass.ktClass) { factoryClass.findSynthesizedWorkerClass(workerClassId) }
+        } ?: return
 
         ReferencesSearch.search(workerClass, options.searchScope).forEach(Processor { reference ->
             processor.process(UsageInfo2UsageAdapter(UsageInfo(reference)))
         })
     }
-}
-
-/**
- * Returns the synthesized `Worker` class (see [WorkerResolveExtensionProvider]) for this factory class, if any.
- */
-private fun PsiElement.findSynthesizedWorkerClass(): PsiElement? {
-    if (!isInReadableKobwebProject(KobwebProjectTypes.WorkerOnly)) return null
-    val ktClass = this as? KtClassOrObject ?: return null
-    val factoryClass = ktClass.asWorkerFactoryClass() ?: return null
-    val fqcnOverride = findKobwebProject()?.worker?.fqcn
-    val workerClassId = factoryClass.computeWorkerClassId(fqcnOverride) ?: return null
-    return analyze(ktClass) { findClass(workerClassId)?.psi }
 }

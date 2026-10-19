@@ -2,6 +2,7 @@ package com.varabyte.kobweb.intellij.util.kobweb.worker
 
 import com.varabyte.kobweb.intellij.test.fixtures.KobwebWorkerTestCase
 import com.varabyte.truthish.assertThat
+import com.varabyte.truthish.assertWithMessage
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -53,7 +54,14 @@ class WorkerClassSynthesizerParityTest : KobwebWorkerTestCase() {
             ?.let { file -> Properties().apply { file.reader().use { load(it) } }.getProperty("fqcn") }
 
         // The expected folder only contains the worker class, at a path matching its package
-        val (generatedPath, generatedSource) = caseDir.resolve("expected").readKotlinFiles().entries.single()
+        val generatedFiles = caseDir.resolve("expected").readKotlinFiles()
+        assertWithMessage(
+            "Expected Kobweb to generate exactly one file (besides `main.kt`) for case \"$name\", but found: " +
+                "${generatedFiles.keys}. If KSP's output folder moved, update the path in the golden file generator " +
+                "and in `KspOutputScope`. If Kobweb generates a new file that user code can reference, " +
+                "`KspOutputScope` will incorrectly hide it from the IDE."
+        ).that(generatedFiles.size).isEqualTo(1)
+        val (generatedPath, generatedSource) = generatedFiles.entries.single()
         val generatedClassId = ClassId(
             FqName(generatedPath.substringBeforeLast('/', missingDelimiterValue = "").replace('/', '.')),
             Name.identifier(generatedPath.substringAfterLast('/').removeSuffix(".kt")),

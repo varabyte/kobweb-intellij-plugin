@@ -44,6 +44,10 @@
         <lang.inspectionSuppressor language="kotlin" implementationClass="com.varabyte.kobweb.intellij.inspections.supressors.FunctionNameInspectionSuppressor"/>
         <lang.inspectionSuppressor language="kotlin" implementationClass="com.varabyte.kobweb.intellij.inspections.supressors.UnusedInspectionSuppressor"/>
         <customUsageSearcher implementation="com.varabyte.kobweb.intellij.findUsages.worker.WorkerFactoryUsageSearcher"/>
+        <!-- This processor is registered with `order="last"`, so that the Kotlin plugin's own processor still handles renaming the factory class itself. -->
+        <renamePsiElementProcessor implementation="com.varabyte.kobweb.intellij.rename.worker.WorkerFactoryRenameProcessor" order="last"/>
+        <!-- The Kotlin plugin's processor is also registered with `order="first"`, so we register with `order="first, before KotlinClass"`. Otherwise, plugin load order determines which wins. -->
+        <renamePsiElementProcessor implementation="com.varabyte.kobweb.intellij.rename.worker.SynthesizedWorkerClassRenameProcessor" order="first, before KotlinClass"/>
         <localInspection
                 language="kotlin"
                 groupKey="kobweb.name"
