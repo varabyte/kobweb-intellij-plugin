@@ -6,6 +6,7 @@ import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.base.KaConstantValue
 import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
+import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.name.ClassId
@@ -68,12 +69,20 @@ fun KtNameReferenceExpression.isModifierCompanion(): Boolean = with(kaSession) {
  * This function should be called inside an [analyze] block.
  */
 context(kaSession: KaSession)
-fun KtNamedFunction.isModifierExtension(): Boolean {
-    val receiverRef = receiverTypeReference ?: return false
-    kaSession.apply {
-        val receiverType = receiverRef.type
-        return receiverType.expandedSymbol?.classId == MODIFIER_CLASS_ID
-    }
+fun KtNamedFunction.isModifierExtension(): Boolean = with(kaSession) {
+    if (receiverTypeReference == null) return false
+    return symbol.isModifierExtension()
+}
+
+/**
+ * Like [KtNamedFunction.isModifierExtension], but for a symbol.
+ *
+ * Prefer this when you already have a symbol, e.g. one resolved from a call. A symbol from the current session is always
+ * safe to check, while its PSI may not be analyzable in that session.
+ */
+context(kaSession: KaSession)
+fun KaCallableSymbol.isModifierExtension(): Boolean = with(kaSession) {
+    receiverParameter?.returnType?.expandedSymbol?.classId == MODIFIER_CLASS_ID
 }
 
 /**
@@ -93,10 +102,18 @@ fun KtNamedFunction.isModifierFunction(): Boolean = with(kaSession) {
  * This function should be called inside an [analyze] block.
  */
 context(kaSession: KaSession)
-fun KtNamedFunction.returnsModifier(): Boolean {
-    kaSession.apply {
-        return returnType.expandedSymbol?.classId == MODIFIER_CLASS_ID
-    }
+fun KtNamedFunction.returnsModifier(): Boolean = with(kaSession) {
+    symbol.returnsModifier()
+}
+
+/**
+ * Like [KtNamedFunction.returnsModifier], but for a symbol.
+ *
+ * See [KaCallableSymbol.isModifierExtension] for when to prefer this.
+ */
+context(kaSession: KaSession)
+fun KaCallableSymbol.returnsModifier(): Boolean = with(kaSession) {
+    returnType.expandedSymbol?.classId == MODIFIER_CLASS_ID
 }
 
 context(kaSession: KaSession)
@@ -188,9 +205,10 @@ private fun KtNamedFunction.findWebModifierTypeRecursively(
             }
 
             val innerFunction = symbol.psi as? KtNamedFunction ?: continue
-            if (!visited.contains(innerFunction)
-                && (innerFunction.isModifierExtension() || innerFunction.returnsModifier())
-            ) {
+            // NOTE: Check the symbol, not `innerFunction`. We've seen analyzing `innerFunction` here throw a
+            // `KaBaseIllegalPsiException`, as it was somehow outside of what the current `analyze` block covers. The
+            // symbol came from this session, so it's always safe to check.
+            if (!visited.contains(innerFunction) && (symbol.isModifierExtension() || symbol.returnsModifier())) {
                 functionsToVisit.add(innerFunction)
             }
         }
