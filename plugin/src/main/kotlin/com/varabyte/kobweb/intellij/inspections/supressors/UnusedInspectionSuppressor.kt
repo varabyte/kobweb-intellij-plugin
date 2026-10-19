@@ -7,10 +7,9 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.util.CachedValue
 import com.varabyte.kobweb.intellij.util.kobweb.KobwebProjectTypes
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
-import com.varabyte.kobweb.intellij.util.kobweb.worker.findWorkerFactoryClass
-import com.varabyte.kobweb.intellij.util.kobweb.worker.toWorkerFactoryInfo
+import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
+import com.varabyte.kobweb.intellij.util.kobweb.worker.computeGeneratedWorkerClassId
 import com.varabyte.kobweb.intellij.util.psi.hasAnyAnnotation
-import org.jetbrains.kotlin.idea.base.util.module
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -50,10 +49,10 @@ private fun PsiElement.isUsedByGeneratedWorkerCode(): Boolean {
         ?: this as? KtClassOrObject
         ?: return false
 
-    // Only the factory Kobweb would actually generate a `Worker` class for (e.g. if there are multiple factories, Kobweb
-    // fails to generate anything, and none of them are used)
-    val module = ktClass.module ?: return false
-    return module.findWorkerFactoryClass() == ktClass && ktClass.toWorkerFactoryInfo() != null
+    // Consider this class used if it is a worker factory used to generate a worker (e.g. if there are multiple
+    // factories, Kobweb wouldn't generate anything, so in that case, none of them are used)
+    val fqcnOverride = findKobwebProject()?.worker?.fqcn
+    return ktClass.computeGeneratedWorkerClassId(fqcnOverride) != null
 }
 
 /**

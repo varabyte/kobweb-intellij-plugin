@@ -1,8 +1,10 @@
 package com.varabyte.kobweb.intellij.util.kobweb.worker
 
 import com.intellij.openapi.module.Module
+import org.jetbrains.kotlin.idea.base.util.module
 import org.jetbrains.kotlin.idea.stubindex.KotlinSuperClassIndex
 import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtUserType
@@ -87,4 +89,15 @@ fun Module.findWorkerFactoryClass(): KtClassOrObject? {
     return KotlinSuperClassIndex
         .Helper[WORKER_FACTORY_CLASS_ID.shortClassName.asString(), project, getModuleScope(false)]
         .singleOrNull { it.findWorkerFactorySupertype() != null }
+}
+
+/**
+ * Returns the [ClassId] of the `Worker` class Kobweb would generate from this class, or null if Kobweb wouldn't
+ * generate one from it (e.g. it isn't a `WorkerFactory`, or its module has multiple of them).
+ *
+ * @param fqcnOverride The value of `kobweb.worker.fqcn`, if set.
+ */
+fun KtClassOrObject.computeGeneratedWorkerClassId(fqcnOverride: String?): ClassId? {
+    if (module?.findWorkerFactoryClass() != this) return null
+    return toWorkerFactoryInfo()?.computeWorkerClassId(fqcnOverride)
 }

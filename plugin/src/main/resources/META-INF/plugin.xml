@@ -43,6 +43,7 @@
 
         <lang.inspectionSuppressor language="kotlin" implementationClass="com.varabyte.kobweb.intellij.inspections.supressors.FunctionNameInspectionSuppressor"/>
         <lang.inspectionSuppressor language="kotlin" implementationClass="com.varabyte.kobweb.intellij.inspections.supressors.UnusedInspectionSuppressor"/>
+        <customUsageSearcher implementation="com.varabyte.kobweb.intellij.findUsages.worker.WorkerFactoryUsageSearcher"/>
         <localInspection
                 language="kotlin"
                 groupKey="kobweb.name"
