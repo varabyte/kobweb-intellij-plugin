@@ -58,11 +58,13 @@ dependencies {
     kobwebTestLibs(libs.kobweb.silk)
 
     intellijPlatform {
+        // The version of IntelliJ IDEA we build against.
         // See all versions here: https://www.jetbrains.com/idea/download/other/
         // We generally aim to support about / at least 3 major versions back
-        // NOTE: We build against 2025.3.2 (instead of 2025.3) because earlier versions crash when indexing Kobweb
-        // 0.25+ libraries (which tests depend on). The plugin still declares support for all of 2025.3, since
-        // `sinceBuild` is derived from the branch number (253) and not the patch version.
+        // NOTE: We build against 2025.3.2 (instead of 2025.3) because earlier versions crash when indexing Kobweb 0.25+
+        // libraries (which tests depend on). However, the plugin declares support for all 2025.3 releases (as
+        // `sinceBuild` is derived from the major release and not the patch version). We think this is OK as 1) most
+        // users will have upgraded to newer patch versions anyway and 2) older versions of Kobweb don't crash.
         intellijIdea("2025.3.2")
 
         // See https://jb.gg/ij-plugin-dependencies
@@ -180,10 +182,6 @@ intellijPlatform {
     pluginVerification {
         ides {
             recommended()
-            // We build against a 2025.3.x patch release (see `intellijIdea(...)` above) but declare support for all of
-            // 2025.3, so we declare the following to make sure we stay compatible with the original release. This line
-            // can be removed in the future if we update the `intelijIdea(...)` declaration above.
-            create(IntelliJPlatformType.IntellijIdea, "2025.3")
         }
         ignoredProblemsFile.set(file(".verifier/ignored-problems.txt"))
     }
