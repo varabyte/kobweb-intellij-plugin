@@ -34,4 +34,15 @@ jobs:
         run: ./gradlew :plugin:prepareTestSandbox :plugin:test
 
       - name: Verify Kobweb IntelliJ Plugin
+        id: verify
         run: ./gradlew :plugin:verifyPlugin
+
+      - name: Upload verifier reports
+        # Upload even (especially!) when verification fails, but not if an earlier step (e.g. tests) failed
+        if: ${{ !cancelled() && steps.verify.conclusion != 'skipped' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-verifier-reports
+          path: plugin/build/reports/pluginVerifier
+          if-no-files-found: warn
+          retention-days: 1
