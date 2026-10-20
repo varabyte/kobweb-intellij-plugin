@@ -2,20 +2,26 @@
 kobweb-ide-plugin="0.2.7-SNAPSHOT"
 # The Kobweb version tests run against. It's not urgent to keep it up to date (unless IDE features specifically target
 # features from newer versions), but we'll try to keep it current over time.
-# If a new Kobweb release updated workers, consider regenerating worker golden files (see testData/worker/README.md)
+# * If a new Kobweb release updated workers, consider regenerating worker golden files (see testData/worker/README.md)
+# * If a new Kobweb release updated its silk icons, regenerate and republish icon preview data (see
+#   tools/icon-previews-generator/build.gradle.kts)
 kobweb = "0.25.1"
 #--------------------------------------
 intellij-platform = "2.19.0"
 jetbrains-changelog = "2.5.0"
 kotlin = "2.4.21"
 kotlinx-serialization = "1.11.0"
+batik = "1.19"
 truthish = "1.0.4"
 
 [libraries]
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+# For icon-previews
+batik-parser = { module = "org.apache.xmlgraphics:batik-parser", version.ref = "batik" }
 # For testing
 kobweb-silk = { module = "com.varabyte.kobweb:kobweb-silk", version.ref = "kobweb" }
+kobweb-silk-icons-fa = { module = "com.varabyte.kobwebx:silk-icons-fa", version.ref = "kobweb" }
 kobweb-worker = { module = "com.varabyte.kobweb:kobweb-worker", version.ref = "kobweb" }
 truthish = { module = "com.varabyte.truthish:truthish", version.ref = "truthish" }
 

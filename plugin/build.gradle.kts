@@ -1,6 +1,7 @@
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.intellij.platform.gradle.tasks.RunIdeTask
 import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask.FailureLevel
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
@@ -53,9 +54,11 @@ dependencies {
     // `kobweb-model` is bundled as an external jar (intentionally not an `intellijPlatform.pluginModule`, which would
     // get merged into the final jar instead). Its purpose is to get injected into a running Gradle process.
     implementation(project(":kobweb-model"))
+    implementation(project(":shared:icon-previews-format"))
     testImplementation(libs.truthish)
     testImplementation(kotlin("test"))
     kobwebTestLibs(libs.kobweb.silk)
+    kobwebTestLibs(libs.kobweb.silk.icons.fa)
     kobwebTestLibs(libs.kobweb.worker)
 
     intellijPlatform {
@@ -230,4 +233,17 @@ tasks.withType<Test>().configureEach {
             "-Dkobweb.test.worker.cases=${workerCases.asFile}",
         )
     })
+}
+
+// By default, icon previews are downloaded from the varabyte/data repo. Pass `-PlocalIconPreviews` to use data generated
+// locally by `./gradlew :tools:icon-previews-generator:generate` instead, e.g. to check changes to the generator before
+// publishing them.
+if (providers.gradleProperty("localIconPreviews").isPresent) {
+    tasks.withType<RunIdeTask>().configureEach {
+        val iconPreviewsDir = rootProject.layout.projectDirectory
+            .dir("tools/icon-previews-generator/build/icon-previews/data").asFile
+        jvmArgumentProviders.add(CommandLineArgumentProvider {
+            listOf("-Dkobweb.iconPreviews.dir=$iconPreviewsDir")
+        })
+    }
 }
