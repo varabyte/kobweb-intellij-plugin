@@ -227,7 +227,7 @@ tasks.withType<Test>().configureEach {
 // publishing them.
 if (providers.gradleProperty("localIconPreviews").isPresent) {
     tasks.withType<RunIdeTask>().configureEach {
-        val iconPreviewsDir = rootProject.layout.projectDirectory
+        val iconPreviewsDir = layout.settingsDirectory
             .dir("tools/icon-previews-generator/build/icon-previews/data").asFile
         jvmArgumentProviders.add(CommandLineArgumentProvider {
             listOf("-Dkobweb.iconPreviews.dir=$iconPreviewsDir")
