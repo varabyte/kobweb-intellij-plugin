@@ -19,13 +19,16 @@ import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtAnnotated
+import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtExpression
+import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.psi.KtUserType
 
 /**
  * Resolve an expression into a [ClassId] containing the type it evaluates to.
@@ -144,4 +147,45 @@ fun KtCallExpression.resolveToKtNamedFunction(): KtNamedFunction? = with(kaSessi
     val refExpr = calleeExpression as? KtNameReferenceExpression ?: return null
     val symbol = refExpr.mainReference.resolveToSymbol() as? KaNamedFunctionSymbol
     symbol?.psi as? KtNamedFunction
+}
+
+/**
+ * Returns true if [name], written unqualified in this file, refers to the declaration with the fully qualified name
+ * [fqn], either because it lives in this file's package or because this file imports it (possibly via an alias).
+ *
+ * This only looks at the PSI (the file's package and imports), so it is cheap and safe to call in places where Kotlin
+ * analysis isn't allowed. However, it can be fooled by local declarations that shadow an import.
+ */
+fun KtFile.isInScopeAs(fqn: FqName, name: String): Boolean {
+    val shortName = fqn.shortName().asString()
+    if (packageFqName == fqn.parent() && name == shortName) return true
+    return importDirectives.any { import ->
+        val importedFqName = import.importedFqName ?: return@any false
+        when {
+            import.isAllUnder -> importedFqName == fqn.parent() && name == shortName
+            else -> importedFqName == fqn && name == (import.aliasName ?: shortName)
+        }
+    }
+}
+
+/**
+ * Returns true if this type, as written, refers to the declaration with the fully qualified name [fqn].
+ *
+ * Both qualified (`a.b.C`) and unqualified (`C`) references are supported, the latter via [KtFile.isInScopeAs], which
+ * means this only looks at the PSI and has the same limitations.
+ */
+fun KtUserType.refersTo(fqn: FqName): Boolean {
+    val name = referencedName ?: return false
+    val qualifier = qualifier ?: return containingKtFile.isInScopeAs(fqn, name)
+    return name == fqn.shortName().asString() && qualifier.text.filterNot { it.isWhitespace() } == fqn.parent().asString()
+}
+
+/**
+ * Returns true if this annotation entry refers to the annotation class with the given fully qualified name.
+ *
+ * Unlike [isAnnotatedWith], this only looks at the PSI (see [KtUserType.refersTo]), so it is cheap and safe to call in
+ * places where Kotlin analysis isn't allowed, e.g. on the UI thread or when providing references.
+ */
+fun KtAnnotationEntry.isAnnotationOfType(fqn: FqName): Boolean {
+    return (typeReference?.typeElement as? KtUserType)?.refersTo(fqn) ?: false
 }

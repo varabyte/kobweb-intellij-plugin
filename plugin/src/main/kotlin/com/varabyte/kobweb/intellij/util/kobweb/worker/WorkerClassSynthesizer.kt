@@ -1,6 +1,6 @@
 package com.varabyte.kobweb.intellij.util.kobweb.worker
 
-import com.varabyte.kobweb.intellij.util.kotlin.child
+import com.varabyte.kobweb.intellij.util.kobweb.PackageShortcuts
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
@@ -49,13 +49,11 @@ fun WorkerFactoryClass.Companion.computeWorkerClassId(
         // A bare class name, e.g. "PiWorker", is a fully qualified name in the root package
         '.' !in fqcnOverride -> FqName.ROOT
         else -> {
-            val packageOverride = fqcnOverride.substringBeforeLast('.')
-            when {
-                packageOverride.isEmpty() -> packageFqName
-                // A leading "." means the package is relative to the factory's package
-                packageOverride.startsWith('.') -> packageFqName.child(FqName(packageOverride.removePrefix(".")))
-                else -> FqName(packageOverride)
-            }
+            // A leading "." means the package is relative to the factory's package
+            // Note that ".PiWorker" leaves an empty package here, which means use factory's package itself, i.e. "."
+            val packageOverride = fqcnOverride.substringBeforeLast('.').ifEmpty { "." }
+            // Never null, since the base package is always known
+            PackageShortcuts.resolve(packageFqName, packageOverride)!!
         }
     }
     val workerClassName = classNameOverride ?: factoryFqName.shortName().asString().removeSuffix(

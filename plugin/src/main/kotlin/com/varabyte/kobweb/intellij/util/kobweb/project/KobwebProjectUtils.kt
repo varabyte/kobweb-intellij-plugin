@@ -8,21 +8,23 @@ import com.varabyte.kobweb.intellij.model.KobwebProjectType
 import com.varabyte.kobweb.intellij.project.KobwebProject
 import com.varabyte.kobweb.intellij.project.findKobwebModel
 import com.varabyte.kobweb.intellij.services.project.KobwebProjectCacheService
+import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_BACKEND
+import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_FRONTEND
+import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_LIBRARY
+import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_WORKER
 import com.varabyte.kobweb.intellij.util.kobweb.isKobwebPluginEnabled
 import com.varabyte.kobweb.intellij.util.module.toGradleModule
 import com.varabyte.kobweb.intellij.util.psi.containingKlib
 import org.jetbrains.kotlin.idea.base.util.module
 
-// Constants useful for identifying external artifacts as Kobweb projects
-private const val KOBWEB_METADATA_ROOT = "META-INF/kobweb"
+// Metadata files useful for identifying external artifacts as Kobweb projects
 private val KOBWEB_METADATA_IDENTIFIERS_LIBRARY = listOf(
-    "$KOBWEB_METADATA_ROOT/library.json",
+    KOBWEB_METADATA_LIBRARY,
     // Legacy ways to identify a library, before library.json was introduced
     // We can remove these after a few months and/or when Kobweb hits 1.0
-    "$KOBWEB_METADATA_ROOT/frontend.json",
-    "$KOBWEB_METADATA_ROOT/backend.json",
+    KOBWEB_METADATA_FRONTEND,
+    KOBWEB_METADATA_BACKEND,
 )
-private const val KOBWEB_METADATA_IDENTIFIER_WORKER = "$KOBWEB_METADATA_ROOT/worker.json"
 
 private fun Module.findKobwebProject(kobwebProjectsCache: KobwebProjectCacheService): KobwebProject? {
     // Lightweight tests (no Gradle) register their project into the cache directly. Production code will only ever use
@@ -38,6 +40,7 @@ private fun Module.findKobwebProject(kobwebProjectsCache: KobwebProjectCacheServ
             gradleModule.name,
             kobwebModel.projectType,
             KobwebProject.Source.Local(gradleModule),
+            kobwebModel.group,
             kobwebModel.worker,
         ).also {
             kobwebProjectsCache.add(it)
@@ -56,7 +59,7 @@ private fun VirtualFile.findKobwebProject(kobwebProjectsCache: KobwebProjectCach
             KobwebProjectType.Library
         }
 
-        this.findFileByRelativePath(KOBWEB_METADATA_IDENTIFIER_WORKER) != null -> {
+        this.findFileByRelativePath(KOBWEB_METADATA_WORKER) != null -> {
             KobwebProjectType.Worker
         }
 

@@ -15,6 +15,7 @@ import com.intellij.testFramework.IdeaTestUtil
 import com.intellij.testFramework.LightProjectDescriptor
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.fixtures.DefaultLightProjectDescriptor
+import com.intellij.testFramework.runInEdtAndWait
 import com.intellij.util.PathUtil
 import com.varabyte.kobweb.intellij.model.KobwebProjectType
 import com.varabyte.kobweb.intellij.model.WorkerBlock
@@ -37,6 +38,9 @@ import java.io.File
  */
 abstract class KobwebProjectTestCase(private val projectType: KobwebProjectType) : BasePlatformTestCase() {
     companion object {
+        /** The Gradle group that test modules are registered with, which `@Layout(".some.path")` paths expand from. */
+        const val TEST_GROUP = "com.varabyte.kobweb.plugin.test"
+
         /**
          * Returns the files listed in a path-separated system property, which the Gradle test task sets.
          *
@@ -102,6 +106,7 @@ abstract class KobwebProjectTestCase(private val projectType: KobwebProjectType)
      * Register the Kobweb project that this test's module represents, replacing any previous registration.
      */
     protected fun registerKobwebProject(
+        group: String = TEST_GROUP,
         worker: WorkerBlock? = if (projectType == KobwebProjectType.Worker) WorkerBlock() else null,
     ) {
         if (worker != null && projectType != KobwebProjectType.Worker) {
@@ -109,10 +114,11 @@ abstract class KobwebProjectTestCase(private val projectType: KobwebProjectType)
         }
 
         project.service<KobwebProjectCacheService>()
-            .add(KobwebProject("test-shell", projectType, Local(this.module), worker))
+            .add(KobwebProject("test-shell", projectType, Local(this.module), group, worker))
 
         // Kotlin analysis may have cached results based on the previous registration (e.g. from an earlier test)
-        WriteAction.run<Throwable> { project.publishGlobalSourceModuleStateModificationEvent() }
+        // (Wrapped in `runInEdtAndWait` for as some tests run off the UI thread)
+        runInEdtAndWait { WriteAction.run<Throwable> { project.publishGlobalSourceModuleStateModificationEvent() } }
     }
 
     override fun setUp() {

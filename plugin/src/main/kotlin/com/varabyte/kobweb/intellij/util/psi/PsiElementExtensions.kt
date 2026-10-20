@@ -13,9 +13,10 @@ import com.intellij.psi.PsiElement
  */
 internal val PsiElement.containingKlib: VirtualFile?
     get() {
-        return this.containingFile?.let { containingFile ->
+        // Note: In-memory copies of files don't have a virtual file of their own
+        return this.containingFile?.originalFile?.virtualFile?.let { virtualFile ->
             ProjectFileIndex.getInstance(this.project)
-                .getOrderEntriesForFile(containingFile.virtualFile)
+                .getOrderEntriesForFile(virtualFile)
                 .asSequence()
                 .filterIsInstance<LibraryOrderEntry>()
                 .mapNotNull { it.library?.getFiles(OrderRootType.CLASSES)?.toList() }

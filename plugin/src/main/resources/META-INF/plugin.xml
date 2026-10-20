@@ -101,6 +101,15 @@
             <categoryKey>kobweb.name</categoryKey>
             <language>kotlin</language>
         </intentionAction>
+        <psi.referenceContributor
+                language="kotlin"
+                implementation="com.varabyte.kobweb.intellij.references.layout.LayoutPathReferenceContributor"/>
+        <!-- Must run before Kotlin's, which suppresses auto-popups in all strings -->
+        <completion.confidence
+                language="kotlin"
+                id="kobwebLayoutPathCompletionConfidence"
+                order="before kotlinSkipAutopopupInStrings"
+                implementationClass="com.varabyte.kobweb.intellij.completion.layout.LayoutPathCompletionConfidence"/>
         <colorProvider implementation="com.varabyte.kobweb.intellij.colors.KobwebColorProvider" />
         <codeInsight.declarativeInlayProvider
                 implementationClass="com.varabyte.kobweb.intellij.inlay.KobwebModifierInlayHintsProvider"

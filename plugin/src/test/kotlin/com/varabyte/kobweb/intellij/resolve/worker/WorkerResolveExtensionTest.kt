@@ -63,6 +63,28 @@ class WorkerResolveExtensionTest : KobwebWorkerTestCase() {
         )
     }
 
+    fun testWorkerClassResolvesForAliasedFactoryImport() {
+        // "import WorkerFactory as Factory" works
+        addWorkerFactoryToProject(
+            // language=kotlin
+            """
+            package com.example
+
+            import com.varabyte.kobweb.worker.OutputDispatcher
+            import com.varabyte.kobweb.worker.WorkerFactory as Factory
+            import com.varabyte.kobweb.worker.WorkerStrategy
+            import com.varabyte.kobweb.serialization.IOSerializer
+
+            internal class EchoWorkerFactory : Factory<String, String> {
+                override fun createStrategy(postOutput: OutputDispatcher<String>) = WorkerStrategy<String> { input -> postOutput(input) }
+                override fun createIOSerializer(): IOSerializer<String, String> = TODO()
+            }
+            """.trimIndent()
+        )
+
+        assertThat(classExists("com.example.EchoWorker")).isTrue()
+    }
+
     fun testWorkerClassUsesFqcnOverride() {
         setWorkerFqcn(".custom.Echo")
         addWorkerFactoryToProject()

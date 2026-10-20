@@ -11,6 +11,7 @@ import org.jetbrains.plugins.gradle.tooling.ModelBuilderContext
 
 private class KobwebModelImpl(
     override val projectType: KobwebProjectType,
+    override val group: String,
     override val worker: WorkerBlock?,
 ) : KobwebModel
 
@@ -46,6 +47,7 @@ private fun Project.toKobwebModel(): KobwebModel? {
 
     return KobwebModelImpl(
         projectType,
+        group.toString(),
         if (projectType == KobwebProjectType.Worker) createWorkerBlock() else null
     )
 }

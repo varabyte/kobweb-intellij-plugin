@@ -21,6 +21,14 @@ interface KobwebModel : Serializable {
     val projectType: KobwebProjectType
 
     /**
+     * The Gradle project's group (e.g. "com.example").
+     *
+     * In various contexts, Kobweb treats paths that start with a leading period as relative to this value,
+     * e.g. ".components.layouts" expands to "com.example.components.layouts".
+     */
+    val group: String
+
+    /**
      * Values from the `kobweb { worker { ... } }` block in a worker project's build script.
      *
      * This is always null for non-worker projects.

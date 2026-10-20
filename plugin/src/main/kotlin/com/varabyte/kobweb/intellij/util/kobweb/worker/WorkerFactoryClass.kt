@@ -1,6 +1,7 @@
 package com.varabyte.kobweb.intellij.util.kobweb.worker
 
 import com.intellij.openapi.module.Module
+import com.varabyte.kobweb.intellij.util.psi.refersTo
 import org.jetbrains.kotlin.idea.base.util.module
 import org.jetbrains.kotlin.idea.stubindex.KotlinSuperClassIndex
 import org.jetbrains.kotlin.lexer.KtTokens
@@ -14,32 +15,16 @@ import org.jetbrains.kotlin.psi.psiUtil.isPrivate
 // these functions to decide which declarations to add to a module, but resolving types in that module first requires
 // knowing all of its declarations (including ours), so using type resolution here would be circular.
 
-private fun KtUserType.isWorkerFactoryReference(): Boolean {
-    if (referencedName != WORKER_FACTORY_CLASS_ID.shortClassName.asString()) return false
-
-    qualifier?.let { qualifier -> return qualifier.text == WORKER_PACKAGE.asString() }
-
-    val file = containingKtFile
-    if (file.packageFqName == WORKER_PACKAGE) return true
-    return file.importDirectives.any { import ->
-        if (import.isAllUnder) {
-            import.importedFqName == WORKER_PACKAGE
-        } else {
-            import.importedFqName == WORKER_FACTORY_CLASS_ID.asSingleFqName() && import.aliasName == null
-        }
-    }
-}
-
 /**
  * Returns the `WorkerFactory<I, O>` supertype of this class, if it directly implements one.
  *
  * Note: Without type resolution, we can't detect classes that implement `WorkerFactory` indirectly (e.g. via an
- * intermediate base class) or via an import alias.
+ * intermediate base class).
  */
 private fun KtClassOrObject.findWorkerFactorySupertype(): KtUserType? {
     return superTypeListEntries
         .mapNotNull { it.typeReference?.typeElement as? KtUserType }
-        .firstOrNull { it.isWorkerFactoryReference() }
+        .firstOrNull { it.refersTo(WORKER_FACTORY_CLASS_ID.asSingleFqName()) }
 }
 
 /**
