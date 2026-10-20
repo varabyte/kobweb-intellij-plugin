@@ -34,10 +34,10 @@ class SilkIconLineMarkerProviderTest : KobwebLineMarkerTestBase() {
 
     fun testGutterIconShownForIconCalls() {
         val expectedTooltips = listOf(
-            "Font Awesome: square (regular)",
-            "Font Awesome: square (solid)",
-            "Font Awesome: house (solid)",
-            "Font Awesome: github (brands)",
+            "Font Awesome: square (outline)",
+            "Font Awesome: square (filled)",
+            "Font Awesome: house",
+            "Font Awesome: github",
         )
 
         doTest(
@@ -74,7 +74,7 @@ class SilkIconLineMarkerProviderTest : KobwebLineMarkerTestBase() {
             fun SomePage() {
                 FaIcon("square", Modifier) // Helper function, not an icon
                 FaSquareLookalike() // Not from Kobweb
-                FaUser() // Real icon, but missing from the preview data
+                FaUser() // Real icon, but missing from the preview (test) data
             }
             """.trimIndent(),
             acceptLineMarker = { isIconPreview(it.lineMarkerTooltip) },

@@ -35,9 +35,16 @@ import kotlin.io.path.inputStream
 import kotlin.io.path.readBytes
 import kotlin.io.path.writeBytes
 
-class IconPreview(val shape: IconShape, val iconSet: SilkIconSet, val style: SilkIconStyle) {
-    val description get() = "${iconSet.displayName}: ${shape.name} (${style.displayName})"
-}
+class IconPreview(val shape: IconShape, val iconSet: SilkIconSet, val style: SilkIconStyle)
+
+/**
+ * Returns the preview of the icon [call] renders, i.e. in the style it requests, or else its default style.
+ *
+ * The receiver is expected to be the result of [IconPreviewService.findAllPreviews] for the same call.
+ */
+fun List<IconPreview>.findRenderedBy(call: SilkIconCall): IconPreview? =
+    (call.styleArgument as? SilkIconCall.StyleArgument.Direct)?.let { arg -> find { it.style == arg.style } }
+        ?: firstOrNull()
 
 private const val DATA_URL = "https://raw.githubusercontent.com/varabyte/data/main/kobweb-intellij-plugin/icon-previews"
 private const val NETWORK_TIMEOUT_MS = 5000
@@ -46,8 +53,8 @@ private const val NETWORK_TIMEOUT_MS = 5000
  * Provides outlines for Kobweb's silk icons, for previewing them in the editor.
  *
  * Icon data is downloaded on demand from the varabyte/data repo and cached in the IDE's system directory. Each icon set
- * is loaded in the background the first time one of its icons is requested; until then, [findPreview] returns null,
- * and once it's ready, open editors are re-highlighted so their previews show up.
+ * is loaded in the background the first time one of its icons is requested; until then, [findAllPreviews] returns
+ * nothing, and once it's ready, open editors are re-highlighted so their previews show up.
  *
  * The remote manifest is checked once per IDE session, and only files whose checksums changed are downloaded again.
  * When offline, previously cached files are used as is.
@@ -81,16 +88,22 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
     private val requestedIconSets = ConcurrentHashMap.newKeySet<SilkIconSet>()
     private val loadedIconSets = ConcurrentHashMap<SilkIconSet, LoadedIconSet>()
 
-    fun findPreview(call: SilkIconCall): IconPreview? {
+    /**
+     * Returns a preview of [call]'s icon in every style it's available in, in order of preference (so the first is the
+     * style used when the call doesn't request one).
+     *
+     * This is empty if the icon is unknown, or if its icon set hasn't loaded yet. Use [findRenderedBy] on the result to
+     * get the preview in the style the call actually renders.
+     */
+    fun findAllPreviews(call: SilkIconCall): List<IconPreview> {
         val loaded = loadedIconSets[call.iconSet]
         if (loaded == null) {
             requestLoad(call.iconSet)
-            return null
+            return emptyList()
         }
 
         val key = loaded.aliases[call.key] ?: call.key
-        val candidateStyles = listOfNotNull(call.requestedStyle) + call.iconSet.styles
-        return candidateStyles.firstNotNullOfOrNull { style ->
+        return call.iconSet.styles.mapNotNull { style ->
             loaded.styles[style.id]?.get(key)?.let { IconPreview(it, call.iconSet, style) }
         }
     }

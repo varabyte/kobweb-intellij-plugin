@@ -10,9 +10,13 @@ import java.awt.RenderingHints
 import javax.swing.Icon
 import kotlin.math.max
 
-/** A Swing icon that paints an [IconShape] in the editor's foreground color, so it adapts to the current theme. */
-class IconShapeIcon(private val shape: IconShape) : Icon {
-    private val size get() = JBUIScale.scale(12)
+/**
+ * A Swing icon that paints an [IconShape] in the editor's foreground color, so it adapts to the current theme.
+ *
+ * @param baseSize The icon's width and height before scaling for the user's display. The default suits the gutter.
+ */
+class IconShapeIcon(private val shape: IconShape, private val baseSize: Int = 12) : Icon {
+    private val size get() = JBUIScale.scale(baseSize)
 
     override fun getIconWidth() = size
     override fun getIconHeight() = size

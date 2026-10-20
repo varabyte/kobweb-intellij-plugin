@@ -5,7 +5,9 @@ import com.intellij.codeInsight.daemon.LineMarkerProviderDescriptor
 import com.intellij.openapi.editor.markup.GutterIconRenderer
 import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
+import com.intellij.ui.awt.RelativePoint
 import com.varabyte.kobweb.intellij.services.icons.IconPreviewService
+import com.varabyte.kobweb.intellij.services.icons.findRenderedBy
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconSet
 import com.varabyte.kobweb.intellij.util.kobweb.silk.asSilkIconCall
@@ -32,16 +34,24 @@ class SilkIconLineMarkerProvider : LineMarkerProviderDescriptor() {
         if (!element.isInReadableKobwebProject()) return null
 
         val iconCall = analyze(call) { call.asSilkIconCall() } ?: return null
-        val preview = IconPreviewService.instance.findPreview(iconCall) ?: return null
+        val allPreviews = IconPreviewService.instance.findAllPreviews(iconCall)
+        val preview = allPreviews.findRenderedBy(iconCall) ?: return null
+        val description = buildString {
+            append("${iconCall.iconSet.displayName}: ${preview.shape.name}")
+            // Only mention the style if the user can choose it, e.g. not for icons that only come in one style
+            if (iconCall.styleEnum != null) preview.style.displayName?.let { append(" ($it)") }
+        }
 
         return LineMarkerInfo(
             element,
             element.textRange,
             IconShapeIcon(preview.shape),
-            /* tooltipProvider = */ { preview.description },
-            /* navHandler = */ null,
+            /* tooltipProvider = */ { description },
+            /* navHandler = */ { mouseEvent, _ ->
+                SilkIconPopup(call, iconCall, allPreviews).show(RelativePoint(mouseEvent))
+            },
             GutterIconRenderer.Alignment.LEFT,
-            /* accessibleNameProvider = */ { preview.description },
+            /* accessibleNameProvider = */ { description },
         )
     }
 }
