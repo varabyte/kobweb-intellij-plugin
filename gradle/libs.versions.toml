@@ -15,9 +15,12 @@ batik = "1.19"
 truthish = "1.0.4"
 
 [libraries]
+# For build-logic
+kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+# For the plugin
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
-# For icon-previews
+# For tools/icon-previews-generator
 batik-parser = { module = "org.apache.xmlgraphics:batik-parser", version.ref = "batik" }
 # For testing
 kobweb-silk = { module = "com.varabyte.kobweb:kobweb-silk", version.ref = "kobweb" }

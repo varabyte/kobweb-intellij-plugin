@@ -3,10 +3,9 @@ import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.tasks.RunIdeTask
 import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask.FailureLevel
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
+    id("kobweb-compilation-settings")
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.intellij.platform)
     alias(libs.plugins.jetbrains.changelog)
@@ -19,7 +18,6 @@ version = libs.versions.kobweb.ide.plugin.get()
 // https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin.html
 
 repositories {
-    mavenCentral()
     google() // For androidx.compose.runtime
     intellijPlatform {
         defaultRepositories()
@@ -197,17 +195,6 @@ changelog {
 }
 
 fun Project.isSnapshot() = version.toString().endsWith("-SNAPSHOT")
-
-val targetJvm = JvmTarget.JVM_21
-tasks.withType<JavaCompile>().configureEach {
-    sourceCompatibility = targetJvm.target
-    targetCompatibility = targetJvm.target
-}
-tasks.withType<KotlinCompile>().configureEach {
-    compilerOptions {
-        jvmTarget.set(targetJvm)
-    }
-}
 
 tasks.withType<Test>().configureEach {
     val klibs = kobwebTestLibs.incoming.files

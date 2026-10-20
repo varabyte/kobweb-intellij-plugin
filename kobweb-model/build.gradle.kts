@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
+    id("kobweb-compilation-settings")
     alias(libs.plugins.kotlin.jvm)
 }
 
@@ -9,7 +9,6 @@ group = "com.varabyte.kobweb.intellij.model"
 version = libs.versions.kobweb.ide.plugin.get()
 
 repositories {
-    mavenCentral()
     // JetBrains repository for gradle-tooling-extension
     maven("https://www.jetbrains.com/intellij-repository/releases")
     maven("https://cache-redirector.jetbrains.com/intellij-dependencies")
@@ -26,15 +25,8 @@ dependencies {
     }
 }
 
-// These model classes will be run using the Gradle JVM, not the IntelliJ JVM. Let's set them to
-// an old version to reduce the chance of JDK incompatibilities.
-val targetJvm = JvmTarget.JVM_1_8
-tasks.withType<JavaCompile>().configureEach {
-    sourceCompatibility = targetJvm.target
-    targetCompatibility = targetJvm.target
-}
-tasks.withType<KotlinCompile>().configureEach {
-    compilerOptions {
-        jvmTarget.set(targetJvm)
-    }
+compilationSettings {
+    // These model classes will be run using the Gradle JVM, not the IntelliJ JVM. Let's set them to
+    // an old version to reduce the chance of JDK incompatibilities.
+    jvmTarget = JvmTarget.JVM_1_8
 }
