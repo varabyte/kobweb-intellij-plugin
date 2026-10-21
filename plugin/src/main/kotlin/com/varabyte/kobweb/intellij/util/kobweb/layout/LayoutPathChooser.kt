@@ -63,9 +63,16 @@ object LayoutPathChooser {
         override fun invoke(context: ActionContext, element: PsiElement, updater: ModPsiUpdater) {
             when (element) {
                 is KtStringTemplateExpression -> ElementManipulators.handleContentChange(element, path)
-                // An annotation without a path, e.g. `@Layout` or `@Layout()`. We add the path in place, rather than
-                // recreating the annotation, so we keep any use-site target (e.g. `@file:Layout`).
+                // An annotation without a (non-empty) path, e.g. `@Layout`, `@Layout()`, or `@Layout("")`. We update it
+                // in place, rather than recreating the annotation, so we keep any use-site target (e.g. `@file:Layout`).
                 is KtAnnotationEntry -> {
+                    val existingPath = element.valueArguments.firstOrNull()?.getArgumentExpression()
+                        as? KtStringTemplateExpression
+                    if (existingPath != null) {
+                        ElementManipulators.handleContentChange(existingPath, path)
+                        return
+                    }
+
                     val psiFactory = KtPsiFactory(context.project())
                     val argument = psiFactory.createArgument(psiFactory.createStringTemplate(path))
                     element.valueArgumentList?.addArgument(argument)

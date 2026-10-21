@@ -313,6 +313,45 @@ class InvalidLayoutPathInspectionTest : KobwebInspectionTestBase() {
         )
     }
 
+    fun testPageWithEmptyPathCanBeFixedByChoosingLayout() {
+        doTest(
+            """
+            package $TEST_GROUP.pages
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+            import com.varabyte.kobweb.core.layout.Layout
+
+            @Page
+            <error>@Layout("")</error>
+            @Composable
+            fun Index() {
+            }
+            """.trimIndent(),
+            thenFixWith<ChooseLayoutQuickFix>({ problem ->
+                chooseLayout(
+                    problem,
+                    expectedChoices = listOf(".components.layouts.BlogLayout", ".components.layouts.PageLayout"),
+                    choice = ".components.layouts.PageLayout",
+                )
+            },
+                """
+                package $TEST_GROUP.pages
+
+                import androidx.compose.runtime.Composable
+                import com.varabyte.kobweb.core.Page
+                import com.varabyte.kobweb.core.layout.Layout
+
+                @Page
+                @Layout(".components.layouts.PageLayout")
+                @Composable
+                fun Index() {
+                }
+                """.trimIndent()
+            )
+        )
+    }
+
     fun testDefaultLayoutWithoutPathCanBeFixedByChoosingLayout() {
         doTest(
             """
