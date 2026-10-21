@@ -16,9 +16,13 @@ import com.intellij.codeInsight.hints.declarative.PsiPointerInlayActionNavigatio
 import com.intellij.codeInsight.hints.declarative.PsiPointerInlayActionPayload
 import com.intellij.codeInsight.hints.declarative.SharedBypassCollector
 import com.intellij.codeInsight.hints.settings.showInlaySettings
+import com.intellij.modcommand.ActionContext
+import com.intellij.modcommand.ModCommandExecutor
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.command.CommandProcessor
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.BlockInlayPriority
 import com.intellij.openapi.editor.Editor
@@ -32,6 +36,7 @@ import com.intellij.psi.SmartPointerManager
 import com.intellij.psi.util.PsiTreeUtil
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.layout.LAYOUT_FQN
+import com.varabyte.kobweb.intellij.util.kobweb.layout.LayoutPathChooser
 import com.varabyte.kobweb.intellij.util.kobweb.layout.PAGE_FQN
 import com.varabyte.kobweb.intellij.util.kobweb.layout.addNoLayoutAnnotation
 import com.varabyte.kobweb.intellij.util.kobweb.layout.displayPath
@@ -136,25 +141,52 @@ class KobwebAnnotationInlayHintsProvider : InlayHintsProvider {
 }
 
 /**
+ * The page a default layout hint belongs to, if this event comes from that hint's menu.
+ */
+private val AnActionEvent.defaultLayoutHintPage: KtNamedFunction?
+    get() {
+        if (getData(InlayHintsProvider.PROVIDER_ID) != KobwebAnnotationInlayHintsProvider.PROVIDER_ID) return null
+        val payload = getData(InlayHintsProvider.INLAY_PAYLOADS)?.get(PAGE_PAYLOAD) as? PsiPointerInlayActionPayload
+        return payload?.pointer?.element as? KtNamedFunction
+    }
+
+/**
+ * An action in the menu of a default layout hint, which gives its page a different layout, chosen from a popup.
+ */
+class ChooseLayoutForPageAction : AnAction() {
+    override fun getActionUpdateThread() = ActionUpdateThread.BGT
+
+    override fun update(e: AnActionEvent) {
+        e.presentation.isEnabledAndVisible = e.defaultLayoutHintPage != null && e.getData(CommonDataKeys.EDITOR) != null
+    }
+
+    override fun actionPerformed(e: AnActionEvent) {
+        val page = e.defaultLayoutHintPage ?: return
+        val editor = e.getData(CommonDataKeys.EDITOR) ?: return
+        val context = ActionContext.from(editor, page.containingFile)
+        // Executing a ModCommand must happen inside a command (but outside a write action)
+        CommandProcessor.getInstance().executeCommand(
+            page.project,
+            { ModCommandExecutor.getInstance().executeInteractively(context, LayoutPathChooser.choose(page), editor) },
+            e.presentation.text,
+            null,
+        )
+    }
+}
+
+/**
  * An action in the menu of a default layout hint, which opts its page out of the layout by annotating it with
  * `@NoLayout`.
  */
 class OptOutOfDefaultLayoutAction : AnAction() {
-    private val AnActionEvent.page: KtNamedFunction?
-        get() {
-            if (getData(InlayHintsProvider.PROVIDER_ID) != KobwebAnnotationInlayHintsProvider.PROVIDER_ID) return null
-            val payload = getData(InlayHintsProvider.INLAY_PAYLOADS)?.get(PAGE_PAYLOAD) as? PsiPointerInlayActionPayload
-            return payload?.pointer?.element as? KtNamedFunction
-        }
-
     override fun getActionUpdateThread() = ActionUpdateThread.BGT
 
     override fun update(e: AnActionEvent) {
-        e.presentation.isEnabledAndVisible = e.page != null
+        e.presentation.isEnabledAndVisible = e.defaultLayoutHintPage != null
     }
 
     override fun actionPerformed(e: AnActionEvent) {
-        val page = e.page ?: return
+        val page = e.defaultLayoutHintPage ?: return
         WriteCommandAction.writeCommandAction(page.project, page.containingFile)
             .withName(e.presentation.text)
             .run<Throwable> { page.addNoLayoutAnnotation() }

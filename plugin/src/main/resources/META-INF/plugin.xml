@@ -22,6 +22,10 @@
         </group>
 
         <!-- Extra inlay hint options (check code for logic around conditions they show up under) -->
+        <action id="Kobweb.ChooseLayoutForPage"
+                class="com.varabyte.kobweb.intellij.inlay.ChooseLayoutForPageAction">
+            <add-to-group group-id="InlayMenu"/>
+        </action>
         <action id="Kobweb.OptOutOfDefaultLayout"
                 class="com.varabyte.kobweb.intellij.inlay.OptOutOfDefaultLayoutAction">
             <add-to-group group-id="InlayMenu"/>

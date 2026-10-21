@@ -18,7 +18,8 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 
 /**
- * Lets the user choose a layout for a `@Layout` annotation from a popup, updating the annotation with their choice.
+ * Lets the user choose a layout for a `@Layout` annotation from a popup, updating (or adding) the annotation with their
+ * choice.
  */
 object LayoutPathChooser {
     /**
@@ -27,8 +28,9 @@ object LayoutPathChooser {
      * Layouts that best match the current path are listed first, so a typo'd path puts the intended layout at the top
      * (and a valid path puts the current layout at the top).
      *
-     * @param element Either the annotation's path, which will be replaced, or an annotation without a path (e.g.
-     *   `@Layout`), which will have one added.
+     * @param element Either the annotation's path, which will be replaced, an annotation without a path (e.g.
+     *   `@Layout`), which will have one added, or a page without a `@Layout` annotation, which will have one added (in
+     *   which case the default layout it already uses, if any, isn't offered).
      */
     fun choose(element: PsiElement): ModCommand {
         val currentPath = (element as? KtStringTemplateExpression)?.let(ElementManipulators::getValueText).orEmpty()
@@ -36,6 +38,8 @@ object LayoutPathChooser {
         val group = element.kobwebGroup
         // A layout can't be its own parent
         val annotatedFunction = element.getStrictParentOfType<KtNamedFunction>()
+        // Choosing the default layout a page already uses wouldn't change anything
+        val defaultLayoutFqn = (element as? KtNamedFunction)?.findDefaultLayout()?.layout?.fqn
 
         fun LayoutDefinition.distanceFromCurrentName(): Int {
             // Without a name to compare against, edit distance would just favor shorter names
@@ -44,6 +48,7 @@ object LayoutPathChooser {
 
         val paths = element.findLayouts()
             .filter { layout -> layout.function == null || layout.function != annotatedFunction }
+            .filter { layout -> layout.fqn != defaultLayoutFqn }
             .sortedWith(compareBy({ it.distanceFromCurrentName() }, { it.fqn }))
             .map { layout -> PackageShortcuts.relativize(group, FqName(layout.fqn)) }
 
@@ -63,6 +68,8 @@ object LayoutPathChooser {
         override fun invoke(context: ActionContext, element: PsiElement, updater: ModPsiUpdater) {
             when (element) {
                 is KtStringTemplateExpression -> ElementManipulators.handleContentChange(element, path)
+                // A page without a `@Layout` annotation
+                is KtNamedFunction -> element.addLayoutAnnotation(path)
                 // An annotation without a (non-empty) path, e.g. `@Layout`, `@Layout()`, or `@Layout("")`. We update it
                 // in place, rather than recreating the annotation, so we keep any use-site target (e.g. `@file:Layout`).
                 is KtAnnotationEntry -> {

@@ -144,20 +144,39 @@ val DefaultLayout.displayPath: String
     }
 
 /**
- * Opts this page out of its default layout, by annotating it with `@NoLayout`.
- *
- * The annotation is added right after the page's `@Page` annotation, which is where Kobweb's docs put layout
- * annotations.
+ * Annotates this page with [annotationText], right after its `@Page` annotation, which is where Kobweb's docs put
+ * layout annotations, and imports [annotationFqn] if needed.
  */
-fun KtNamedFunction.addNoLayoutAnnotation() {
+private fun KtNamedFunction.addAnnotationAfterPage(annotationText: String, annotationFqn: FqName) {
     val pageAnnotation = annotationEntries.firstOrNull { it.isAnnotationOfType(PAGE_FQN) } ?: return
     val psiFactory = KtPsiFactory(project)
 
     // Separate the new annotation from `@Page` the same way that `@Page` is separated from the code after it
     val separator = (PsiTreeUtil.nextLeaf(pageAnnotation) as? PsiWhiteSpace)?.text ?: " "
     val parent = pageAnnotation.parent
-    val noLayout = parent.addAfter(psiFactory.createAnnotationEntry("@${NO_LAYOUT_FQN.shortName()}"), pageAnnotation)
-    parent.addBefore(psiFactory.createWhiteSpace(separator), noLayout)
+    val annotation = parent.addAfter(psiFactory.createAnnotationEntry(annotationText), pageAnnotation)
+    parent.addBefore(psiFactory.createWhiteSpace(separator), annotation)
 
-    containingKtFile.addImportIfNeeded(NO_LAYOUT_FQN)
+    containingKtFile.addImportIfNeeded(annotationFqn)
+}
+
+/**
+ * Opts this page out of its default layout, by annotating it with `@NoLayout`.
+ *
+ * The annotation is added right after the page's `@Page` annotation, which is where Kobweb's docs put layout
+ * annotations.
+ */
+fun KtNamedFunction.addNoLayoutAnnotation() {
+    addAnnotationAfterPage("@${NO_LAYOUT_FQN.shortName()}", NO_LAYOUT_FQN)
+}
+
+/**
+ * Gives this page its own layout, by annotating it with `@Layout(path)`.
+ *
+ * The annotation is added right after the page's `@Page` annotation, which is where Kobweb's docs put layout
+ * annotations.
+ */
+fun KtNamedFunction.addLayoutAnnotation(path: String) {
+    val pathText = KtPsiFactory(project).createStringTemplate(path).text
+    addAnnotationAfterPage("@${LAYOUT_FQN.shortName()}($pathText)", LAYOUT_FQN)
 }

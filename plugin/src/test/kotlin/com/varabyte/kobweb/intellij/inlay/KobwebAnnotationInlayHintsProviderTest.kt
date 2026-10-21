@@ -1,9 +1,15 @@
 package com.varabyte.kobweb.intellij.inlay
 
+import com.intellij.modcommand.ActionContext
+import com.intellij.modcommand.ModChooseAction
+import com.intellij.modcommand.ModCommandExecutor
+import com.intellij.openapi.command.CommandProcessor
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.psi.util.PsiTreeUtil
+import com.varabyte.kobweb.intellij.util.kobweb.layout.LayoutPathChooser
 import com.varabyte.kobweb.intellij.util.kobweb.layout.addNoLayoutAnnotation
 import com.varabyte.kobweb.intellij.util.kobweb.layout.findDefaultLayout
+import com.varabyte.truthish.assertThat
 import org.intellij.lang.annotations.Language
 import org.jetbrains.kotlin.psi.KtNamedFunction
 
@@ -282,6 +288,52 @@ class KobwebAnnotationInlayHintsProviderTest : KobwebInlayHintsTestBase() {
             fun AboutPage() {
             }
             """.trimIndent(),
+        )
+    }
+
+    fun testChoosingDifferentLayoutAddsLayoutAfterPage() {
+        myFixture.configureByText(
+            "InlayTest.kt",
+            """
+            package $TEST_GROUP.pages.blog.posts
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+
+            @Page
+            @Composable
+            fun FirstPost() {
+            }
+            """.trimIndent()
+        )
+        val page = PsiTreeUtil.findChildOfType(myFixture.file, KtNamedFunction::class.java)!!
+
+        val context = ActionContext.from(myFixture.editor, myFixture.file)
+        val chooser = LayoutPathChooser.choose(page) as ModChooseAction
+        val choices = chooser.actions().associateBy { it.getPresentation(context)!!.name() }
+        // The page already uses `BlogLayout` by default, so it isn't offered
+        assertThat(choices.keys).containsExactly(".components.layouts.PageLayout")
+
+        // Executing a ModCommand must happen inside a command (but outside a write action)
+        CommandProcessor.getInstance().executeCommand(project, {
+            ModCommandExecutor.getInstance()
+                .executeInBatch(context, choices.getValue(".components.layouts.PageLayout").perform(context))
+        }, null, null)
+
+        myFixture.checkResult(
+            """
+            package $TEST_GROUP.pages.blog.posts
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+            import com.varabyte.kobweb.core.layout.Layout
+
+            @Page
+            @Layout(".components.layouts.PageLayout")
+            @Composable
+            fun FirstPost() {
+            }
+            """.trimIndent()
         )
     }
 }
