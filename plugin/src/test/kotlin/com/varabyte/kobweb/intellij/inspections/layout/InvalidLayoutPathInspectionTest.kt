@@ -4,7 +4,7 @@ import com.intellij.codeInspection.ProblemDescriptor
 import com.intellij.modcommand.ActionContext
 import com.intellij.modcommand.ModChooseAction
 import com.intellij.modcommand.ModCommandExecutor
-import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.command.CommandProcessor
 import com.varabyte.kobweb.intellij.inspections.KobwebInspectionTestBase
 import com.varabyte.kobweb.intellij.quickfixes.layout.ChooseLayoutQuickFix
 import com.varabyte.kobweb.intellij.quickfixes.layout.ReplaceWithNoLayoutQuickFix
@@ -228,9 +228,10 @@ class InvalidLayoutPathInspectionTest : KobwebInspectionTestBase() {
         val choices = chooser.actions().associateBy { it.getPresentation(context)!!.name() }
 
         assertThat(choices.keys).containsExactly(expectedChoices).inOrder()
-        WriteCommandAction.runWriteCommandAction(project) {
+        // Executing a ModCommand must happen inside a command (but outside a write action)
+        CommandProcessor.getInstance().executeCommand(project, {
             ModCommandExecutor.getInstance().executeInBatch(context, choices.getValue(choice).perform(context))
-        }
+        }, null, null)
     }
 
     fun testMisspelledPathCanBeFixedByChoosingClosestLayout() {

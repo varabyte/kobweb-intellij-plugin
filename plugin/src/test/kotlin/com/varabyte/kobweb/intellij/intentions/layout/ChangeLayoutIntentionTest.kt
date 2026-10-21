@@ -3,7 +3,7 @@ package com.varabyte.kobweb.intellij.intentions.layout
 import com.intellij.modcommand.ActionContext
 import com.intellij.modcommand.ModChooseAction
 import com.intellij.modcommand.ModCommandExecutor
-import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.command.CommandProcessor
 import com.varabyte.kobweb.intellij.intentions.KobwebIntentionTestBase
 import com.varabyte.truthish.assertThat
 
@@ -112,10 +112,11 @@ class ChangeLayoutIntentionTest : KobwebIntentionTestBase() {
         assertThat(choices.keys)
             .containsExactly(".components.layouts.PageLayout", ".components.layouts.BlogLayout")
             .inOrder()
-        WriteCommandAction.runWriteCommandAction(project) {
+        // Executing a ModCommand must happen inside a command (but outside a write action)
+        CommandProcessor.getInstance().executeCommand(project, {
             val blogLayoutChoice = choices.getValue(".components.layouts.BlogLayout")
             ModCommandExecutor.getInstance().executeInBatch(context, blogLayoutChoice.perform(context))
-        }
+        }, null, null)
 
         myFixture.checkResult(
             // language=kotlin
