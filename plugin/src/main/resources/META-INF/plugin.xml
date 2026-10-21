@@ -20,6 +20,16 @@
             <reference ref="Kobweb.RefactorActionGroup"/>
             <add-to-group group-id="RefactoringMenu" anchor="last"/>
         </group>
+
+        <!-- Extra inlay hint options (check code for logic around conditions they show up under) -->
+        <action id="Kobweb.OptOutOfDefaultLayout"
+                class="com.varabyte.kobweb.intellij.inlay.OptOutOfDefaultLayoutAction">
+            <add-to-group group-id="InlayMenu"/>
+        </action>
+        <action id="Kobweb.ConfigureAnnotationHints"
+                class="com.varabyte.kobweb.intellij.inlay.ConfigureKobwebAnnotationHintsAction">
+            <add-to-group group-id="InlayMenu"/>
+        </action>
     </actions>
 
     <extensions defaultExtensionNs="com.intellij">
@@ -144,6 +154,22 @@
                     nameKey="kobweb.inlay.hints.modifier.style.name"
                     descriptionKey="kobweb.inlay.hints.modifier.style.desc"
                     enabledByDefault="false"
+            />
+        </codeInsight.declarativeInlayProvider>
+        <codeInsight.declarativeInlayProvider
+                implementationClass="com.varabyte.kobweb.intellij.inlay.KobwebAnnotationInlayHintsProvider"
+                language="kotlin"
+                providerId="kobweb.annotation.hints"
+                nameKey="kobweb.inlay.hints.annotations.name"
+                isEnabledByDefault="true"
+                group="ANNOTATIONS_GROUP"
+                bundle="bundles.KobwebBundle">
+            <option
+                    optionId="kobweb.annotation.hints.default.layout"
+                    bundle="bundles.KobwebBundle"
+                    nameKey="kobweb.inlay.hints.annotations.default.layout.name"
+                    descriptionKey="kobweb.inlay.hints.annotations.default.layout.desc"
+                    enabledByDefault="true"
             />
         </codeInsight.declarativeInlayProvider>
 

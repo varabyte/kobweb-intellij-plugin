@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.daemon.common.trimQuotes
+import org.jetbrains.kotlin.idea.base.psi.imports.addImport
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
@@ -155,6 +156,16 @@ fun KtFile.isInScopeAs(fqn: FqName, name: String): Boolean {
             else -> importedFqName == fqn && name == (import.aliasName ?: shortName)
         }
     }
+}
+
+/**
+ * Adds an import for [fqn] to this file, unless it's already in scope (see [isInScopeAs]).
+ *
+ * The import is placed according to the user's Kotlin import layout settings.
+ */
+fun KtFile.addImportIfNeeded(fqn: FqName) {
+    if (isInScopeAs(fqn, fqn.shortName().asString())) return
+    addImport(fqn)
 }
 
 /**

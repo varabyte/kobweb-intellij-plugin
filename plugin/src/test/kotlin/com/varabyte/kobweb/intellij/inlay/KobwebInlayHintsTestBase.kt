@@ -8,8 +8,16 @@ import org.intellij.lang.annotations.Language
 import org.jetbrains.kotlin.analysis.api.permissions.KaAllowAnalysisOnEdt
 import org.jetbrains.kotlin.analysis.api.permissions.allowAnalysisOnEdt
 
+/**
+ * A recorded hint.
+ *
+ * @property isAboveLine If true, the hint is shown on its own line, above the line containing [offset]
+ *   (i.e. [AboveLineIndentedPosition]). Otherwise, it's shown inline at [offset].
+ */
+private class RecordedHint(val offset: Int, val text: String, val isAboveLine: Boolean)
+
 private class RecordingSink(private val enabledOptions: Set<String>) : InlayTreeSink {
-    val hints = mutableListOf<Pair<Int, String>>() // offset to text
+    val hints = mutableListOf<RecordedHint>()
 
     override fun whenOptionEnabled(optionId: String, block: () -> Unit) {
         if (optionId in enabledOptions) block()
@@ -22,8 +30,13 @@ private class RecordingSink(private val enabledOptions: Set<String>) : InlayTree
         hintFormat: HintFormat,
         builder: PresentationTreeBuilder.() -> Unit,
     ) {
-        val offset = (position as InlineInlayPosition).offset
-        hints += offset to TextRecorder().apply(builder).text.toString()
+        val text = TextRecorder().apply(builder).text.toString()
+        @Suppress("UnstableApiUsage")
+        hints += when (position) {
+            is InlineInlayPosition -> RecordedHint(position.offset, text, isAboveLine = false)
+            is AboveLineIndentedPosition -> RecordedHint(position.offset, text, isAboveLine = true)
+            else -> error("Unexpected hint position: $position")
+        }
     }
 }
 
@@ -50,8 +63,16 @@ private class TextRecorder : PresentationTreeBuilder {
     }
 }
 
+/**
+ * A base class for testing inlay hints.
+ *
+ * Expected hints are written into the test code, using the same format as IntelliJ's own inlay hint tests:
+ * `/*<# text #>*/` for an inline hint, and a line containing just `/*<# block [text] #>*/` for a hint shown on its own
+ * line (above the line after it).
+ */
 abstract class KobwebInlayHintsTestBase : KobwebApplicationTestCase() {
     private val badgeRegex = Regex("""/\*<# (.*?) #>\*/""")
+    private val aboveLineHintRegex = Regex("""(?m)^[ \t]*/\*<# block \[(.*?)] #>\*/\n""")
     protected fun badge(text: String) = """/*<# $text #>*/"""
 
     protected abstract fun produceInlayProvider(): InlayHintsProvider
@@ -61,7 +82,7 @@ abstract class KobwebInlayHintsTestBase : KobwebApplicationTestCase() {
         @Language("kotlin") code: String,
         enabledOptions: Set<String>
     ) {
-        val withoutBadges = code.replace(badgeRegex, "")
+        val withoutBadges = code.replace(aboveLineHintRegex, "").replace(badgeRegex, "")
 
         val file = myFixture.configureByText("InlayTest.kt", withoutBadges)
         myFixture.doHighlighting()
@@ -78,9 +99,18 @@ abstract class KobwebInlayHintsTestBase : KobwebApplicationTestCase() {
         }
 
         val withBadges = StringBuilder(withoutBadges).apply {
-            sink.hints.sortedByDescending { it.first }.forEach { (offset, hint) ->
-                insert(offset, badge(hint))
-            }
+            sink.hints
+                .map { hint ->
+                    if (hint.isAboveLine) {
+                        val lineStart = withoutBadges.lastIndexOf('\n', hint.offset - 1) + 1
+                        val indent = withoutBadges.substring(lineStart).takeWhile { it == ' ' || it == '\t' }
+                        lineStart to "$indent/*<# block [${hint.text}] #>*/\n"
+                    } else {
+                        hint.offset to badge(hint.text)
+                    }
+                }
+                .sortedByDescending { (offset, _) -> offset }
+                .forEach { (offset, text) -> insert(offset, text) }
         }.toString()
 
         assertEquals(code, withBadges)
