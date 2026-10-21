@@ -1,0 +1,4 @@
+@Page
+<spot>@NoLayout</spot>
+@Composable
+fun ErrorPage() { }

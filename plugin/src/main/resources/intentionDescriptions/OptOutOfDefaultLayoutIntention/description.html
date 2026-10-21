@@ -1,0 +1,22 @@
+<html lang="en">
+<body>
+This action opts a page out of the default layout it uses (i.e. the one set by the closest <code>@file:Layout</code>
+annotation in its package), by annotating it with <code>@NoLayout</code>.
+<pre><code>
+// pages/blog/DefaultLayout.kt
+@file:Layout(".components.layouts.BlogLayout")
+
+// pages/blog/UndecoratedBlogPage.kt (before)
+@Page
+@Composable
+fun UndecoratedBlogPage() { }
+
+// pages/blog/UndecoratedBlogPage.kt (after)
+@Page
+@NoLayout
+@Composable
+fun UndecoratedBlogPage() { }
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>

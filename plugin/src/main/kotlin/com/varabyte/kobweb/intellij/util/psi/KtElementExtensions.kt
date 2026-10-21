@@ -78,6 +78,14 @@ fun KtDeclaration.hasAnyAnnotation(vararg classIds: ClassId): Boolean = with(kaS
     classIds.any { it in annotations }
 }
 
+/**
+ * Returns true if [offset] lies in this function's body, as opposed to its header (e.g. its annotations, name, and
+ * parameters).
+ *
+ * It can be useful to call `!isInBody` if you just want to target a function's header.
+ */
+fun KtNamedFunction.isInBody(offset: Int): Boolean = bodyExpression?.textRange?.contains(offset) == true
+
 // Used to live in `org.jetbrains.kotlin.js.translate.declaration.hasCustomGetter` but IJ removed it in 251.*
 fun KtProperty.hasCustomGetter() = getter?.hasBody() ?: false
 

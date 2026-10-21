@@ -134,6 +134,11 @@
             <categoryKey>kobweb.name</categoryKey>
             <language>kotlin</language>
         </intentionAction>
+        <intentionAction>
+            <className>com.varabyte.kobweb.intellij.intentions.layout.OptOutOfDefaultLayoutIntention</className>
+            <categoryKey>kobweb.name</categoryKey>
+            <language>kotlin</language>
+        </intentionAction>
         <psi.referenceContributor
                 language="kotlin"
                 implementation="com.varabyte.kobweb.intellij.references.layout.LayoutPathReferenceContributor"/>

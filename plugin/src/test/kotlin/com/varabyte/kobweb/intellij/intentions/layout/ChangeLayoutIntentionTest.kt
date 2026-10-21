@@ -135,4 +135,117 @@ class ChangeLayoutIntentionTest : KobwebIntentionTestBase() {
             """.trimIndent()
         )
     }
+
+    private fun addBlogDefaultLayout() {
+        myFixture.addFileToProject(
+            "pages/blog/DefaultLayout.kt",
+            // language=kotlin
+            """
+            @file:Layout(".components.layouts.BlogLayout")
+
+            package $TEST_GROUP.pages.blog
+
+            import com.varabyte.kobweb.core.layout.Layout
+            """.trimIndent()
+        )
+    }
+
+    fun testAvailableOnPageUsingDefaultLayout() {
+        addBlogDefaultLayout()
+        assertIntentionIsAvailable(
+            """
+            package $TEST_GROUP.pages.blog
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+
+            @Page
+            @Composable
+            fun First<caret>PostPage() {
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testNotAvailableInPageBody() {
+        addBlogDefaultLayout()
+        assertIntentionNotAvailable(
+            """
+            package $TEST_GROUP.pages.blog
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+
+            @Page
+            @Composable
+            fun FirstPostPage() {
+                println("Hel<caret>lo")
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testNotAvailableOnPageWithoutDefaultLayout() {
+        assertIntentionNotAvailable(
+            """
+            package $TEST_GROUP.pages
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+
+            @Page
+            @Composable
+            fun Home<caret>Page() {
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testChoosingLayoutForPageUsingDefaultLayoutAddsAnnotation() {
+        addBlogDefaultLayout()
+        myFixture.configureByText(
+            "FirstPostPage.kt",
+            // language=kotlin
+            """
+            package $TEST_GROUP.pages.blog
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+
+            @Page
+            @Composable
+            fun First<caret>PostPage() {
+            }
+            """.trimIndent()
+        )
+
+        val context = ActionContext.from(myFixture.editor, myFixture.file)
+        val chooser = ChangeLayoutIntention().perform(context) as ModChooseAction
+        val choices = chooser.actions().associateBy { it.getPresentation(context)!!.name() }
+
+        // The page already uses `BlogLayout` by default, so it isn't offered
+        assertThat(choices.keys).containsExactly(".components.layouts.PageLayout")
+        // Executing a ModCommand must happen inside a command (but outside a write action)
+        CommandProcessor.getInstance().executeCommand(project, {
+            val pageLayoutChoice = choices.getValue(".components.layouts.PageLayout")
+            ModCommandExecutor.getInstance().executeInBatch(context, pageLayoutChoice.perform(context))
+        }, null, null)
+
+        myFixture.checkResult(
+            // language=kotlin
+            """
+            package $TEST_GROUP.pages.blog
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+            import com.varabyte.kobweb.core.layout.Layout
+
+            @Page
+            @Layout(".components.layouts.PageLayout")
+            @Composable
+            fun FirstPostPage() {
+            }
+            """.trimIndent()
+        )
+    }
 }
