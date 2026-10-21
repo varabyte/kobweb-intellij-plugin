@@ -103,6 +103,13 @@
                 enabledByDefault="true"
                 level="ERROR"
                 implementationClass="com.varabyte.kobweb.intellij.inspections.layout.InvalidLayoutPathInspection"/>
+        <localInspection
+                language="kotlin"
+                groupKey="kobweb.name"
+                key="inspection.redundant.layout.display.name"
+                enabledByDefault="true"
+                level="WEAK WARNING"
+                implementationClass="com.varabyte.kobweb.intellij.inspections.layout.RedundantLayoutInspection"/>
         <intentionAction>
             <className>com.varabyte.kobweb.intellij.intentions.style.ExtractCssStyleIntention</className>
             <categoryKey>kobweb.name</categoryKey>

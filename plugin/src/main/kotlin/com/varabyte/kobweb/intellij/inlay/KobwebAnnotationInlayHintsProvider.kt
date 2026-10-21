@@ -30,18 +30,16 @@ import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.SmartPointerManager
 import com.intellij.psi.util.PsiTreeUtil
-import com.varabyte.kobweb.intellij.util.kobweb.PackageShortcuts
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.layout.LAYOUT_FQN
 import com.varabyte.kobweb.intellij.util.kobweb.layout.PAGE_FQN
 import com.varabyte.kobweb.intellij.util.kobweb.layout.addNoLayoutAnnotation
+import com.varabyte.kobweb.intellij.util.kobweb.layout.displayPath
 import com.varabyte.kobweb.intellij.util.kobweb.layout.findDefaultLayout
-import com.varabyte.kobweb.intellij.util.kobweb.layout.kobwebGroup
 import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
-import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNamedFunction
 
 // Matches how IntelliJ shows inferred annotations in Java code
@@ -59,17 +57,6 @@ private fun PsiElement.toNavigationAction(): InlayActionData {
         PsiPointerInlayActionPayload(SmartPointerManager.createPointer(this)),
         PsiPointerInlayActionNavigationHandler.HANDLER_ID,
     )
-}
-
-/**
- * A short path for this file, based on its package, relative to the project's group.
- *
- * For example, `DefaultLayout.kt` in package `com.example.pages.blog` (with group `com.example`) is
- * "pages/blog/DefaultLayout.kt". This tells files apart when many share a name (e.g. a `DefaultLayout.kt` per package).
- */
-private fun KtFile.toDisplayPath(): String {
-    val packagePath = PackageShortcuts.relativize(kobwebGroup, packageFqName).removePrefix(".").replace('.', '/')
-    return if (packagePath.isEmpty()) name else "$packagePath/$name"
 }
 
 /**
@@ -122,7 +109,7 @@ class KobwebAnnotationInlayHintsProvider : InlayHintsProvider {
                             buildString {
                                 append(UxGlobals.textBundle.message(
                                     "kobweb.inlay.hints.annotations.default.layout.tooltip",
-                                    defaultLayout.annotation.containingKtFile.toDisplayPath(),
+                                    defaultLayout.displayPath,
                                 ))
                                 append("<br><br>")
                                 append(UxGlobals.textBundle.message(

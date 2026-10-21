@@ -82,19 +82,17 @@ private fun Module.findDefaultLayouts(): List<DefaultLayout> {
 }
 
 /**
- * Returns the default layout that this page uses, or null if it doesn't use one.
+ * Returns the default layout set for this page's package, whether or not the page actually uses it, or null if there
+ * isn't one.
  *
- * A page uses the default layout set in the closest package containing it, unless it specifies its own layout (with
- * `@Layout`) or opts out of one (with `@NoLayout`).
+ * A page's default layout is the one set in the closest package containing it. Note that a page doesn't use it if it
+ * specifies its own layout (with `@Layout`) or opts out of one (with `@NoLayout`); see [findDefaultLayout] for that.
  *
  * This always returns null for functions that aren't pages.
  */
-fun KtNamedFunction.findDefaultLayout(): DefaultLayout? {
+fun KtNamedFunction.findPackageDefaultLayout(): DefaultLayout? {
     if (!isTopLevel) return null
     if (annotationEntries.none { it.isAnnotationOfType(PAGE_FQN) }) return null
-    if (annotationEntries.any { it.isAnnotationOfType(LAYOUT_FQN) || it.isAnnotationOfType(NO_LAYOUT_FQN) }) {
-        return null
-    }
 
     val pagePackage = containingKtFile.packageFqName
     return (module ?: return null).findDefaultLayouts()
@@ -111,6 +109,39 @@ fun KtNamedFunction.findDefaultLayout(): DefaultLayout? {
         )
         .firstOrNull()
 }
+
+/**
+ * Returns the default layout that this page uses, or null if it doesn't use one.
+ *
+ * A page uses the default layout set in the closest package containing it (see [findPackageDefaultLayout]), unless it
+ * specifies its own layout (with `@Layout`) or opts out of one (with `@NoLayout`).
+ *
+ * This always returns null for functions that aren't pages.
+ */
+fun KtNamedFunction.findDefaultLayout(): DefaultLayout? {
+    if (annotationEntries.any { it.isAnnotationOfType(LAYOUT_FQN) || it.isAnnotationOfType(NO_LAYOUT_FQN) }) {
+        return null
+    }
+    return findPackageDefaultLayout()
+}
+
+/**
+ * A short, human-readable path for the file that sets this default layout, for showing to users (e.g. in tooltips and
+ * inspection messages).
+ *
+ * Note that this isn't a real file path, and shouldn't be used to find the file. It's built from the file's package,
+ * relative to the project's group, plus its name. For example, `DefaultLayout.kt` in package `com.example.pages.blog`
+ * (with group `com.example`) is "pages/blog/DefaultLayout.kt". This tells files apart when many share a name (e.g. a
+ * `DefaultLayout.kt` per package).
+ */
+val DefaultLayout.displayPath: String
+    get() {
+        val file = annotation.containingKtFile
+        val packagePath = PackageShortcuts.relativize(file.kobwebGroup, file.packageFqName)
+            .removePrefix(".")
+            .replace('.', '/')
+        return if (packagePath.isEmpty()) file.name else "$packagePath/${file.name}"
+    }
 
 /**
  * Opts this page out of its default layout, by annotating it with `@NoLayout`.

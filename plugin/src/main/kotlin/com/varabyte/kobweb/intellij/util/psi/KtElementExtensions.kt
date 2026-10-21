@@ -21,10 +21,13 @@ import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.psi.KtImportDirective
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.psi.KtSimpleNameExpression
 import org.jetbrains.kotlin.psi.KtUserType
+import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 
 /**
  * Resolve an expression into a [ClassId] containing the type it evaluates to.
@@ -166,6 +169,20 @@ fun KtFile.isInScopeAs(fqn: FqName, name: String): Boolean {
 fun KtFile.addImportIfNeeded(fqn: FqName) {
     if (isInScopeAs(fqn, fqn.shortName().asString())) return
     addImport(fqn)
+}
+
+/**
+ * Removes this file's import of [fqn], unless something in the file still uses it.
+ *
+ * To stay on the safe side, any use of the imported name counts, even if it refers to something else.
+ */
+fun KtFile.removeImportIfUnused(fqn: FqName) {
+    val import = importDirectives.firstOrNull { !it.isAllUnder && it.importedFqName == fqn } ?: return
+    val importedName = import.aliasName ?: fqn.shortName().asString()
+    val isUsed = PsiTreeUtil.findChildrenOfType(this, KtSimpleNameExpression::class.java).any { nameExpr ->
+        nameExpr.getReferencedName() == importedName && nameExpr.getStrictParentOfType<KtImportDirective>() == null
+    }
+    if (!isUsed) import.delete()
 }
 
 /**

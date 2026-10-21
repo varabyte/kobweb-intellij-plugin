@@ -1,0 +1,20 @@
+<html lang="en">
+<body>
+Reports <code>@Layout</code> annotations on pages that point at the default layout the page would use anyway (i.e. the
+one set by the closest <code>@file:Layout</code> annotation in its package).
+<p>
+Removing the annotation doesn't change the page. However, you may prefer to keep it, so that the page keeps its layout
+even if the default changes later, in which case you can turn this inspection off.
+<pre><code>
+// pages/blog/DefaultLayout.kt
+@file:Layout(".components.layouts.BlogLayout")
+
+// pages/blog/FirstPost.kt
+@Page
+@Layout(".components.layouts.BlogLayout") // Redundant
+@Composable
+fun FirstPost() { }
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>

@@ -91,7 +91,11 @@ abstract class KobwebInspectionTestBase : KobwebApplicationTestCase() {
     ) {
         myFixture.enableInspections(produceInspection())
         myFixture.configureByText("KobwebInspectionTest.kt", code)
-        myFixture.checkHighlighting(true, false, false)
+        myFixture.checkHighlighting(
+            /* checkWarnings = */ true,
+            /* checkInfos = */ false,
+            /* checkWeakWarnings = */ true
+        )
 
         thenFix?.invoke()
     }
