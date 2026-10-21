@@ -16,6 +16,10 @@ enum class KobwebProjectType {
  *
  * This model is used as a way to communicate information between a Gradle project and the Kobweb IntelliJ plugin (which
  * is why it is serializable).
+ *
+ * Note that IntelliJ saves this model between sessions and restores it on startup, until the next Gradle sync replaces
+ * it. As a result, any value added after the plugin's first release must be nullable, since it will be missing from
+ * models saved by earlier versions of the plugin.
  */
 interface KobwebModel : Serializable {
     val projectType: KobwebProjectType
@@ -25,8 +29,20 @@ interface KobwebModel : Serializable {
      *
      * In various contexts, Kobweb treats paths that start with a leading period as relative to this value,
      * e.g. ".components.layouts" expands to "com.example.components.layouts".
+     *
+     * This is null if this model was saved by an older version of the plugin, until the next Gradle sync.
      */
-    val group: String
+    val group: String?
+
+    /**
+     * The root package of all pages, from the `kobweb { pagesPackage.set(...) }` value in the build script (e.g.
+     * ".pages").
+     *
+     * Like other Kobweb packages, this may start with a leading period, in which case it is relative to [group].
+     *
+     * This is null if this model was saved by an older version of the plugin, until the next Gradle sync.
+     */
+    val pagesPackage: String?
 
     /**
      * Values from the `kobweb { worker { ... } }` block in a worker project's build script.

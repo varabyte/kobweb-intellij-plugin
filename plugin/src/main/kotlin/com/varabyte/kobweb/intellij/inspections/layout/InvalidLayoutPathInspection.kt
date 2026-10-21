@@ -10,6 +10,7 @@ import com.varabyte.kobweb.intellij.references.layout.LayoutPathReference
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.layout.LAYOUT_FQN
 import com.varabyte.kobweb.intellij.util.kobweb.layout.PAGE_FQN
+import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
 import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
@@ -65,6 +66,12 @@ class InvalidLayoutPathInspection : LocalInspectionTool() {
                 val reference = pathExpr.references.filterIsInstance<LayoutPathReference>().firstOrNull() ?: return
 
                 if (reference.value.isEmpty()) return reportMissingPath()
+
+                // We can't resolve relative paths without knowing the project's group, which in some rare cases may
+                // not be available until next Gradle sync (e.g. IJ loads a cached version of the model from a previous
+                // version of the plugin). In that case, give the user the benefit of the doubt rather than flagging
+                // paths that are probably fine. Once a gradle sync happens, we'll try again.
+                if (reference.value.startsWith('.') && holder.file.findKobwebProject()?.group == null) return
 
                 if (reference.resolveLayout() == null) {
                     holder.registerProblem(

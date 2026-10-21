@@ -16,6 +16,9 @@ import com.varabyte.kobweb.intellij.model.WorkerBlock
  *   0.25.2, so it may not be set for ones built with older versions. However, given that a group is generally only
  *   used internally within a Kobweb module, this isn't really an issue. At worst, it means we will not be able to
  *   navigate Kobweb shortcuts while browsing such a project.
+ * @property pagesPackage The root package of all pages (e.g. ".pages"), from `kobweb { pagesPackage.set(...) }`. Like
+ *   other Kobweb packages, it is relative to [group] if it starts with a leading period. Only ever set for local
+ *   projects, as an external project's pages are already compiled.
  * @property worker Values from the `kobweb { worker { ... } }` block. Only ever set for local worker projects.
  */
 data class KobwebProject(
@@ -23,6 +26,7 @@ data class KobwebProject(
     val type: KobwebProjectType,
     val source: Source,
     val group: String? = null,
+    val pagesPackage: String? = null,
     val worker: WorkerBlock? = null,
 ) {
     /**

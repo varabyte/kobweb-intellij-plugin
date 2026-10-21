@@ -11,26 +11,43 @@ import org.jetbrains.plugins.gradle.tooling.ModelBuilderContext
 
 private class KobwebModelImpl(
     override val projectType: KobwebProjectType,
-    override val group: String,
+    override val group: String?,
+    override val pagesPackage: String?,
     override val worker: WorkerBlock?,
 ) : KobwebModel
+
+// We can't depend on the Kobweb Gradle plugin directly (since this code runs against whatever version of it the user's
+// project uses), so we look things up dynamically instead.
+
+private val Project.kobwebBlock get() = extensions.findByName("kobweb") as? ExtensionAware
+
+/**
+ * Read the value of a `Property<String>` on a Kobweb extension block, e.g. `getPropertyValue("getFqcn")`.
+ */
+private fun ExtensionAware.getPropertyValue(getterName: String): String? {
+    return try {
+        val property = javaClass.getMethod(getterName).invoke(this) as? Provider<*> ?: return null
+        property.orNull as? String
+    } catch (_: Exception) {
+        // Shouldn't happen but no harm protecting against it just in case
+        null
+    }
+}
 
 /**
  * Read the `kobweb { worker { fqcn.set(...) } }` value from a worker project's build script, if set.
  */
 private fun Project.findWorkerFqcn(): String? {
-    // We can't depend on the Kobweb Gradle plugin directly (since this code runs against whatever version of it the
-    // user's project uses), so we look things up dynamically instead.
+    val workerBlock = kobwebBlock?.extensions?.findByName("worker") as? ExtensionAware ?: return null
+    return workerBlock.getPropertyValue("getFqcn")
+}
 
-    return try {
-        val kobwebBlock = extensions.findByName("kobweb") as? ExtensionAware ?: return null
-        val workerBlock = kobwebBlock.extensions.findByName("worker") ?: return null
-        val fqcn = workerBlock.javaClass.getMethod("getFqcn").invoke(workerBlock) as? Provider<*> ?: return null
-        fqcn.orNull as? String
-    } catch (_: Exception) {
-        // Shouldn't happen but no harm protecting against it just in case
-        null
-    }
+/**
+ * Read the `kobweb { pagesPackage.set(...) }` value from a project's build script.
+ */
+private fun Project.findPagesPackage(): String {
+    // If we can't read it for some reason, fall back to Kobweb's default
+    return kobwebBlock?.getPropertyValue("getPagesPackage") ?: ".pages"
 }
 
 private fun Project.createWorkerBlock() = WorkerBlock(fqcn = findWorkerFqcn())
@@ -48,6 +65,7 @@ private fun Project.toKobwebModel(): KobwebModel? {
     return KobwebModelImpl(
         projectType,
         group.toString(),
+        findPagesPackage(),
         if (projectType == KobwebProjectType.Worker) createWorkerBlock() else null
     )
 }

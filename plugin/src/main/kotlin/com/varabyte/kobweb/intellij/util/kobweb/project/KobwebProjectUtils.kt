@@ -44,6 +44,7 @@ private fun Module.findKobwebProject(kobwebProjectsCache: KobwebProjectCacheServ
             kobwebModel.projectType,
             KobwebProject.Source.Local(gradleModule),
             kobwebModel.group,
+            kobwebModel.pagesPackage,
             kobwebModel.worker,
         ).also {
             kobwebProjectsCache.add(it)
@@ -73,7 +74,7 @@ private fun VirtualFile.findKobwebProject(kobwebProjectsCache: KobwebProjectCach
         klib.name,
         kobwebProjectType,
         KobwebProject.Source.External(klib),
-        klib.findFileByRelativePath(KOBWEB_METADATA_MODULE)
+        group = klib.findFileByRelativePath(KOBWEB_METADATA_MODULE)
             ?.let { moduleFile -> Json.readKobwebModuleMetadata(moduleFile.contentsToByteArray().decodeToString()) }
             ?.group,
     ).also { kobwebProjectsCache.add(it) }
