@@ -3,11 +3,11 @@ package com.varabyte.kobweb.intellij.inspections.layout
 import com.intellij.codeInspection.ProblemDescriptor
 import com.intellij.modcommand.ActionContext
 import com.intellij.modcommand.ModChooseAction
-import com.intellij.modcommand.ModCommandExecutor
-import com.intellij.openapi.command.CommandProcessor
 import com.varabyte.kobweb.intellij.inspections.KobwebInspectionTestBase
 import com.varabyte.kobweb.intellij.quickfixes.layout.ChooseLayoutQuickFix
 import com.varabyte.kobweb.intellij.quickfixes.layout.ReplaceWithNoLayoutQuickFix
+import com.varabyte.kobweb.intellij.test.util.choicesByName
+import com.varabyte.kobweb.intellij.test.util.performAndExecute
 import com.varabyte.truthish.assertThat
 
 class InvalidLayoutPathInspectionTest : KobwebInspectionTestBase() {
@@ -225,13 +225,10 @@ class InvalidLayoutPathInspectionTest : KobwebInspectionTestBase() {
     ) {
         val context = ActionContext.from(myFixture.editor, myFixture.file)
         val chooser = perform(project, problem) as ModChooseAction
-        val choices = chooser.actions().associateBy { it.getPresentation(context)!!.name() }
+        val choices = chooser.choicesByName(context)
 
         assertThat(choices.keys).containsExactly(expectedChoices).inOrder()
-        // Executing a ModCommand must happen inside a command (but outside a write action)
-        CommandProcessor.getInstance().executeCommand(project, {
-            ModCommandExecutor.getInstance().executeInBatch(context, choices.getValue(choice).perform(context))
-        }, null, null)
+        choices.getValue(choice).performAndExecute(context)
     }
 
     fun testMisspelledPathCanBeFixedByChoosingClosestLayout() {

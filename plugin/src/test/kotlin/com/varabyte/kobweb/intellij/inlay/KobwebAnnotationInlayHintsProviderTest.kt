@@ -2,10 +2,10 @@ package com.varabyte.kobweb.intellij.inlay
 
 import com.intellij.modcommand.ActionContext
 import com.intellij.modcommand.ModChooseAction
-import com.intellij.modcommand.ModCommandExecutor
-import com.intellij.openapi.command.CommandProcessor
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.psi.util.PsiTreeUtil
+import com.varabyte.kobweb.intellij.test.util.choicesByName
+import com.varabyte.kobweb.intellij.test.util.performAndExecute
 import com.varabyte.kobweb.intellij.util.kobweb.layout.LayoutPathChooser
 import com.varabyte.kobweb.intellij.util.kobweb.layout.addNoLayoutAnnotation
 import com.varabyte.kobweb.intellij.util.kobweb.layout.findDefaultLayout
@@ -310,15 +310,11 @@ class KobwebAnnotationInlayHintsProviderTest : KobwebInlayHintsTestBase() {
 
         val context = ActionContext.from(myFixture.editor, myFixture.file)
         val chooser = LayoutPathChooser.choose(page) as ModChooseAction
-        val choices = chooser.actions().associateBy { it.getPresentation(context)!!.name() }
+        val choices = chooser.choicesByName(context)
         // The page already uses `BlogLayout` by default, so it isn't offered
         assertThat(choices.keys).containsExactly(".components.layouts.PageLayout")
 
-        // Executing a ModCommand must happen inside a command (but outside a write action)
-        CommandProcessor.getInstance().executeCommand(project, {
-            ModCommandExecutor.getInstance()
-                .executeInBatch(context, choices.getValue(".components.layouts.PageLayout").perform(context))
-        }, null, null)
+        choices.getValue(".components.layouts.PageLayout").performAndExecute(context)
 
         myFixture.checkResult(
             """
