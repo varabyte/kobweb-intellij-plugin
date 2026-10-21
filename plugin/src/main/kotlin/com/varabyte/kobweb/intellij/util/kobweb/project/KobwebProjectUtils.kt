@@ -11,10 +11,13 @@ import com.varabyte.kobweb.intellij.services.project.KobwebProjectCacheService
 import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_BACKEND
 import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_FRONTEND
 import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_LIBRARY
+import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_MODULE
 import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_WORKER
 import com.varabyte.kobweb.intellij.util.kobweb.isKobwebPluginEnabled
+import com.varabyte.kobweb.intellij.util.kobweb.readKobwebModuleMetadata
 import com.varabyte.kobweb.intellij.util.module.toGradleModule
 import com.varabyte.kobweb.intellij.util.psi.containingKlib
+import kotlinx.serialization.json.Json
 import org.jetbrains.kotlin.idea.base.util.module
 
 // Metadata files useful for identifying external artifacts as Kobweb projects
@@ -69,7 +72,10 @@ private fun VirtualFile.findKobwebProject(kobwebProjectsCache: KobwebProjectCach
     return KobwebProject(
         klib.name,
         kobwebProjectType,
-        KobwebProject.Source.External(klib)
+        KobwebProject.Source.External(klib),
+        klib.findFileByRelativePath(KOBWEB_METADATA_MODULE)
+            ?.let { moduleFile -> Json.readKobwebModuleMetadata(moduleFile.contentsToByteArray().decodeToString()) }
+            ?.group,
     ).also { kobwebProjectsCache.add(it) }
 }
 

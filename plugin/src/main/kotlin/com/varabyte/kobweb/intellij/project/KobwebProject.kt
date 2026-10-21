@@ -12,9 +12,10 @@ import com.varabyte.kobweb.intellij.model.WorkerBlock
  *
  * @property name A human-readable name for this project.
  * @property group The Gradle group of this project (e.g. "com.example"), which Kobweb uses to expand paths that begin
- *   with a leading period. This may not set for external projects, as older versions of Kobweb did not report it.
- *   However, given that a group is generally only used internally within a Kobweb module, this isn't really an issue.
- *   At worst, it means we will not be able to navigate Kobweb shortcuts while browsing such a project.
+ *   with a leading period. External projects get this from their Kobweb metadata, which only includes it as of Kobweb
+ *   0.25.2, so it may not be set for ones built with older versions. However, given that a group is generally only
+ *   used internally within a Kobweb module, this isn't really an issue. At worst, it means we will not be able to
+ *   navigate Kobweb shortcuts while browsing such a project.
  * @property worker Values from the `kobweb { worker { ... } }` block. Only ever set for local worker projects.
  */
 data class KobwebProject(
