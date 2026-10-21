@@ -4,6 +4,7 @@ import com.intellij.codeInsight.intention.HighPriorityAction
 import com.intellij.modcommand.ModPsiUpdater
 import com.intellij.openapi.project.Project
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
+import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.idea.codeinsight.api.applicable.inspections.KotlinModCommandQuickFix
 import org.jetbrains.kotlin.psi.KtExpression
@@ -14,7 +15,7 @@ import org.jetbrains.kotlin.psi.KtPsiFactory
  */
 class WrapModifierInBaseBlockQuickFix : KotlinModCommandQuickFix<KtExpression>(), HighPriorityAction {
     override fun getFamilyName() = getName()
-    override fun getName() = "Wrap modifier chain in `base { ... }` block"
+    override fun getName() = UxGlobals.textBundle.message("quickfixes.wrap_modifier_in_base_block.name")
 
     override fun applyFix(
         project: Project,

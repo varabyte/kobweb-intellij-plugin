@@ -4,6 +4,7 @@ import com.intellij.modcommand.ModPsiUpdater
 import com.intellij.openapi.project.Project
 import com.varabyte.kobweb.intellij.inspections.style.AttributeModifierInStyleSheetBlockInspection
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
+import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.idea.codeinsight.api.applicable.inspections.KotlinModCommandQuickFix
 import org.jetbrains.kotlin.psi.KtCallExpression
@@ -16,8 +17,9 @@ import org.jetbrains.kotlin.psi.KtPsiFactory
  * See also: [AttributeModifierInStyleSheetBlockInspection].
  */
 class MoveAttrModifierToExtraModifierQuickFix(private val attrModifierName: String) : KotlinModCommandQuickFix<KtCallExpression>() {
-    override fun getFamilyName() = "Move attribute modifiers to their CssStyle 'extraModifier' arguments"
-    override fun getName() = "Move '$attrModifierName' to CssStyle 'extraModifier' argument"
+    override fun getFamilyName() = UxGlobals.textBundle.message("quickfixes.move_attr_modifier_to_extra_modifier.name")
+    override fun getName() =
+        UxGlobals.textBundle.message("quickfixes.move_attr_modifier_to_extra_modifier.text", attrModifierName)
 
     override fun applyFix(
         project: Project,

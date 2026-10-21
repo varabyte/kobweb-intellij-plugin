@@ -4,6 +4,7 @@ import com.intellij.codeInsight.intention.LowPriorityAction
 import com.intellij.modcommand.ModPsiUpdater
 import com.intellij.openapi.project.Project
 import com.varabyte.kobweb.intellij.inspections.style.AttributeModifierInStyleSheetBlockInspection
+import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.idea.codeinsight.api.applicable.inspections.KotlinModCommandQuickFix
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
@@ -32,8 +33,8 @@ class DeleteAttrModifierQuickFix(private val attrModifierName: String) : KotlinM
         }
     }
 
-    override fun getFamilyName() = "Delete attribute modifiers"
-    override fun getName() = "Delete the '$attrModifierName' attribute modifier"
+    override fun getFamilyName() = UxGlobals.textBundle.message("quickfixes.delete_attr_modifier.name")
+    override fun getName() = UxGlobals.textBundle.message("quickfixes.delete_attr_modifier.text", attrModifierName)
 
     override fun applyFix(
         project: Project,

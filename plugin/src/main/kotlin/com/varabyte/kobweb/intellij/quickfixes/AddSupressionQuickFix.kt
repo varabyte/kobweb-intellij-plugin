@@ -5,11 +5,12 @@ import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.codeInspection.ProblemDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.psi.util.PsiTreeUtil
+import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.psi.KtModifierListOwner
 import org.jetbrains.kotlin.psi.KtPsiFactory
 
 class AddSuppressionQuickFix(private val suppressKey: String) : LocalQuickFix, LowPriorityAction {
-    override fun getFamilyName() = "Annotate with @Suppress(\"$suppressKey\")"
+    override fun getFamilyName() = UxGlobals.textBundle.message("quickfixes.add_suppression.name", suppressKey)
 
     override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
         val modifierListOwner = PsiTreeUtil.getParentOfType(descriptor.psiElement, KtModifierListOwner::class.java) ?: return

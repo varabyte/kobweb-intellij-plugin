@@ -7,6 +7,7 @@ import com.intellij.codeInspection.util.IntentionName
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
 import com.varabyte.kobweb.intellij.inspections.style.TopLevelStyleSingletonsInspection
+import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPsiFactory
@@ -21,11 +22,11 @@ import org.jetbrains.kotlin.psi.KtPsiFactory
  */
 class MovePropertyToTopLevelQuickFix(private val propertyName: String) : LocalQuickFix {
     override fun getName(): @IntentionName String {
-        return "Move '$propertyName' to the top level"
+        return UxGlobals.textBundle.message("quickfixes.move_property_to_top_level.text", propertyName)
     }
 
     override fun getFamilyName(): @IntentionFamilyName String {
-        return "Move properties to the top level"
+        return UxGlobals.textBundle.message("quickfixes.move_property_to_top_level.name")
     }
 
     override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
