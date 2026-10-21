@@ -6,6 +6,7 @@ import com.intellij.psi.ElementManipulators
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiReferenceBase
 import com.varabyte.kobweb.intellij.util.kobweb.PackageShortcuts
+import com.varabyte.kobweb.intellij.util.kobweb.layout.LayoutDefinition
 import com.varabyte.kobweb.intellij.util.kobweb.layout.findLayout
 import com.varabyte.kobweb.intellij.util.kobweb.layout.findLayouts
 import com.varabyte.kobweb.intellij.util.kobweb.layout.kobwebGroup
@@ -27,10 +28,18 @@ class LayoutPathReference(element: KtStringTemplateExpression) : PsiReferenceBas
     // Soft, as we handle reporting invalid paths ourselves
     /* soft = */ true,
 ) {
-    override fun resolve(): PsiElement? {
+    /**
+     * Returns the layout this path points at, or null if it doesn't point at one.
+     *
+     * Prefer this over [resolve] to check whether a path is valid, as a library can advertise a layout that we can't
+     * find a declaration for (in which case this returns a layout but [resolve] returns null).
+     */
+    fun resolveLayout(): LayoutDefinition? {
         val fqn = PackageShortcuts.resolve(element.kobwebGroup, value) ?: return null
-        return element.findLayout(fqn.asString())?.function
+        return element.findLayout(fqn.asString())
     }
+
+    override fun resolve(): PsiElement? = resolveLayout()?.function
 
     override fun getVariants(): Array<Any> {
         // During completion, `element` lives in a temporary copy of the file (with a dummy identifier inserted at the

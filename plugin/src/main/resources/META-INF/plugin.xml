@@ -86,6 +86,13 @@
                 enabledByDefault="true"
                 level="WARNING"
                 implementationClass="com.varabyte.kobweb.intellij.inspections.worker.RememberWorkerInspection"/>
+        <localInspection
+                language="kotlin"
+                groupKey="kobweb.name"
+                key="inspection.invalid.layout.path.display.name"
+                enabledByDefault="true"
+                level="ERROR"
+                implementationClass="com.varabyte.kobweb.intellij.inspections.layout.InvalidLayoutPathInspection"/>
         <intentionAction>
             <className>com.varabyte.kobweb.intellij.intentions.style.ExtractCssStyleIntention</className>
             <categoryKey>kobweb.name</categoryKey>
@@ -98,6 +105,11 @@
         </intentionAction>
         <intentionAction>
             <className>com.varabyte.kobweb.intellij.intentions.style.format.ConvertStyleToExpandedFormatIntention</className>
+            <categoryKey>kobweb.name</categoryKey>
+            <language>kotlin</language>
+        </intentionAction>
+        <intentionAction>
+            <className>com.varabyte.kobweb.intellij.intentions.layout.ChangeLayoutIntention</className>
             <categoryKey>kobweb.name</categoryKey>
             <language>kotlin</language>
         </intentionAction>

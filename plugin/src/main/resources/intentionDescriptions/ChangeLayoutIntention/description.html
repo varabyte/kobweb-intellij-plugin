@@ -1,0 +1,20 @@
+<html lang="en">
+<body>
+This action lets you change the layout a <code>@Layout</code> annotation points at, by choosing from a list of all the
+layouts available to your project.
+<pre><code>
+// Before
+@Page
+@Layout(".components.layouts.PageLayout")
+@Composable
+fun BlogPage() { }
+
+// After (choosing BlogLayout)
+@Page
+@Layout(".components.layouts.BlogLayout")
+@Composable
+fun BlogPage() { }
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>

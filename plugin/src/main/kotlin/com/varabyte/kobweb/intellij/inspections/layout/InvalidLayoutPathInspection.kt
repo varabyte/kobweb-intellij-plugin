@@ -1,0 +1,83 @@
+package com.varabyte.kobweb.intellij.inspections.layout
+
+import com.intellij.codeInspection.LocalInspectionTool
+import com.intellij.codeInspection.ProblemHighlightType
+import com.intellij.codeInspection.ProblemsHolder
+import com.intellij.psi.PsiElementVisitor
+import com.varabyte.kobweb.intellij.quickfixes.layout.ChooseLayoutQuickFix
+import com.varabyte.kobweb.intellij.quickfixes.layout.ReplaceWithNoLayoutQuickFix
+import com.varabyte.kobweb.intellij.references.layout.LayoutPathReference
+import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
+import com.varabyte.kobweb.intellij.util.kobweb.layout.LAYOUT_FQN
+import com.varabyte.kobweb.intellij.util.kobweb.layout.PAGE_FQN
+import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
+import com.varabyte.kobweb.intellij.util.ux.UxGlobals
+import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
+import org.jetbrains.kotlin.psi.KtAnnotationEntry
+import org.jetbrains.kotlin.psi.KtModifierList
+import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.KtStringTemplateExpression
+import org.jetbrains.kotlin.psi.KtVisitorVoid
+
+/**
+ * Reports `@Layout` annotations that Kobweb will reject at build time, i.e. ones whose path doesn't point at a layout,
+ * or ones on a page that don't specify a path at all.
+ *
+ * Also warns about default layouts (i.e. `@file:Layout`) without a path, which Kobweb skips over.
+ */
+class InvalidLayoutPathInspection : LocalInspectionTool() {
+    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
+        if (!holder.file.isInWritableKobwebProject()) return KtVisitorVoid.EMPTY_VISITOR
+
+        return object : KtVisitorVoid() {
+            override fun visitAnnotationEntry(annotationEntry: KtAnnotationEntry) {
+                super.visitAnnotationEntry(annotationEntry)
+                if (!annotationEntry.isAnnotationOfType(LAYOUT_FQN)) return
+
+                // A layout without a path just means it has no parent layout, but default layouts and pages must
+                // specify one
+                fun reportMissingPath() {
+                    if (annotationEntry.useSiteTarget?.getAnnotationUseSiteTarget() == AnnotationUseSiteTarget.FILE) {
+                        // Kobweb only warns here, as it skips over the default layout instead of failing the build
+                        holder.registerProblem(
+                            annotationEntry,
+                            UxGlobals.textBundle.message("inspection.invalid.layout.path.missing.on.file.display.text"),
+                            ProblemHighlightType.WARNING,
+                            ChooseLayoutQuickFix(),
+                        )
+                        return
+                    }
+
+                    val function = (annotationEntry.parent as? KtModifierList)?.parent as? KtNamedFunction ?: return
+                    if (function.annotationEntries.none { it.isAnnotationOfType(PAGE_FQN) }) return
+
+                    holder.registerProblem(
+                        annotationEntry,
+                        UxGlobals.textBundle.message("inspection.invalid.layout.path.missing.on.page.display.text"),
+                        ReplaceWithNoLayoutQuickFix(),
+                        ChooseLayoutQuickFix(),
+                    )
+                }
+
+                val argument = annotationEntry.valueArguments.firstOrNull() ?: return reportMissingPath()
+                // If the path isn't a string literal (e.g. it's a constant), we can't check it
+                val pathExpr = argument.getArgumentExpression() as? KtStringTemplateExpression ?: return
+                val reference = pathExpr.references.filterIsInstance<LayoutPathReference>().firstOrNull() ?: return
+
+                if (reference.value.isEmpty()) return reportMissingPath()
+
+                if (reference.resolveLayout() == null) {
+                    holder.registerProblem(
+                        pathExpr,
+                        reference.rangeInElement,
+                        UxGlobals.textBundle.message(
+                            "inspection.invalid.layout.path.not.found.display.text",
+                            reference.value,
+                        ),
+                        ChooseLayoutQuickFix(),
+                    )
+                }
+            }
+        }
+    }
+}

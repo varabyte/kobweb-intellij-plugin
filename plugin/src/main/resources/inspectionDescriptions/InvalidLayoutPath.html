@@ -1,0 +1,33 @@
+<html lang="en">
+<body>
+Reports <code>@Layout</code> annotations that Kobweb will reject when building your site.
+<p>
+A layout path must point at a function annotated with <code>@Layout</code>. Paths that start with a period are relative
+to your project's group.
+<p>
+Pages that use <code>@Layout</code> <i>must</i> specify a path. (Layouts can leave it out, which means they don't have a
+parent layout.)
+<p>
+Default layouts (i.e. <code>@file:Layout</code>) without a path are also reported, as Kobweb ignores them.
+<pre><code>
+// OK
+@Page
+@Layout(".components.layouts.PageLayout")
+@Composable
+fun HomePage() { }
+
+// Not OK (no such layout)
+@Page
+@Layout(".components.layouts.MissingLayout")
+@Composable
+fun HomePage() { }
+
+// Not OK (pages must specify a path)
+@Page
+@Layout
+@Composable
+fun HomePage() { }
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>
