@@ -3,8 +3,10 @@ package com.varabyte.kobweb.intellij.intentions.style.format
 import com.varabyte.kobweb.intellij.util.idea.intentions.CacheDerivedPsiElementIntentionAction
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.MODIFIER_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.style.ADD_VARIANT_BASE_CALLABLE_ID
+import com.varabyte.kobweb.intellij.util.kobweb.style.ADD_VARIANT_CALLABLE_ID
 import com.varabyte.kobweb.intellij.util.kobweb.style.CSS_STYLE_BASE_EXTENSION_CALLABLE_ID
 import com.varabyte.kobweb.intellij.util.kobweb.style.EXTENDED_BY_BASE_CALLABLE_ID
+import com.varabyte.kobweb.intellij.util.kobweb.style.EXTENDED_BY_CALLABLE_ID
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
 import com.varabyte.kobweb.intellij.util.psi.findAttachedComments
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
@@ -29,10 +31,10 @@ class ConvertStyleToConciseFormatIntention : FormatStyleBaseIntention(
 ) {
     // Transform: `CssStyle(...) { base { ... } }` to `CssStyle.base(...) { ... }`
     private fun StyleSheetBlock.Style.Definition.Expanded.createReplacementCode() = ReplacementCode(
-        listOf(
-            MODIFIER_CLASS_ID.asSingleFqName(),
-            CSS_STYLE_BASE_EXTENSION_CALLABLE_ID.asSingleFqName()
-        ),
+        buildImportChanges {
+            add(MODIFIER_CLASS_ID)
+            add(CSS_STYLE_BASE_EXTENSION_CALLABLE_ID)
+        },
         run {
             // It's pretty rare, but you can have type arguments in your CssStyle method, as in CssStyle<T>, at which point
             // you need to move them to CssStyle.base<T> after converting.
@@ -50,10 +52,10 @@ class ConvertStyleToConciseFormatIntention : FormatStyleBaseIntention(
 
     // Transform: `SomeStyle.extendedBy(...) { base { ... } }` to `SomeStyle.extendedByBase(...) { ... }`
     private fun StyleSheetBlock.Style.Extended.Expanded.createReplacementCode() = ReplacementCode(
-        listOf(
-            MODIFIER_CLASS_ID.asSingleFqName(),
-            EXTENDED_BY_BASE_CALLABLE_ID.asSingleFqName()
-        ),
+        buildImportChanges {
+            add(MODIFIER_CLASS_ID)
+            replace(EXTENDED_BY_CALLABLE_ID, EXTENDED_BY_BASE_CALLABLE_ID)
+        },
         run {
             val argStr = extraModifierArg?.wrapInParentheses().orEmpty()
             val bodyStr = baseBodyText ?: MODIFIER_CLASS_ID.shortClassName.asString()
@@ -68,10 +70,10 @@ class ConvertStyleToConciseFormatIntention : FormatStyleBaseIntention(
 
     // Transform: `CssStyle.addVariant(...) { base { ... } }` to `CssStyle.addVariantBase(...) { ... }`
     private fun StyleSheetBlock.Style.Variant.Definition.Expanded.createReplacementCode() = ReplacementCode(
-        listOf(
-            MODIFIER_CLASS_ID.asSingleFqName(),
-            ADD_VARIANT_BASE_CALLABLE_ID.asSingleFqName()
-        ),
+        buildImportChanges {
+            add(MODIFIER_CLASS_ID)
+            replace(ADD_VARIANT_CALLABLE_ID, ADD_VARIANT_BASE_CALLABLE_ID)
+        },
         run {
             val argStr = extraModifierArg?.wrapInParentheses().orEmpty()
             val bodyStr = baseBodyText ?: MODIFIER_CLASS_ID.shortClassName.asString()
@@ -86,10 +88,10 @@ class ConvertStyleToConciseFormatIntention : FormatStyleBaseIntention(
 
     // Transform: `SomeVariant.extendedBy(...) { base { ... } }` to `SomeVariant.extendedByBase(...) { ... }`
     private fun StyleSheetBlock.Style.Variant.Extended.Expanded.createReplacementCode() = ReplacementCode(
-        listOf(
-            MODIFIER_CLASS_ID.asSingleFqName(),
-            EXTENDED_BY_BASE_CALLABLE_ID.asSingleFqName()
-        ),
+        buildImportChanges {
+            add(MODIFIER_CLASS_ID)
+            replace(EXTENDED_BY_CALLABLE_ID, EXTENDED_BY_BASE_CALLABLE_ID)
+        },
         run {
             val argStr = extraModifierArg?.wrapInParentheses().orEmpty()
             val bodyStr = baseBodyText ?: MODIFIER_CLASS_ID.shortClassName.asString()

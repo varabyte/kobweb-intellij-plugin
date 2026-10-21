@@ -65,7 +65,6 @@ class ConvertStyleToExpandedFormatIntentionTest : KobwebIntentionTestBase() {
             import com.varabyte.kobweb.compose.ui.graphics.Colors
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.extendedBy
-            import com.varabyte.kobweb.silk.style.extendedByBase
             import org.jetbrains.compose.web.css.percent
 
             val BaseStyle = CssStyle {}
@@ -75,6 +74,47 @@ class ConvertStyleToExpandedFormatIntentionTest : KobwebIntentionTestBase() {
                         .width(70.percent)
                         .color(Colors.Green)
                 }
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testExpandedStyle_ImportStillInUseIsKept() {
+        // Only one of the styles is converted, so the other still needs `extendedByBase`
+        doTest(
+            """
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.extendedByBase
+            import org.jetbrains.compose.web.css.percent
+
+            val BaseStyle = CssStyle {}
+            val ExtendedStyle = BaseStyl<caret>e.extendedByBase {
+                Modifier.width(70.percent)
+            }
+            val OtherExtendedStyle = BaseStyle.extendedByBase {
+                Modifier.color(Colors.Green)
+            }
+            """.trimIndent(),
+            """
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.extendedBy
+            import com.varabyte.kobweb.silk.style.extendedByBase
+            import org.jetbrains.compose.web.css.percent
+
+            val BaseStyle = CssStyle {}
+            val ExtendedStyle = BaseStyle.extendedBy {
+                base {
+                    Modifier.width(70.percent)
+                }
+            }
+            val OtherExtendedStyle = BaseStyle.extendedByBase {
+                Modifier.color(Colors.Green)
             }
             """.trimIndent()
         )
@@ -106,7 +146,6 @@ class ConvertStyleToExpandedFormatIntentionTest : KobwebIntentionTestBase() {
             import com.varabyte.kobweb.silk.style.ComponentKind
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.addVariant
-            import com.varabyte.kobweb.silk.style.addVariantBase
             import org.jetbrains.compose.web.css.percent
 
             sealed interface WidgetKind : ComponentKind
@@ -151,7 +190,6 @@ class ConvertStyleToExpandedFormatIntentionTest : KobwebIntentionTestBase() {
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.addVariant
             import com.varabyte.kobweb.silk.style.extendedBy
-            import com.varabyte.kobweb.silk.style.extendedByBase
             import org.jetbrains.compose.web.css.percent
 
             sealed interface WidgetKind : ComponentKind

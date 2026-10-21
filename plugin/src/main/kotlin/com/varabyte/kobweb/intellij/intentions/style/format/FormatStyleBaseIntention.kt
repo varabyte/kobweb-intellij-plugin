@@ -9,9 +9,12 @@ import com.intellij.psi.util.PsiTreeUtil
 import com.varabyte.kobweb.intellij.util.idea.intentions.CacheDerivedPsiElementIntentionAction
 import com.varabyte.kobweb.intellij.util.idea.key
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
+import com.varabyte.kobweb.intellij.util.psi.addImportIfNeeded
+import com.varabyte.kobweb.intellij.util.psi.removeImportIfUnused
 import org.intellij.lang.annotations.Language
 import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.idea.base.psi.imports.addImport
+import org.jetbrains.kotlin.name.CallableId
+import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
@@ -61,13 +64,46 @@ abstract class FormatStyleBaseIntention(
 
     protected fun KtValueArgument.wrapInParentheses() = "($text)"
 
-    protected data class ReplacementCode(
-        val imports: List<FqName>,
-        @Language("kotlin") val code: String,
-        val extractedComments: List<PsiComment> = emptyList()
-    ) {
-        constructor(@Language("kotlin") code: String) : this(emptyList(), code)
+    /**
+     * How a replacement changes the file's imports.
+     *
+     * @property added Imports the replacement code needs, which will be added if they aren't already in scope.
+     * @property removed Imports the original code may have needed but the replacement doesn't (e.g. for a function it
+     *   swaps for another one), which will be removed if nothing else in the file uses them.
+     */
+    protected class ImportChanges(val added: List<FqName>, val removed: List<FqName>) {
+        companion object {
+            val None = ImportChanges(emptyList(), emptyList())
+        }
     }
+
+    protected class ImportChangesBuilder {
+        private val added = mutableListOf<FqName>()
+        private val removed = mutableListOf<FqName>()
+
+        fun add(id: ClassId) { added += id.asSingleFqName() }
+        fun add(id: CallableId) { added += id.asSingleFqName() }
+        fun remove(id: CallableId) { removed += id.asSingleFqName() }
+
+        /** Replace one import with another, e.g. when the replacement code swaps one function for another. */
+        fun replace(from: CallableId, to: CallableId) {
+            remove(from)
+            add(to)
+        }
+
+        fun build() = ImportChanges(added.toList(), removed.toList())
+    }
+
+    protected fun buildImportChanges(block: ImportChangesBuilder.() -> Unit): ImportChanges {
+        return ImportChangesBuilder().apply(block).build()
+    }
+
+    protected data class ReplacementCode(
+        val imports: ImportChanges,
+        @Language("kotlin") val code: String,
+        val extractedComments: List<PsiComment> = emptyList(),
+    )
+
     protected abstract fun StyleSheetBlock.Style.createReplacementCode(): ReplacementCode
 
     final override fun handleElementIsInvoked(project: Project, editor: Editor, element: KtNameReferenceExpression) {
@@ -76,12 +112,11 @@ abstract class FormatStyleBaseIntention(
         val factory = KtPsiFactory(project)
 
         with(cssStyleBlock.createReplacementCode()) {
-            if (imports.isNotEmpty()) {
-                imports.forEach { import -> containingFile.addImport(import) }
-            }
+            imports.added.forEach { import -> containingFile.addImportIfNeeded(import) }
             val commentTexts = extractedComments.map { it.text }
             val newExpr = factory.createExpression(code.trim())
             val replacedCode = cssStyleBlock.rootExpression.replace(newExpr)
+            imports.removed.forEach { import -> containingFile.removeImportIfUnused(import) }
 
             // A style should always be assigned to a property, so if we have any comments we've extracted as part of
             // the intention action, let's add them above the property.

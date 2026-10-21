@@ -150,7 +150,6 @@ class ConvertStyleToConciseFormatIntentionTest : KobwebIntentionTestBase() {
             import com.varabyte.kobweb.compose.ui.modifiers.*
             import com.varabyte.kobweb.compose.ui.graphics.Colors
             import com.varabyte.kobweb.silk.style.CssStyle
-            import com.varabyte.kobweb.silk.style.extendedBy
             import com.varabyte.kobweb.silk.style.extendedByBase
             import org.jetbrains.compose.web.css.percent
 
@@ -159,6 +158,51 @@ class ConvertStyleToConciseFormatIntentionTest : KobwebIntentionTestBase() {
                 Modifier
                     .width(70.percent)
                     .color(Colors.Green)
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testExtendedStyle_ImportStillInUseIsKept() {
+        // Only one of the styles is converted, so the other still needs `extendedBy`
+        doTest(
+            """
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.extendedBy
+            import org.jetbrains.compose.web.css.percent
+
+            val BaseStyle = CssStyle {}
+            val ExtendedStyle = Base<caret>Style.extendedBy {
+                base {
+                    Modifier.width(70.percent)
+                }
+            }
+            val OtherExtendedStyle = BaseStyle.extendedBy {
+                base {
+                    Modifier.color(Colors.Green)
+                }
+            }
+            """.trimIndent(),
+            """
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.extendedBy
+            import com.varabyte.kobweb.silk.style.extendedByBase
+            import org.jetbrains.compose.web.css.percent
+
+            val BaseStyle = CssStyle {}
+            val ExtendedStyle = BaseStyle.extendedByBase {
+                Modifier.width(70.percent)
+            }
+            val OtherExtendedStyle = BaseStyle.extendedBy {
+                base {
+                    Modifier.color(Colors.Green)
+                }
             }
             """.trimIndent()
         )
@@ -189,7 +233,6 @@ class ConvertStyleToConciseFormatIntentionTest : KobwebIntentionTestBase() {
             import com.varabyte.kobweb.compose.ui.modifiers.*
             import com.varabyte.kobweb.compose.ui.graphics.Colors
             import com.varabyte.kobweb.silk.style.CssStyle
-            import com.varabyte.kobweb.silk.style.extendedBy
             import com.varabyte.kobweb.silk.style.extendedByBase
             import org.jetbrains.compose.web.css.percent
 
@@ -220,7 +263,6 @@ class ConvertStyleToConciseFormatIntentionTest : KobwebIntentionTestBase() {
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.silk.style.CssStyle
-            import com.varabyte.kobweb.silk.style.extendedBy
             import com.varabyte.kobweb.silk.style.extendedByBase
 
             val BaseStyle = CssStyle {}
@@ -285,7 +327,6 @@ class ConvertStyleToConciseFormatIntentionTest : KobwebIntentionTestBase() {
             import com.varabyte.kobweb.compose.ui.graphics.Colors
             import com.varabyte.kobweb.silk.style.ComponentKind
             import com.varabyte.kobweb.silk.style.CssStyle
-            import com.varabyte.kobweb.silk.style.extendedBy
             import com.varabyte.kobweb.silk.style.extendedByBase
             import org.jetbrains.compose.web.css.px
 
@@ -326,7 +367,6 @@ class ConvertStyleToConciseFormatIntentionTest : KobwebIntentionTestBase() {
             import com.varabyte.kobweb.compose.ui.graphics.Colors
             import com.varabyte.kobweb.silk.style.ComponentKind
             import com.varabyte.kobweb.silk.style.CssStyle
-            import com.varabyte.kobweb.silk.style.addVariant
             import com.varabyte.kobweb.silk.style.addVariantBase
             import org.jetbrains.compose.web.css.percent
 
@@ -369,7 +409,6 @@ class ConvertStyleToConciseFormatIntentionTest : KobwebIntentionTestBase() {
             import com.varabyte.kobweb.compose.ui.graphics.Colors
             import com.varabyte.kobweb.silk.style.ComponentKind
             import com.varabyte.kobweb.silk.style.CssStyle
-            import com.varabyte.kobweb.silk.style.addVariant
             import com.varabyte.kobweb.silk.style.addVariantBase
             import org.jetbrains.compose.web.css.percent
 
@@ -402,7 +441,6 @@ class ConvertStyleToConciseFormatIntentionTest : KobwebIntentionTestBase() {
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.silk.style.ComponentKind
             import com.varabyte.kobweb.silk.style.CssStyle
-            import com.varabyte.kobweb.silk.style.addVariant
             import com.varabyte.kobweb.silk.style.addVariantBase
 
             sealed interface WidgetKind : ComponentKind
@@ -469,7 +507,6 @@ class ConvertStyleToConciseFormatIntentionTest : KobwebIntentionTestBase() {
             import com.varabyte.kobweb.compose.ui.graphics.Colors
             import com.varabyte.kobweb.silk.style.ComponentKind
             import com.varabyte.kobweb.silk.style.CssStyle
-            import com.varabyte.kobweb.silk.style.addVariant
             import com.varabyte.kobweb.silk.style.addVariantBase
     
             sealed interface WidgetKind : ComponentKind
@@ -513,7 +550,6 @@ class ConvertStyleToConciseFormatIntentionTest : KobwebIntentionTestBase() {
             import com.varabyte.kobweb.silk.style.ComponentKind
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.addVariant
-            import com.varabyte.kobweb.silk.style.extendedBy
             import com.varabyte.kobweb.silk.style.extendedByBase
             import org.jetbrains.compose.web.css.percent
 
@@ -560,7 +596,6 @@ class ConvertStyleToConciseFormatIntentionTest : KobwebIntentionTestBase() {
             import com.varabyte.kobweb.silk.style.ComponentKind
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.addVariant
-            import com.varabyte.kobweb.silk.style.extendedBy
             import com.varabyte.kobweb.silk.style.extendedByBase
             import org.jetbrains.compose.web.css.percent
 
@@ -596,7 +631,6 @@ class ConvertStyleToConciseFormatIntentionTest : KobwebIntentionTestBase() {
             import com.varabyte.kobweb.silk.style.ComponentKind
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.addVariant
-            import com.varabyte.kobweb.silk.style.extendedBy
             import com.varabyte.kobweb.silk.style.extendedByBase
 
             sealed interface WidgetKind : ComponentKind
