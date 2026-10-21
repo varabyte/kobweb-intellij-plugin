@@ -32,7 +32,7 @@ class ChangeLayoutIntention : PsiBasedModCommandAction<KtElement>(KtElement::cla
         return when (element) {
             is KtStringTemplateExpression -> {
                 val reference = element.references.filterIsInstance<LayoutPathReference>().firstOrNull()
-                reference != null && reference.value.isNotEmpty() && reference.resolveLayout() != null
+                reference != null && reference.path.isNotEmpty() && reference.resolveLayout() != null
             }
 
             is KtNamedFunction -> !element.isInBody(context.offset()) && element.findDefaultLayout() != null

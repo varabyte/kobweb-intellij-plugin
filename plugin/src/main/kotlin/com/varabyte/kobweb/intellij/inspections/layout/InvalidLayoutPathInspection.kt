@@ -65,21 +65,22 @@ class InvalidLayoutPathInspection : LocalInspectionTool() {
                 val pathExpr = argument.getArgumentExpression() as? KtStringTemplateExpression ?: return
                 val reference = pathExpr.references.filterIsInstance<LayoutPathReference>().firstOrNull() ?: return
 
-                if (reference.value.isEmpty()) return reportMissingPath()
+                if (reference.path.isEmpty()) return reportMissingPath()
 
                 // We can't resolve relative paths without knowing the project's group, which in some rare cases may
                 // not be available until next Gradle sync (e.g. IJ loads a cached version of the model from a previous
                 // version of the plugin). In that case, give the user the benefit of the doubt rather than flagging
                 // paths that are probably fine. Once a gradle sync happens, we'll try again.
-                if (reference.value.startsWith('.') && holder.file.findKobwebProject()?.group == null) return
+                if (reference.path.startsWith('.') && holder.file.findKobwebProject()?.group == null) return
 
                 if (reference.resolveLayout() == null) {
                     holder.registerProblem(
                         pathExpr,
-                        reference.rangeInElement,
+                        // Highlight the whole path (the reference itself only covers the layout's name)
+                        reference.pathRange,
                         UxGlobals.textBundle.message(
                             "inspection.invalid.layout.path.not.found.display.text",
-                            reference.value,
+                            reference.path,
                         ),
                         ChooseLayoutQuickFix(),
                     )

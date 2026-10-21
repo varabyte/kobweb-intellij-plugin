@@ -1,8 +1,10 @@
 package com.varabyte.kobweb.intellij.references.layout
 
+import com.intellij.testFramework.fixtures.CodeInsightTestUtil
 import com.varabyte.kobweb.intellij.test.fixtures.KobwebApplicationTestCase
 import com.varabyte.truthish.assertThat
 import org.intellij.lang.annotations.Language
+import org.jetbrains.kotlin.idea.refactoring.rename.KotlinMemberInplaceRenameHandler
 import org.jetbrains.kotlin.psi.KtNamedFunction
 
 class LayoutPathReferenceTest : KobwebApplicationTestCase() {
@@ -46,6 +48,24 @@ class LayoutPathReferenceTest : KobwebApplicationTestCase() {
     fun testCompletingLayoutNameInsertsRelativePath() {
         addLayout("$TEST_GROUP.components.layouts", "PageLayout")
         addPageUsingLayout("PageLa<caret>")
+
+        myFixture.completeBasic()
+
+        myFixture.checkResult(producePageUsingLayout(".components.layouts.PageLayout<caret>"))
+    }
+
+    fun testCompletingPartiallyTypedPathReplacesWholePath() {
+        addLayout("$TEST_GROUP.components.layouts", "PageLayout")
+        addPageUsingLayout(".components.layouts.PageLa<caret>")
+
+        myFixture.completeBasic()
+
+        myFixture.checkResult(producePageUsingLayout(".components.layouts.PageLayout<caret>"))
+    }
+
+    fun testCompletingPathTypedFromItsStart() {
+        addLayout("$TEST_GROUP.components.layouts", "PageLayout")
+        addPageUsingLayout(".components.lay<caret>")
 
         myFixture.completeBasic()
 
@@ -192,5 +212,120 @@ class LayoutPathReferenceTest : KobwebApplicationTestCase() {
         addPageUsingLayout(".components.layouts.Missing<caret>Layout")
 
         assertThat(myFixture.getReferenceAtCaretPositionWithAssertion().resolve()).isNull()
+    }
+
+    fun testRenamingLayoutUpdatesRelativePath() {
+        addLayout("$TEST_GROUP.components.layouts", "PageLayout")
+        addPageUsingLayout(".components.layouts.Page<caret>Layout")
+
+        myFixture.renameElementAtCaret("SiteLayout")
+
+        myFixture.checkResult(producePageUsingLayout(".components.layouts.SiteLayout"))
+    }
+
+    fun testRenamingLayoutInPlaceFromItsPathUpdatesOnlyItsName() {
+        addLayout("$TEST_GROUP.components.layouts", "PageLayout")
+        addPageUsingLayout(".components.layouts.Page<caret>Layout")
+
+        // i.e. pressing Shift+F6 with the caret inside the path, which renames in place (editing the text under the
+        // caret live)
+        CodeInsightTestUtil.doInlineRename(
+            KotlinMemberInplaceRenameHandler(),
+            "SiteLayout",
+            myFixture.editor,
+            myFixture.elementAtCaret,
+        )
+
+        myFixture.checkResult(producePageUsingLayout(".components.layouts.SiteLayout"))
+    }
+
+    fun testRenamingLayoutInPlaceUpdatesOnlyItsName() {
+        // In-place renaming (i.e. what Shift+F6 does in the editor when possible) edits the references in the current
+        // file live, so declare the layout and a page that uses it in the same file
+        myFixture.configureByText(
+            "Layouts.kt",
+            // language=kotlin
+            """
+            package $TEST_GROUP.components.layouts
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+            import com.varabyte.kobweb.core.layout.Layout
+
+            @Layout
+            @Composable
+            fun Page<caret>Layout(content: @Composable () -> Unit) {
+                content()
+            }
+
+            @Page
+            @Layout(".components.layouts.PageLayout")
+            @Composable
+            fun HomePage() {
+            }
+            """.trimIndent()
+        )
+
+        CodeInsightTestUtil.doInlineRename(KotlinMemberInplaceRenameHandler(), "SiteLayout", myFixture)
+
+        myFixture.checkResult(
+            // language=kotlin
+            """
+            package $TEST_GROUP.components.layouts
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+            import com.varabyte.kobweb.core.layout.Layout
+
+            @Layout
+            @Composable
+            fun SiteLayout(content: @Composable () -> Unit) {
+                content()
+            }
+
+            @Page
+            @Layout(".components.layouts.SiteLayout")
+            @Composable
+            fun HomePage() {
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testRenamingLayoutUpdatesFullyQualifiedPath() {
+        addLayout("$TEST_GROUP.components.layouts", "PageLayout")
+        addPageUsingLayout("$TEST_GROUP.components.layouts.Page<caret>Layout")
+
+        myFixture.renameElementAtCaret("SiteLayout")
+
+        myFixture.checkResult(producePageUsingLayout("$TEST_GROUP.components.layouts.SiteLayout"))
+    }
+
+    fun testRenamingLayoutUpdatesDefaultLayoutPath() {
+        addLayout("$TEST_GROUP.components.layouts", "PageLayout")
+        myFixture.configureByText(
+            "DefaultLayout.kt",
+            // language=kotlin
+            """
+            @file:Layout(".components.layouts.Page<caret>Layout")
+
+            package $TEST_GROUP.pages
+
+            import com.varabyte.kobweb.core.layout.Layout
+            """.trimIndent()
+        )
+
+        myFixture.renameElementAtCaret("SiteLayout")
+
+        myFixture.checkResult(
+            // language=kotlin
+            """
+            @file:Layout(".components.layouts.SiteLayout")
+
+            package $TEST_GROUP.pages
+
+            import com.varabyte.kobweb.core.layout.Layout
+            """.trimIndent()
+        )
     }
 }
