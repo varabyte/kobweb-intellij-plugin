@@ -1,11 +1,6 @@
 package com.varabyte.kobweb.intellij.util.psi
 
-import com.intellij.openapi.roots.ProjectRootModificationTracker
-import com.intellij.openapi.util.Key
 import com.intellij.psi.PsiElement
-import com.intellij.psi.util.CachedValue
-import com.intellij.psi.util.CachedValueProvider
-import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -40,14 +35,6 @@ val KtExpression.resolvedClassId: ClassId? get() = with(kaSession) {
     expressionType?.expandedSymbol?.classId
 }
 
-// Code adapted from https://kotlin.github.io/analysis-api/migrating-from-k1.html#using-analysis-api
-private fun KtDeclaration.hasAnyAnnotation(vararg classIds: ClassId): Boolean {
-    analyze(this) {
-        val annotations = this@hasAnyAnnotation.symbol.annotations
-        return classIds.any { it in annotations }
-    }
-}
-
 /** Given any element inside a [KtDotQualifiedExpression], return the first item in the list */
 tailrec fun KtDotQualifiedExpression.getEntireDotQualifiedExpression(): KtDotQualifiedExpression {
     val parentExpr = parent as? KtDotQualifiedExpression
@@ -76,17 +63,15 @@ tailrec fun KtDotQualifiedExpression.getRootReceiverExpression(): KtExpression {
 /**
  * Returns true if the function is tagged with any one of the given annotations.
  *
- * @param key A key must be provided to prevent ambiguity errors, as multiple places can call `hasAnyAnnotation` with
- *   different annotation lists on the same target method.
+ * This method must be called inside an [analyze] block.
  */
-fun KtDeclaration.hasAnyAnnotation(key: Key<CachedValue<Boolean>>, vararg classIds: ClassId): Boolean {
-    return CachedValuesManager.getCachedValue(this, key) {
-        CachedValueProvider.Result.create(
-            hasAnyAnnotation(*classIds),
-            this.containingKtFile,
-            ProjectRootModificationTracker.getInstance(project),
-        )
-    }
+context(kaSession: KaSession)
+fun KtDeclaration.hasAnyAnnotation(vararg classIds: ClassId): Boolean = with(kaSession) {
+    // Note: Don't cache this result with `CachedValuesManager`. A cached value keeps the code that computes it, which
+    // would keep the analysis session it was first called with, long after that session is invalid.
+    // Code adapted from https://kotlin.github.io/analysis-api/migrating-from-k1.html#using-analysis-api
+    val annotations = this@hasAnyAnnotation.symbol.annotations
+    classIds.any { it in annotations }
 }
 
 // Used to live in `org.jetbrains.kotlin.js.translate.declaration.hasCustomGetter` but IJ removed it in 251.*
@@ -94,32 +79,36 @@ fun KtProperty.hasCustomGetter() = getter?.hasBody() ?: false
 
 /**
  * Check if this annotatable declaration is annotated with a target and (optional) text value.
+ *
+ * This method must be called inside an [analyze] block.
  */
-fun KtAnnotated.isAnnotatedWith(classId: ClassId, expectedValue: String? = null): Boolean {
+context(kaSession: KaSession)
+fun KtAnnotated.isAnnotatedWith(classId: ClassId, expectedValue: String? = null): Boolean = with(kaSession) {
     fun KaAnnotationValue?.flattenStringValues(): List<String> = when (this) {
         is KaAnnotationValue.ConstantValue -> listOfNotNull(value.render().trimQuotes())
         is KaAnnotationValue.ArrayValue -> values.flatMap { it.flattenStringValues() }
         else -> emptyList()
     }
 
-    val self = this
-    val selfDeclaration = self as? KtDeclaration ?: return false
-    return analyze(this) {
-        val symbol = selfDeclaration.symbol
-
-        symbol.annotations.any { annotation ->
-            if (annotation.classId != classId) return@any false
-            if (expectedValue == null) return@any true
-            annotation.arguments.any { namedValue ->
-                val annotationValues = namedValue.expression.flattenStringValues()
-                expectedValue in annotationValues
-            }
+    val selfDeclaration = this@isAnnotatedWith as? KtDeclaration ?: return false
+    selfDeclaration.symbol.annotations.any { annotation ->
+        if (annotation.classId != classId) return@any false
+        if (expectedValue == null) return@any true
+        annotation.arguments.any { namedValue ->
+            val annotationValues = namedValue.expression.flattenStringValues()
+            expectedValue in annotationValues
         }
     }
 }
 
 private val KOTLIN_SUPPRESS_CLASS_ID = ClassId.topLevel(FqName("kotlin.Suppress"))
 
+/**
+ * Returns true if this declaration is annotated with `@Suppress(suppressKey)`.
+ *
+ * This method must be called inside an [analyze] block.
+ */
+context(_: KaSession)
 fun KtAnnotated.isSuppressedWith(suppressKey: String): Boolean {
     return isAnnotatedWith(KOTLIN_SUPPRESS_CLASS_ID, suppressKey)
 }

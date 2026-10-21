@@ -44,7 +44,7 @@ object ExtractCssStyleUtils {
                     ?: return false
 
                 return when (enclosing) {
-                    is KtNamedFunction -> enclosing.isAnnotatedWith(COMPOSABLE_CLASS_ID)
+                    is KtNamedFunction -> analyze(enclosing) { enclosing.isAnnotatedWith(COMPOSABLE_CLASS_ID) }
                     is KtLambdaExpression -> {
                         // If we're in a lambda, resolve the signature of the lambda parameter we are associated with,
                         // as that's what we'll need to check for Composable-ness. For example, something like

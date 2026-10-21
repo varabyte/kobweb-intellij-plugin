@@ -36,7 +36,8 @@ class PrivateStyleSingletonsInspection : LocalInspectionTool() {
 
                 val suppressKey = "PRIVATE_${matchingClassId.shortClassName.identifier.camelCaseToScreamingSnakeCase()}"
                 if (property.isPrivate() && !(
-                            nameIdentifier.text.startsWith("_") || property.isSuppressedWith(suppressKey))
+                            nameIdentifier.text.startsWith("_")
+                                || analyze(property) { property.isSuppressedWith(suppressKey) })
                 ) {
 
                     // Ideally target the "private" keyword, but with a fallback in case we can't find it unexpectedly

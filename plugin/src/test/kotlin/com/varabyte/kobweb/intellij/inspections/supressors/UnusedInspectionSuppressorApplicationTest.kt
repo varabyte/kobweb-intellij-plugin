@@ -1,7 +1,9 @@
 package com.varabyte.kobweb.intellij.inspections.supressors
 
+import com.intellij.openapi.application.WriteAction
 import com.varabyte.kobweb.intellij.test.fixtures.KobwebApplicationTestCase
 import com.varabyte.kobweb.intellij.test.util.configureByTextAndHighlight
+import org.jetbrains.kotlin.analysis.api.platform.modification.publishGlobalSourceModuleStateModificationEvent
 import org.jetbrains.kotlin.idea.k2.codeinsight.inspections.UnusedSymbolInspection
 
 class UnusedInspectionSuppressorApplicationTest : KobwebApplicationTestCase() {
@@ -47,6 +49,29 @@ class UnusedInspectionSuppressorApplicationTest : KobwebApplicationTestCase() {
             }
             """.trimIndent()
         )
+    }
+
+    fun testFunctionsCalledByGeneratedCodeAreStillNotReportedAfterEdits() {
+        myFixture.configureByTextAndHighlight(
+            "Index.kt",
+            // language=kotlin
+            """
+            package com.example
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+
+            @Page
+            @Composable
+            fun HomePage() {}<caret>
+            """.trimIndent()
+        )
+
+        // Make sure we don't hold onto the analysis session that the first highlighting pass used (e.g. inside a cached
+        // value), by invalidating that session and then editing the file (which invalidates any cached values).
+        WriteAction.run<Throwable> { project.publishGlobalSourceModuleStateModificationEvent() }
+        myFixture.type("\n")
+        myFixture.checkHighlighting()
     }
 
     // Control test, to ensure that our other test is genuinely suppressing unused warnings

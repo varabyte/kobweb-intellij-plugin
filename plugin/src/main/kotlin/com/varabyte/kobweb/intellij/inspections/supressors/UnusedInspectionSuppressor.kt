@@ -2,20 +2,17 @@ package com.varabyte.kobweb.intellij.inspections.supressors
 
 import com.intellij.codeInspection.InspectionSuppressor
 import com.intellij.codeInspection.SuppressQuickFix
-import com.intellij.openapi.util.Key
 import com.intellij.psi.PsiElement
-import com.intellij.psi.util.CachedValue
 import com.varabyte.kobweb.intellij.util.kobweb.KobwebProjectTypes
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.worker.asWorkerFactoryClass
 import com.varabyte.kobweb.intellij.util.kobweb.worker.computeWorkerClassId
 import com.varabyte.kobweb.intellij.util.psi.hasAnyAnnotation
+import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtNamedFunction
-
-private val ANNOTATION_GENERATES_CODE_KEY = Key<CachedValue<Boolean>>("ANNOTATION_GENERATES_CODE")
 
 private val SUPPRESS_UNUSED_WHEN_ANNOTATED_WITH = arrayOf(
     ClassId.fromString("com/varabyte/kobweb/api/Api"),
@@ -38,7 +35,7 @@ private fun PsiElement.isUsedByGeneratedFrameworkCode(): Boolean {
         ?: this as? KtNamedFunction
         ?: return false
 
-    return ktFunction.hasAnyAnnotation(ANNOTATION_GENERATES_CODE_KEY, *SUPPRESS_UNUSED_WHEN_ANNOTATED_WITH)
+    return analyze(ktFunction) { ktFunction.hasAnyAnnotation(*SUPPRESS_UNUSED_WHEN_ANNOTATED_WITH) }
 }
 
 /**
