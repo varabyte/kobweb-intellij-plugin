@@ -89,6 +89,24 @@ class KobwebPageRouteInlayHintsProviderTest : KobwebInlayHintsTestBase() {
         )
     }
 
+    fun testLongRoutesAreNotTruncated() {
+        // IntelliJ truncates long inline hints, so this checks we use a position where it doesn't
+        doTest(
+            "ReleaseNotes.kt",
+            """
+            package $TEST_GROUP.pages.docs.guides.advanced
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+
+            @Page("{}")/*<# /docs/guides/advanced/{release-notes} #>*/
+            @Composable
+            fun ReleaseNotesPage() {
+            }
+            """.trimIndent()
+        )
+    }
+
     fun testHintIsShownAtEndOfLineWhenPageAnnotationSharesItsLine() {
         doTest(
             "About.kt",
