@@ -13,12 +13,14 @@ import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_FRONTEND
 import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_LIBRARY
 import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_MODULE
 import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_WORKER
+import com.varabyte.kobweb.intellij.util.kobweb.PackageShortcuts
 import com.varabyte.kobweb.intellij.util.kobweb.isKobwebPluginEnabled
 import com.varabyte.kobweb.intellij.util.kobweb.readKobwebModuleMetadata
 import com.varabyte.kobweb.intellij.util.module.toGradleModule
 import com.varabyte.kobweb.intellij.util.psi.containingKlib
 import kotlinx.serialization.json.Json
 import org.jetbrains.kotlin.idea.base.util.module
+import org.jetbrains.kotlin.name.FqName
 
 // Metadata files useful for identifying external artifacts as Kobweb projects
 private val KOBWEB_METADATA_IDENTIFIERS_LIBRARY = listOf(
@@ -113,3 +115,16 @@ fun Module.findKobwebProject(): KobwebProject? {
 
     return findKobwebProject(project.service<KobwebProjectCacheService>())
 }
+
+/**
+ * The fully qualified root package of this project's pages, e.g. "com.example.pages", or null if it can't be
+ * determined (e.g. it's relative but the project's group is unknown).
+ */
+val KobwebProject.qualifiedPagesPackage: FqName?
+    get() {
+        // See `PsiElement.kobwebGroup` for why we treat an empty group as unknown
+        val shortcuts = PackageShortcuts(group?.takeIf { it.isNotEmpty() }?.let(::FqName))
+        // The pages package is only missing if IntelliJ restored a model saved by an older version of this plugin, so
+        // assume Kobweb's default until the next Gradle sync
+        return shortcuts.resolve(pagesPackage ?: ".pages")
+    }

@@ -80,11 +80,12 @@ abstract class KobwebInlayHintsTestBase : KobwebApplicationTestCase() {
     @OptIn(KaAllowAnalysisOnEdt::class)
     protected fun doTest(
         @Language("kotlin") code: String,
-        enabledOptions: Set<String>
+        enabledOptions: Set<String> = emptySet(),
+        fileName: String = "InlayTest.kt",
     ) {
         val withoutBadges = code.replace(aboveLineHintRegex, "").replace(badgeRegex, "")
 
-        val file = myFixture.configureByText("InlayTest.kt", withoutBadges)
+        val file = myFixture.configureByText(fileName, withoutBadges)
         myFixture.doHighlighting()
 
         val collector = produceInlayProvider()

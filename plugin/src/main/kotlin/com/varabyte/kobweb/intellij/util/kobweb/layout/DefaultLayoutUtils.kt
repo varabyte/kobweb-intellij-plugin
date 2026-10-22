@@ -11,6 +11,7 @@ import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.psi.util.PsiTreeUtil
 import com.varabyte.kobweb.intellij.util.kobweb.PackageShortcuts
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
+import com.varabyte.kobweb.intellij.util.kobweb.project.qualifiedPagesPackage
 import com.varabyte.kobweb.intellij.util.psi.addImportIfNeeded
 import com.varabyte.kobweb.intellij.util.psi.deleteWithSurroundingWhitespace
 import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
@@ -44,9 +45,7 @@ private fun Module.collectDefaultLayouts(): List<DefaultLayout> {
     val kobwebProject = findKobwebProject() ?: return emptyList()
     // See `PsiElement.kobwebGroup` for why we treat an empty group as unknown
     val shortcuts = PackageShortcuts(kobwebProject.group?.takeIf { it.isNotEmpty() }?.let(::FqName))
-    // The pages package is only missing if IntelliJ restored a model saved by an older version of this plugin, so
-    // assume Kobweb's default until the next Gradle sync
-    val rootPagesPackage = shortcuts.resolve(kobwebProject.pagesPackage ?: ".pages") ?: return emptyList()
+    val rootPagesPackage = kobwebProject.qualifiedPagesPackage ?: return emptyList()
 
     // Default layouts only apply to pages in the same module, so we don't need to search dependencies
     return KotlinAnnotationsIndex[LAYOUT_FQN.shortName().asString(), project, GlobalSearchScope.moduleScope(this)]

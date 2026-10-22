@@ -197,6 +197,15 @@
                     enabledByDefault="true"
             />
         </codeInsight.declarativeInlayProvider>
+        <codeInsight.declarativeInlayProvider
+                implementationClass="com.varabyte.kobweb.intellij.inlay.KobwebPageRouteInlayHintsProvider"
+                language="kotlin"
+                providerId="kobweb.page.route.hints"
+                nameKey="kobweb.inlay.hints.page.route.name"
+                descriptionKey="kobweb.inlay.hints.page.route.desc"
+                isEnabledByDefault="true"
+                group="URL_PATH_GROUP"
+                bundle="bundles.KobwebBundle"/>
 
         <notificationGroup displayType="BALLOON" id="Kobweb"/>
 
