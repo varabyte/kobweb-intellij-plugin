@@ -21,7 +21,6 @@ import org.jetbrains.kotlin.name.isSubpackageOf
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtPsiFactory
-import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
 /**
  * A default layout, i.e. one set by a `@file:Layout` annotation, which pages in its file's package (and subpackages)
@@ -57,8 +56,7 @@ private fun Module.collectDefaultLayouts(): List<DefaultLayout> {
             val pagesPackage = entry.containingKtFile.packageFqName
             if (!pagesPackage.isSubpackageOf(rootPagesPackage)) return@mapNotNull null
 
-            val pathExpr = entry.valueArguments.firstOrNull()?.getArgumentExpression() as? KtStringTemplateExpression
-                ?: return@mapNotNull null
+            val pathExpr = entry.layoutPathExpression ?: return@mapNotNull null
             val path = ElementManipulators.getValueText(pathExpr).takeIf { it.isNotEmpty() } ?: return@mapNotNull null
             val layoutFqn = PackageShortcuts.resolve(group, path) ?: return@mapNotNull null
             val layout = entry.findLayout(layoutFqn.asString()) ?: return@mapNotNull null

@@ -13,12 +13,12 @@ import com.varabyte.kobweb.intellij.util.kobweb.layout.NO_LAYOUT_FQN
 import com.varabyte.kobweb.intellij.util.kobweb.layout.displayPath
 import com.varabyte.kobweb.intellij.util.kobweb.layout.findPackageDefaultLayout
 import com.varabyte.kobweb.intellij.util.kobweb.layout.kobwebGroup
+import com.varabyte.kobweb.intellij.util.kobweb.layout.layoutPathExpression
 import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtNamedFunction
-import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.KtVisitorVoid
 
 /**
@@ -42,8 +42,7 @@ class RedundantLayoutInspection : LocalInspectionTool() {
                 if (page.annotationEntries.any { it.isAnnotationOfType(NO_LAYOUT_FQN) }) return
                 val defaultLayout = page.findPackageDefaultLayout() ?: return
 
-                val pathExpr = annotationEntry.valueArguments.firstOrNull()?.getArgumentExpression()
-                    as? KtStringTemplateExpression ?: return
+                val pathExpr = annotationEntry.layoutPathExpression ?: return
                 val layoutFqn = PackageShortcuts.resolve(page.kobwebGroup, ElementManipulators.getValueText(pathExpr))
                     ?: return
                 if (layoutFqn.asString() != defaultLayout.layout.fqn) return

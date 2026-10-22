@@ -167,7 +167,9 @@ class ChooseLayoutForPageAction : AnAction() {
         // Executing a ModCommand must happen inside a command (but outside a write action)
         CommandProcessor.getInstance().executeCommand(
             page.project,
-            { ModCommandExecutor.getInstance().executeInteractively(context, LayoutPathChooser.choose(page), editor) },
+            {
+                ModCommandExecutor.getInstance().executeInteractively(context, LayoutPathChooser(page).choose(), editor)
+            },
             e.presentation.text,
             null,
         )

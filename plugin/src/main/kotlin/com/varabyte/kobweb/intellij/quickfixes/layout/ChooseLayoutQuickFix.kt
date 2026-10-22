@@ -18,6 +18,6 @@ class ChooseLayoutQuickFix : ModCommandQuickFix() {
     override fun getFamilyName() = UxGlobals.textBundle.message("quickfixes.choose_layout.name")
 
     override fun perform(project: Project, descriptor: ProblemDescriptor): ModCommand {
-        return LayoutPathChooser.choose(descriptor.psiElement)
+        return LayoutPathChooser(descriptor.psiElement).choose()
     }
 }

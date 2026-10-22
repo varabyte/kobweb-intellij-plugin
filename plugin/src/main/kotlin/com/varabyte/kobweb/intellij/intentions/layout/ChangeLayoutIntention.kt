@@ -54,7 +54,7 @@ class ChangeLayoutIntention : PsiBasedModCommandAction<KtElement>(KtElement::cla
             is KtNamedFunction -> !element.isInBody(context.offset()) && element.findDefaultLayout() != null
             else -> false
         }
-        return isApplicable && LayoutPathChooser.hasChoices(element)
+        return isApplicable && LayoutPathChooser(element).hasChoices
     }
 
     override fun getPresentation(context: ActionContext, element: KtElement): Presentation? {
@@ -63,6 +63,6 @@ class ChangeLayoutIntention : PsiBasedModCommandAction<KtElement>(KtElement::cla
     }
 
     override fun perform(context: ActionContext, element: KtElement): ModCommand {
-        return LayoutPathChooser.choose(element)
+        return LayoutPathChooser(element).choose()
     }
 }

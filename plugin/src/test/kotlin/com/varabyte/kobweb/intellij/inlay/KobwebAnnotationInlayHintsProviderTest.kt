@@ -309,7 +309,7 @@ class KobwebAnnotationInlayHintsProviderTest : KobwebInlayHintsTestBase() {
         val page = PsiTreeUtil.findChildOfType(myFixture.file, KtNamedFunction::class.java)!!
 
         val context = ActionContext.from(myFixture.editor, myFixture.file)
-        val chooser = LayoutPathChooser.choose(page) as ModChooseAction
+        val chooser = LayoutPathChooser(page).choose() as ModChooseAction
         val choices = chooser.choicesByName(context)
         // The page already uses `BlogLayout` by default, so it isn't offered
         assertThat(choices.keys).containsExactly(".components.layouts.PageLayout")
