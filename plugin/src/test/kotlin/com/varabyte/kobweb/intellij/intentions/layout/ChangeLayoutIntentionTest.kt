@@ -10,9 +10,26 @@ import com.varabyte.truthish.assertThat
 class ChangeLayoutIntentionTest : KobwebIntentionTestBase() {
     override val intentionFamilyName = "Change layout…"
 
-    override fun setUp() {
-        super.setUp()
+    private fun addPageLayout() {
+        myFixture.addFileToProject(
+            "Layouts.kt",
+            // language=kotlin
+            """
+            package $TEST_GROUP.components.layouts
 
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.layout.Layout
+
+            @Layout
+            @Composable
+            fun PageLayout(content: @Composable () -> Unit) {
+                content()
+            }
+            """.trimIndent()
+        )
+    }
+
+    private fun addPageAndBlogLayouts() {
         myFixture.addFileToProject(
             "Layouts.kt",
             // language=kotlin
@@ -38,6 +55,7 @@ class ChangeLayoutIntentionTest : KobwebIntentionTestBase() {
     }
 
     fun testAvailableOnValidPath() {
+        addPageAndBlogLayouts()
         assertIntentionIsAvailable(
             """
             package $TEST_GROUP.pages
@@ -56,6 +74,7 @@ class ChangeLayoutIntentionTest : KobwebIntentionTestBase() {
     }
 
     fun testNotAvailableOnInvalidPath() {
+        addPageAndBlogLayouts()
         // Invalid paths are handled by a quick fix instead
         assertIntentionNotAvailable(
             """
@@ -74,7 +93,94 @@ class ChangeLayoutIntentionTest : KobwebIntentionTestBase() {
         )
     }
 
+    fun testAvailableOnLayoutAnnotation() {
+        addPageAndBlogLayouts()
+        assertIntentionIsAvailable(
+            """
+            package $TEST_GROUP.pages
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+            import com.varabyte.kobweb.core.layout.Layout
+
+            @Page
+            @Lay<caret>out(".components.layouts.PageLayout")
+            @Composable
+            fun Index() {
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testNotAvailableOnLayoutAnnotationWithInvalidPath() {
+        addPageAndBlogLayouts()
+        // Invalid paths are handled by a quick fix instead
+        assertIntentionNotAvailable(
+            """
+            package $TEST_GROUP.pages
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+            import com.varabyte.kobweb.core.layout.Layout
+
+            @Page
+            @Lay<caret>out(".components.layouts.MissingLayout")
+            @Composable
+            fun Index() {
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testChoosingLayoutFromAnnotationReplacesPath() {
+        addPageAndBlogLayouts()
+        myFixture.configureByText(
+            "Index.kt",
+            // language=kotlin
+            """
+            package $TEST_GROUP.pages
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+            import com.varabyte.kobweb.core.layout.Layout
+
+            @Page
+            @Lay<caret>out(".components.layouts.PageLayout")
+            @Composable
+            fun Index() {
+            }
+            """.trimIndent()
+        )
+
+        val context = ActionContext.from(myFixture.editor, myFixture.file)
+        val chooser = ChangeLayoutIntention().perform(context) as ModChooseAction
+        val choices = chooser.choicesByName(context)
+
+        assertThat(choices.keys)
+            .containsExactly(".components.layouts.PageLayout", ".components.layouts.BlogLayout")
+            .inOrder()
+        choices.getValue(".components.layouts.BlogLayout").performAndExecute(context)
+
+        myFixture.checkResult(
+            // language=kotlin
+            """
+            package $TEST_GROUP.pages
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+            import com.varabyte.kobweb.core.layout.Layout
+
+            @Page
+            @Layout(".components.layouts.BlogLayout")
+            @Composable
+            fun Index() {
+            }
+            """.trimIndent()
+        )
+    }
+
     fun testNotAvailableOnUnrelatedStrings() {
+        addPageAndBlogLayouts()
         assertIntentionNotAvailable(
             """
             package $TEST_GROUP.pages
@@ -85,6 +191,7 @@ class ChangeLayoutIntentionTest : KobwebIntentionTestBase() {
     }
 
     fun testChoosingLayoutListsCurrentLayoutFirst() {
+        addPageAndBlogLayouts()
         myFixture.configureByText(
             "Index.kt",
             // language=kotlin
@@ -147,6 +254,7 @@ class ChangeLayoutIntentionTest : KobwebIntentionTestBase() {
     }
 
     fun testAvailableOnPageUsingDefaultLayout() {
+        addPageAndBlogLayouts()
         addBlogDefaultLayout()
         assertIntentionIsAvailable(
             """
@@ -164,6 +272,7 @@ class ChangeLayoutIntentionTest : KobwebIntentionTestBase() {
     }
 
     fun testNotAvailableInPageBody() {
+        addPageAndBlogLayouts()
         addBlogDefaultLayout()
         assertIntentionNotAvailable(
             """
@@ -182,6 +291,7 @@ class ChangeLayoutIntentionTest : KobwebIntentionTestBase() {
     }
 
     fun testNotAvailableOnPageWithoutDefaultLayout() {
+        addPageAndBlogLayouts()
         assertIntentionNotAvailable(
             """
             package $TEST_GROUP.pages
@@ -198,6 +308,7 @@ class ChangeLayoutIntentionTest : KobwebIntentionTestBase() {
     }
 
     fun testChoosingLayoutForPageUsingDefaultLayoutAddsAnnotation() {
+        addPageAndBlogLayouts()
         addBlogDefaultLayout()
         myFixture.configureByText(
             "FirstPostPage.kt",
@@ -236,6 +347,54 @@ class ChangeLayoutIntentionTest : KobwebIntentionTestBase() {
             @Layout(".components.layouts.PageLayout")
             @Composable
             fun FirstPostPage() {
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testNotAvailableOnPathToOnlyLayout() {
+        addPageLayout()
+        assertIntentionNotAvailable(
+            """
+            package $TEST_GROUP.pages
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+            import com.varabyte.kobweb.core.layout.Layout
+
+            @Page
+            @Layout(".components.layouts.Page<caret>Layout")
+            @Composable
+            fun Index() {
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testNotAvailableOnPageUsingOnlyLayoutByDefault() {
+        addPageLayout()
+        myFixture.addFileToProject(
+            "pages/DefaultLayout.kt",
+            // language=kotlin
+            """
+            @file:Layout(".components.layouts.PageLayout")
+
+            package $TEST_GROUP.pages
+
+            import com.varabyte.kobweb.core.layout.Layout
+            """.trimIndent()
+        )
+
+        assertIntentionNotAvailable(
+            """
+            package $TEST_GROUP.pages
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+
+            @Page
+            @Composable
+            fun Home<caret>Page() {
             }
             """.trimIndent()
         )

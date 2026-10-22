@@ -22,7 +22,9 @@ import org.jetbrains.kotlin.idea.stubindex.KotlinAnnotationsIndex
 import org.jetbrains.kotlin.idea.stubindex.KotlinTopLevelFunctionFqnNameIndex
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtAnnotated
+import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 
 val LAYOUT_FQN = FqName("com.varabyte.kobweb.core.layout.Layout")
@@ -50,6 +52,13 @@ class LayoutDefinition(val fqn: String, val function: KtNamedFunction?) {
  * which never resolves), so we treat an empty group the same as an unknown one.
  */
 val PsiElement.kobwebGroup: FqName? get() = findKobwebProject()?.group?.takeIf { it.isNotEmpty() }?.let(::FqName)
+
+/**
+ * The path string passed into this `@Layout` annotation, e.g. `".components.layouts.PageLayout"`, or null if it
+ * doesn't have one (or it isn't a string literal, e.g. it's a constant).
+ */
+val KtAnnotationEntry.layoutPathExpression: KtStringTemplateExpression?
+    get() = valueArguments.firstOrNull()?.getArgumentExpression() as? KtStringTemplateExpression
 
 private fun KtAnnotated.hasAnnotation(fqn: FqName) = annotationEntries.any { it.isAnnotationOfType(fqn) }
 
