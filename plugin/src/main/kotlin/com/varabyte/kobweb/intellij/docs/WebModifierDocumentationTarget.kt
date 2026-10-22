@@ -1,8 +1,5 @@
 package com.varabyte.kobweb.intellij.docs
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.github.benmanes.caffeine.cache.Caffeine
 import com.intellij.documentation.mdn.*
 import com.intellij.icons.AllIcons
 import com.intellij.model.Pointer
@@ -14,60 +11,11 @@ import com.intellij.platform.backend.presentation.TargetPresentation
 import com.intellij.platform.ide.progress.withBackgroundProgress
 import com.intellij.polySymbols.PolySymbolApiStatus
 import com.intellij.psi.PsiElement
-import com.intellij.util.io.HttpRequests
+import com.varabyte.kobweb.intellij.services.docs.MdnDocsService
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebName
-import java.util.concurrent.TimeUnit
 import java.util.function.Consumer
 
 private const val MDN_DOCS_BASE = "https://developer.mozilla.org/en-US/docs"
-
-private object MdnDocFetcher {
-    private const val NETWORK_TIMEOUT_MS = 3000
-
-    private val objectMapper = ObjectMapper()
-
-    private val cache = Caffeine.newBuilder()
-        .expireAfterWrite(1, TimeUnit.HOURS)
-        .maximumSize(100)
-        .build<String, String>()
-
-    fun cached(name: String): String? {
-        return cache.getIfPresent(name)
-    }
-
-    /**
-     * Network call that must NOT be triggered on the EDT thread.
-     */
-    fun fetch(name: String, url: String): String? {
-        return cache.asMap().computeIfAbsent(name) { attr ->
-            try {
-                val responseJson = HttpRequests.request(url)
-                    .accept("application/json")
-                    .connectTimeout(NETWORK_TIMEOUT_MS)
-                    .readTimeout(NETWORK_TIMEOUT_MS)
-                    .readString()
-
-                val rootNode = objectMapper.readTree(responseJson)
-
-                fun JsonNode.isProse() = path("type").asText() == "prose"
-                fun JsonNode.id() = path("value").path("id").asText().takeIf { it != "null" }
-                val body = rootNode.path("doc").path("body")
-                val proseEntries = body.asSequence().filter { it.isProse() }
-
-                // Use the "description" section, if present. Otherwise, just use the first section, which acts as a
-                // short summary.
-                val docHtml = (
-                        proseEntries.firstOrNull { it.id() == "description" }
-                            ?: proseEntries.firstOrNull()
-                        )?.let { node -> node.path("value").path("content").asText().takeIf { it.isNotBlank() } }
-
-                docHtml
-            } catch (_: Exception) {
-                null
-            }
-        }
-    }
-}
 
 // If docs classes ever change in the future, we can always delete this feature as it is pretty minor
 @Suppress("UnstableApiUsage")
@@ -123,10 +71,10 @@ class WebModifierDocumentationTarget(private val webName: WebName, val element: 
         val url = "$MDN_DOCS_BASE/$urlSuffix"
 
         // Avoid doing a network fetch while on the EDT or inside a read action
-        val fetchedContent = MdnDocFetcher.cached(name) ?: runBlockingCancellable {
+        val fetchedContent = MdnDocsService.instance.cached(name) ?: runBlockingCancellable {
             withBackgroundProgress(element.project, "Fetching MDN documentation...", cancellable = true) {
                 val future = ApplicationManager.getApplication().executeOnPooledThread<String?> {
-                    MdnDocFetcher.fetch(name, "$url/index.json")
+                    MdnDocsService.instance.fetch(name, "$url/index.json")
                 }
                 future.get()
             }
