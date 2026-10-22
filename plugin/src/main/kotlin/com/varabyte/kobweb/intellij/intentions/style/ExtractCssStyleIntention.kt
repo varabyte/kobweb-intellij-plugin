@@ -3,7 +3,8 @@ package com.varabyte.kobweb.intellij.intentions.style
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
-import com.varabyte.kobweb.intellij.util.features.ExtractCssStyleUtils
+import com.varabyte.kobweb.intellij.util.features.extractCssStyle
+import com.varabyte.kobweb.intellij.util.features.toInlineModifierChain
 import com.varabyte.kobweb.intellij.util.idea.intentions.CacheDerivedPsiElementIntentionAction
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
@@ -18,10 +19,10 @@ class ExtractCssStyleIntention : CacheDerivedPsiElementIntentionAction<KtDotQual
 
     override fun PsiElement.tryDerivingElement(): KtDotQualifiedExpression? {
         if (!isInWritableKobwebProject()) return null
-        return ExtractCssStyleUtils.toInlineModifierChain(this, allowAnyElementInChain = true)
+        return toInlineModifierChain(allowAnyElementInChain = true)
     }
 
     override fun handleElementIsInvoked(project: Project, editor: Editor, element: KtDotQualifiedExpression) {
-        ExtractCssStyleUtils.handleExtractCssStyle(editor, element)
+        element.extractCssStyle(editor)
     }
 }

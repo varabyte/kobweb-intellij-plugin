@@ -4,7 +4,8 @@ import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
-import com.varabyte.kobweb.intellij.util.features.ExtractCssStyleUtils
+import com.varabyte.kobweb.intellij.util.features.extractCssStyle
+import com.varabyte.kobweb.intellij.util.features.toInlineModifierChain
 import com.varabyte.kobweb.intellij.util.idea.key
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
@@ -28,7 +29,7 @@ class ExtractCssStyleAction : AnAction() {
         val editor = e.getData(CommonDataKeys.EDITOR) ?: return
         val modifierChainStart = e.presentation.getClientProperty(TARGET_MODIFIER_CHAIN_KEY) ?: return
 
-        ExtractCssStyleUtils.handleExtractCssStyle(editor, modifierChainStart)
+        modifierChainStart.extractCssStyle(editor)
     }
 
     private fun findTargetModifierChain(e: AnActionEvent): KtDotQualifiedExpression? {
@@ -38,6 +39,6 @@ class ExtractCssStyleAction : AnAction() {
         val element = psiFile.findElementAt(offset) ?: return null
         if (!element.isInWritableKobwebProject()) return null
 
-        return ExtractCssStyleUtils.toInlineModifierChain(element, allowAnyElementInChain = true)
+        return element.toInlineModifierChain(allowAnyElementInChain = true)
     }
 }

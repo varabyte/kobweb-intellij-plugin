@@ -6,7 +6,8 @@ import com.intellij.openapi.actionSystem.ActionToolbar
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
-import com.varabyte.kobweb.intellij.util.features.ExtractCssStyleUtils
+import com.varabyte.kobweb.intellij.util.features.extractCssStyle
+import com.varabyte.kobweb.intellij.util.features.toInlineModifierChain
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.project.KobwebLineMarkerInfo
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
@@ -21,7 +22,7 @@ class ExtractCssStyleRefactorLineMarkerProvider : LineMarkerProviderDescriptor()
     override fun getLineMarkerInfo(element: PsiElement): LineMarkerInfo<*>? {
         if (element !is LeafPsiElement) return null // The docs for this class say it should ideally point at leaf elements
         if (!element.isInWritableKobwebProject()) return null
-        val modifierChainStart = ExtractCssStyleUtils.toInlineModifierChain(element) ?: return null
+        val modifierChainStart = element.toInlineModifierChain() ?: return null
 
         return KobwebLineMarkerInfo(
             element,
@@ -30,7 +31,7 @@ class ExtractCssStyleRefactorLineMarkerProvider : LineMarkerProviderDescriptor()
                 val dataContext = ActionToolbar.getDataContextFor(e.component)
                 val editor = CommonDataKeys.EDITOR.getData(dataContext) ?: return@KobwebLineMarkerInfo
 
-                ExtractCssStyleUtils.handleExtractCssStyle(editor, modifierChainStart)
+                modifierChainStart.extractCssStyle(editor)
             },
         )
     }
