@@ -1,0 +1,17 @@
+<html lang="en">
+<body>
+Reports pages annotated with both <code>@Layout</code> and <code>@NoLayout</code>, which Kobweb rejects when building
+your site.
+<p>
+A page should either use a layout or opt out of one, so remove one of the two annotations.
+<pre><code>
+// Not OK
+@Page
+@Layout(".components.layouts.PageLayout")
+@NoLayout
+@Composable
+fun HomePage() { }
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>

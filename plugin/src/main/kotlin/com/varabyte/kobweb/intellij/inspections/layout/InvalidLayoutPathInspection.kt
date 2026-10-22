@@ -5,10 +5,12 @@ import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElementVisitor
 import com.varabyte.kobweb.intellij.quickfixes.layout.ChooseLayoutQuickFix
+import com.varabyte.kobweb.intellij.quickfixes.layout.RemoveLayoutQuickFix
 import com.varabyte.kobweb.intellij.quickfixes.layout.ReplaceWithNoLayoutQuickFix
 import com.varabyte.kobweb.intellij.references.layout.LayoutPathReference
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.layout.LAYOUT_FQN
+import com.varabyte.kobweb.intellij.util.kobweb.layout.NO_LAYOUT_FQN
 import com.varabyte.kobweb.intellij.util.kobweb.layout.PAGE_FQN
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
 import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
@@ -52,10 +54,12 @@ class InvalidLayoutPathInspection : LocalInspectionTool() {
                     val function = (annotationEntry.parent as? KtModifierList)?.parent as? KtNamedFunction ?: return
                     if (function.annotationEntries.none { it.isAnnotationOfType(PAGE_FQN) }) return
 
+                    // If the page already opts out with `@NoLayout`, replacing `@Layout` with it would duplicate it
+                    val hasNoLayout = function.annotationEntries.any { it.isAnnotationOfType(NO_LAYOUT_FQN) }
                     holder.registerProblem(
                         annotationEntry,
                         UxGlobals.textBundle.message("inspection.invalid.layout.path.missing.on.page.display.text"),
-                        ReplaceWithNoLayoutQuickFix(),
+                        if (hasNoLayout) RemoveLayoutQuickFix() else ReplaceWithNoLayoutQuickFix(),
                         ChooseLayoutQuickFix(),
                     )
                 }

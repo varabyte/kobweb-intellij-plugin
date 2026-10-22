@@ -4,8 +4,10 @@ import com.intellij.modcommand.ModPsiUpdater
 import com.intellij.modcommand.PsiUpdateModCommandQuickFix
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
+import com.varabyte.kobweb.intellij.util.kobweb.layout.LAYOUT_FQN
 import com.varabyte.kobweb.intellij.util.kobweb.layout.NO_LAYOUT_FQN
 import com.varabyte.kobweb.intellij.util.psi.addImportIfNeeded
+import com.varabyte.kobweb.intellij.util.psi.removeImportIfUnused
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtPsiFactory
@@ -23,5 +25,6 @@ class ReplaceWithNoLayoutQuickFix : PsiUpdateModCommandQuickFix() {
 
         annotationEntry.replace(psiFactory.createAnnotationEntry("@${NO_LAYOUT_FQN.shortName()}"))
         file.addImportIfNeeded(NO_LAYOUT_FQN)
+        file.removeImportIfUnused(LAYOUT_FQN)
     }
 }

@@ -1,6 +1,7 @@
 package com.varabyte.kobweb.intellij.util.psi
 
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -191,6 +192,17 @@ fun KtFile.removeImportIfUnused(fqn: FqName) {
         nameExpr.getReferencedName() == importedName && nameExpr.getStrictParentOfType<KtImportDirective>() == null
     }
     if (!isUsed) import.delete()
+}
+
+/**
+ * Deletes this annotation, along with the whitespace separating it from its neighbors, so it doesn't leave a blank line
+ * behind.
+ */
+fun KtAnnotationEntry.deleteWithSurroundingWhitespace() {
+    // If it's the last annotation, the whitespace after it lies outside its parent, so remove the whitespace before it
+    // instead
+    (nextSibling as? PsiWhiteSpace ?: prevSibling as? PsiWhiteSpace)?.delete()
+    delete()
 }
 
 /**

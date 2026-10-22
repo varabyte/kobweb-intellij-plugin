@@ -4,8 +4,8 @@ import com.intellij.modcommand.ModPsiUpdater
 import com.intellij.modcommand.PsiUpdateModCommandQuickFix
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiWhiteSpace
 import com.varabyte.kobweb.intellij.util.kobweb.layout.LAYOUT_FQN
+import com.varabyte.kobweb.intellij.util.psi.deleteWithSurroundingWhitespace
 import com.varabyte.kobweb.intellij.util.psi.removeImportIfUnused
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
@@ -20,11 +20,7 @@ class RemoveRedundantLayoutQuickFix : PsiUpdateModCommandQuickFix() {
         val annotationEntry = element as? KtAnnotationEntry ?: return
         val file = annotationEntry.containingKtFile
 
-        // Remove the whitespace separating the annotation from its neighbors too, so we don't leave a blank line
-        // behind. (If it's the last annotation, the whitespace after it lies outside its parent, so remove the
-        // whitespace before it instead.)
-        (annotationEntry.nextSibling as? PsiWhiteSpace ?: annotationEntry.prevSibling as? PsiWhiteSpace)?.delete()
-        annotationEntry.delete()
+        annotationEntry.deleteWithSurroundingWhitespace()
 
         file.removeImportIfUnused(LAYOUT_FQN)
     }

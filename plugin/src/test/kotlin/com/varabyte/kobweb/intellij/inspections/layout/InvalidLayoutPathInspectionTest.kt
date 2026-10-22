@@ -5,6 +5,7 @@ import com.intellij.modcommand.ActionContext
 import com.intellij.modcommand.ModChooseAction
 import com.varabyte.kobweb.intellij.inspections.KobwebInspectionTestBase
 import com.varabyte.kobweb.intellij.quickfixes.layout.ChooseLayoutQuickFix
+import com.varabyte.kobweb.intellij.quickfixes.layout.RemoveLayoutQuickFix
 import com.varabyte.kobweb.intellij.quickfixes.layout.ReplaceWithNoLayoutQuickFix
 import com.varabyte.kobweb.intellij.test.util.choicesByName
 import com.varabyte.kobweb.intellij.test.util.performAndExecute
@@ -398,7 +399,6 @@ class InvalidLayoutPathInspectionTest : KobwebInspectionTestBase() {
 
                 import androidx.compose.runtime.Composable
                 import com.varabyte.kobweb.core.Page
-                import com.varabyte.kobweb.core.layout.Layout
                 import com.varabyte.kobweb.core.layout.NoLayout
 
                 @Page
@@ -409,5 +409,65 @@ class InvalidLayoutPathInspectionTest : KobwebInspectionTestBase() {
                 """.trimIndent()
             )
         )
+    }
+
+    fun testPageWithoutPathAndNoLayoutCanBeFixedByRemovingLayout() {
+        doTest(
+            """
+            package $TEST_GROUP.pages
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+            import com.varabyte.kobweb.core.layout.Layout
+            import com.varabyte.kobweb.core.layout.NoLayout
+
+            @Page
+            <error>@Layout("")</error>
+            @NoLayout
+            @Composable
+            fun Index() {
+            }
+            """.trimIndent(),
+            thenFixWith<RemoveLayoutQuickFix>(
+                """
+                package $TEST_GROUP.pages
+
+                import androidx.compose.runtime.Composable
+                import com.varabyte.kobweb.core.Page
+                import com.varabyte.kobweb.core.layout.NoLayout
+
+                @Page
+                @NoLayout
+                @Composable
+                fun Index() {
+                }
+                """.trimIndent()
+            )
+        )
+    }
+
+    fun testPageWithoutPathAndNoLayoutIsNotOfferedNoLayout() {
+        doTest(
+            """
+            package $TEST_GROUP.pages
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+            import com.varabyte.kobweb.core.layout.Layout
+            import com.varabyte.kobweb.core.layout.NoLayout
+
+            @Page
+            <error>@Layout("")</error>
+            @NoLayout
+            @Composable
+            fun Index() {
+            }
+            """.trimIndent()
+        )
+
+        // Replacing `@Layout` with `@NoLayout` would leave the page with two of them, so removing it is offered instead
+        val quickFixNames = myFixture.getAllQuickFixes().map { it.text }
+        assertThat(quickFixNames).contains("Remove `@Layout`")
+        assertThat(quickFixNames).doesNotContain("Replace with `@NoLayout`")
     }
 }
