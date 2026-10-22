@@ -15,6 +15,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.layout.LayoutDefinition
 import com.varabyte.kobweb.intellij.util.kobweb.layout.findLayout
 import com.varabyte.kobweb.intellij.util.kobweb.layout.findLayouts
 import com.varabyte.kobweb.intellij.util.kobweb.layout.kobwebGroup
+import org.jetbrains.kotlin.asJava.unwrapped
 import org.jetbrains.kotlin.idea.KotlinIcons
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -76,6 +77,22 @@ class LayoutPathReference(element: KtStringTemplateExpression) : PsiReferenceBas
     }
 
     override fun resolve(): PsiElement? = resolveLayout()?.function
+
+    /**
+     * Points this path at [element] (e.g. after a layout is moved to another package), keeping its style: a relative
+     * path stays relative, as long as the layout still lives under the project's group.
+     */
+    override fun bindToElement(element: PsiElement): PsiElement {
+        // Refactorings may hand us a light (Java) wrapper around the layout function, so unwrap it
+        val layout = element.unwrapped as? KtNamedFunction ?: return this.element
+        val layoutFqn = layout.fqName ?: return this.element
+        val newPath = if (path.startsWith('.')) {
+            PackageShortcuts.relativize(this.element.kobwebGroup, layoutFqn)
+        } else {
+            layoutFqn.asString()
+        }
+        return ElementManipulators.handleContentChange(this.element, pathRange, newPath)
+    }
 
     override fun getVariants(): Array<Any> {
         // During completion, `element` lives in a temporary copy of the file (with a dummy identifier inserted at the
