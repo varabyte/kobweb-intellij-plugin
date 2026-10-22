@@ -72,7 +72,7 @@ class LayoutPathReference(element: KtStringTemplateExpression) : PsiReferenceBas
      * find a declaration for (in which case this returns a layout but [resolve] returns null).
      */
     fun resolveLayout(): LayoutDefinition? {
-        val fqn = PackageShortcuts.resolve(element.kobwebGroup, path) ?: return null
+        val fqn = PackageShortcuts(element.kobwebGroup).resolve(path) ?: return null
         return element.findLayout(fqn.asString())
     }
 
@@ -87,7 +87,7 @@ class LayoutPathReference(element: KtStringTemplateExpression) : PsiReferenceBas
         val layout = element.unwrapped as? KtNamedFunction ?: return this.element
         val layoutFqn = layout.fqName ?: return this.element
         val newPath = if (path.startsWith('.')) {
-            PackageShortcuts.relativize(this.element.kobwebGroup, layoutFqn)
+            PackageShortcuts(this.element.kobwebGroup).relativize(layoutFqn)
         } else {
             layoutFqn.asString()
         }
@@ -99,14 +99,14 @@ class LayoutPathReference(element: KtStringTemplateExpression) : PsiReferenceBas
         // caret). Map it back to the real file, so we can compare it against PSI from the project (e.g. to exclude the
         // layout we're inside) and look up which Kobweb project it belongs to.
         val originalElement = CompletionUtil.getOriginalOrSelf(element)
-        val group = originalElement.kobwebGroup
+        val shortcuts = PackageShortcuts(originalElement.kobwebGroup)
         // A layout can't be its own parent
         val annotatedFunction = originalElement.getStrictParentOfType<KtNamedFunction>()
 
         return originalElement.findLayouts()
             .filter { layout -> layout.function == null || layout.function != annotatedFunction }
             .map { layout ->
-                val path = PackageShortcuts.relativize(group, FqName(layout.fqn))
+                val path = shortcuts.relativize(FqName(layout.fqn))
                 LookupElementBuilder.create(layout.function ?: layout.fqn, path)
                     // Completion only matches against what's typed after the last period (since that's where this
                     // reference starts), so match each part of the path, e.g. typing ".components.lay" matches

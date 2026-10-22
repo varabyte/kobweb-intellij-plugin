@@ -43,7 +43,7 @@ class RedundantLayoutInspection : LocalInspectionTool() {
                 val defaultLayout = page.findPackageDefaultLayout() ?: return
 
                 val pathExpr = annotationEntry.layoutPathExpression ?: return
-                val layoutFqn = PackageShortcuts.resolve(page.kobwebGroup, ElementManipulators.getValueText(pathExpr))
+                val layoutFqn = PackageShortcuts(page.kobwebGroup).resolve(ElementManipulators.getValueText(pathExpr))
                     ?: return
                 if (layoutFqn.asString() != defaultLayout.layout.fqn) return
 

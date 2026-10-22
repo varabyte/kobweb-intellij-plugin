@@ -11,18 +11,20 @@ import org.jetbrains.kotlin.name.FqName
  *
  * What the base is depends on the feature, e.g. `@Layout` paths are relative to the project's group, while a worker's
  * `fqcn` override is relative to its factory's package.
+ *
+ * @param base The package that relative names are relative to, or null if unknown. With an unknown base, [resolve]
+ *   returns null for relative names, and [relativize] returns names unchanged.
  */
-object PackageShortcuts {
+class PackageShortcuts(private val base: FqName?) {
     /**
      * Expand a (possibly) relative name into a fully qualified one.
      *
      * A name without a leading period is assumed to already be fully qualified, and "." on its own refers to the base
      * itself.
      *
-     * @param base The package that relative names are relative to, or null if unknown.
      * @return null if [name] is relative but [base] is unknown.
      */
-    fun resolve(base: FqName?, name: String): FqName? {
+    fun resolve(name: String): FqName? {
         if (!name.startsWith('.')) return FqName(name)
         if (base == null) return null
 
@@ -36,7 +38,7 @@ object PackageShortcuts {
      * Unlike `java.nio.file.Path.relativize`, which this is named after, names that don't live under [base] are
      * returned unchanged (as fully qualified names), since package shortcuts can't express a parent package.
      */
-    fun relativize(base: FqName?, fqn: FqName): String {
+    fun relativize(fqn: FqName): String {
         val fqnStr = fqn.asString()
         if (base == null || base.isRoot) return fqnStr
 

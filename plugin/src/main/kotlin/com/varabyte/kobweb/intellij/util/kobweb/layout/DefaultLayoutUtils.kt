@@ -43,10 +43,10 @@ class DefaultLayout(
 private fun Module.collectDefaultLayouts(): List<DefaultLayout> {
     val kobwebProject = findKobwebProject() ?: return emptyList()
     // See `PsiElement.kobwebGroup` for why we treat an empty group as unknown
-    val group = kobwebProject.group?.takeIf { it.isNotEmpty() }?.let(::FqName)
+    val shortcuts = PackageShortcuts(kobwebProject.group?.takeIf { it.isNotEmpty() }?.let(::FqName))
     // The pages package is only missing if IntelliJ restored a model saved by an older version of this plugin, so
     // assume Kobweb's default until the next Gradle sync
-    val rootPagesPackage = PackageShortcuts.resolve(group, kobwebProject.pagesPackage ?: ".pages") ?: return emptyList()
+    val rootPagesPackage = shortcuts.resolve(kobwebProject.pagesPackage ?: ".pages") ?: return emptyList()
 
     // Default layouts only apply to pages in the same module, so we don't need to search dependencies
     return KotlinAnnotationsIndex[LAYOUT_FQN.shortName().asString(), project, GlobalSearchScope.moduleScope(this)]
@@ -60,7 +60,7 @@ private fun Module.collectDefaultLayouts(): List<DefaultLayout> {
 
             val pathExpr = entry.layoutPathExpression ?: return@mapNotNull null
             val path = ElementManipulators.getValueText(pathExpr).takeIf { it.isNotEmpty() } ?: return@mapNotNull null
-            val layoutFqn = PackageShortcuts.resolve(group, path) ?: return@mapNotNull null
+            val layoutFqn = shortcuts.resolve(path) ?: return@mapNotNull null
             val layout = entry.findLayout(layoutFqn.asString()) ?: return@mapNotNull null
 
             DefaultLayout(entry, path, layout, pagesPackage)
@@ -137,7 +137,7 @@ fun KtNamedFunction.findDefaultLayout(): DefaultLayout? {
 val DefaultLayout.displayPath: String
     get() {
         val file = annotation.containingKtFile
-        val packagePath = PackageShortcuts.relativize(file.kobwebGroup, file.packageFqName)
+        val packagePath = PackageShortcuts(file.kobwebGroup).relativize(file.packageFqName)
             .removePrefix(".")
             .replace('.', '/')
         return if (packagePath.isEmpty()) file.name else "$packagePath/${file.name}"

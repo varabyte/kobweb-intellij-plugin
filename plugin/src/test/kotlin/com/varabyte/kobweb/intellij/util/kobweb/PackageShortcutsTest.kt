@@ -5,8 +5,8 @@ import org.jetbrains.kotlin.name.FqName
 import org.junit.Test
 
 class PackageShortcutsTest {
-    private fun resolve(base: String?, name: String) = PackageShortcuts.resolve(base?.let(::FqName), name)?.asString()
-    private fun relativize(base: String?, fqn: String) = PackageShortcuts.relativize(base?.let(::FqName), FqName(fqn))
+    private fun resolve(base: String?, name: String) = PackageShortcuts(base?.let(::FqName)).resolve(name)?.asString()
+    private fun relativize(base: String?, fqn: String) = PackageShortcuts(base?.let(::FqName)).relativize(FqName(fqn))
 
     @Test
     fun resolveExpandsRelativeNames() {

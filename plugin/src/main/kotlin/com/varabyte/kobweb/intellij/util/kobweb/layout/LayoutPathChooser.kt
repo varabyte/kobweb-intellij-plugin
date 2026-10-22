@@ -73,7 +73,7 @@ class LayoutPathChooser(element: PsiElement) {
      */
     val hasChoices: Boolean
         get() {
-            val currentFqn = PackageShortcuts.resolve(target.kobwebGroup, currentPath)?.asString()
+            val currentFqn = PackageShortcuts(target.kobwebGroup).resolve(currentPath)?.asString()
             return choices.any { layout -> layout.fqn != currentFqn }
         }
 
@@ -91,15 +91,15 @@ class LayoutPathChooser(element: PsiElement) {
             return if (currentName.isEmpty()) 0 else EditDistance.levenshtein(currentName, shortName, false)
         }
 
-        val group = target.kobwebGroup
+        val shortcuts = PackageShortcuts(target.kobwebGroup)
         val paths = choices
             .sortedWith(compareBy({ it.distanceFromCurrentName() }, { it.fqn }))
-            .map { layout -> PackageShortcuts.relativize(group, FqName(layout.fqn)) }
+            .map { layout -> shortcuts.relativize(FqName(layout.fqn)) }
 
         if (paths.isEmpty()) return ModCommand.nop()
         // Only offered for pages that opted out of their default layout with `@NoLayout` (see `choices`)
         val packageDefaultPath = (target as? KtNamedFunction)?.findPackageDefaultLayout()
-            ?.let { PackageShortcuts.relativize(group, FqName(it.layout.fqn)) }
+            ?.let { shortcuts.relativize(FqName(it.layout.fqn)) }
         return ModCommand.chooseAction(
             UxGlobals.textBundle.message("popups.layout.chooser.title"),
             paths.map { path -> SetLayoutPathAction(target, path, isPackageDefault = path == packageDefaultPath) },

@@ -53,7 +53,7 @@ fun WorkerFactoryClass.Companion.computeWorkerClassId(
             // Note that ".PiWorker" leaves an empty package here, which means use factory's package itself, i.e. "."
             val packageOverride = fqcnOverride.substringBeforeLast('.').ifEmpty { "." }
             // Never null, since the base package is always known
-            PackageShortcuts.resolve(packageFqName, packageOverride)!!
+            PackageShortcuts(packageFqName).resolve(packageOverride)!!
         }
     }
     val workerClassName = classNameOverride ?: factoryFqName.shortName().asString().removeSuffix(
