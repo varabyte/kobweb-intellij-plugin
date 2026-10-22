@@ -1,0 +1,23 @@
+<html lang="en">
+<body>
+Reports <code>@Page</code> route overrides and <code>@file:PackageMapping</code> values that Kobweb rejects, or that it
+accepts but are almost certainly mistakes.
+<p>
+Kobweb would skip generating pages for:
+<ul>
+    <li>route overrides which put an inferred (<code>{}</code>), catch-all (<code>{...}</code>), or optional (<code>{?}</code>) dynamic segment anywhere but at the end</li>
+    <li>pages that live outside the pages package (unless they specify an absolute path)</li>
+</ul>
+And it would fail the build for routes that start with <code>api</code>, which it reserves to avoid conflicts with
+backend API routes.
+<p>
+This also reports malformed dynamic segments, empty segments, and characters that can't be part of a route.
+<pre><code>
+// pages/users/Posts.kt
+@Page("{}/posts")  // Inferred segment isn't at the end, so Kobweb skips this page
+@Page("{post")     // Malformed dynamic segment
+@Page("a//b")      // Empty segment
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>

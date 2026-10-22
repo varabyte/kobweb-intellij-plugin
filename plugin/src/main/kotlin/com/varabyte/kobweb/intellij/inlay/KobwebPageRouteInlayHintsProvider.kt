@@ -7,13 +7,13 @@ import com.intellij.codeInsight.hints.declarative.InlayTreeSink
 import com.intellij.codeInsight.hints.declarative.EndOfLinePosition
 import com.intellij.codeInsight.hints.declarative.SharedBypassCollector
 import com.intellij.openapi.editor.Editor
-import com.intellij.psi.ElementManipulators
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.layout.PAGE_FQN
 import com.varabyte.kobweb.intellij.util.kobweb.route.findRoute
 import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
+import com.varabyte.kobweb.intellij.util.psi.unescapedText
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
@@ -36,7 +36,7 @@ class KobwebPageRouteInlayHintsProvider : InlayHintsProvider {
 
                 // If the page spells out its full route already, there's nothing to add
                 val routeOverride = pageAnnotation.valueArguments.firstOrNull()?.getArgumentExpression()
-                if (routeOverride is KtStringTemplateExpression && ElementManipulators.getValueText(routeOverride) == route) {
+                if (routeOverride is KtStringTemplateExpression && routeOverride.unescapedText == route) {
                     return
                 }
 

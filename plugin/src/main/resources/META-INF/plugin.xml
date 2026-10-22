@@ -121,6 +121,20 @@
                 enabledByDefault="true"
                 level="ERROR"
                 implementationClass="com.varabyte.kobweb.intellij.inspections.layout.ConflictingLayoutAnnotationsInspection"/>
+        <localInspection
+                language="kotlin"
+                groupKey="kobweb.name"
+                key="inspection.invalid.route.display.name"
+                enabledByDefault="true"
+                level="WARNING"
+                implementationClass="com.varabyte.kobweb.intellij.inspections.route.InvalidRouteInspection"/>
+        <localInspection
+                language="kotlin"
+                groupKey="kobweb.name"
+                key="inspection.redundant.route.display.name"
+                enabledByDefault="true"
+                level="WEAK WARNING"
+                implementationClass="com.varabyte.kobweb.intellij.inspections.route.RedundantRouteInspection"/>
         <intentionAction>
             <className>com.varabyte.kobweb.intellij.intentions.style.ExtractCssStyleIntention</className>
             <categoryKey>kobweb.name</categoryKey>

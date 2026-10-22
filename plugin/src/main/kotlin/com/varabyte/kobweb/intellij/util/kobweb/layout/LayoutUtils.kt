@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.idea.stubindex.KotlinTopLevelFunctionFqnNameIndex
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
+import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
@@ -52,6 +53,22 @@ class LayoutDefinition(val fqn: String, val function: KtNamedFunction?) {
  * which never resolves), so we treat an empty group the same as an unknown one.
  */
 val PsiElement.kobwebGroup: FqName? get() = findKobwebProject()?.group?.takeIf { it.isNotEmpty() }?.let(::FqName)
+
+/**
+ * A short, human-readable path for this file, for showing to users (e.g. in tooltips and inspection messages).
+ *
+ * Note that this isn't a real file path, and shouldn't be used to find the file. It's built from the file's package,
+ * relative to the project's group, plus its name. For example, `DefaultLayout.kt` in package `com.example.pages.blog`
+ * (with group `com.example`) is "pages/blog/DefaultLayout.kt". This tells files apart when many share a name (e.g. a
+ * `DefaultLayout.kt` per package).
+ */
+val KtFile.kobwebDisplayPath: String
+    get() {
+        val packagePath = PackageShortcuts(kobwebGroup).relativize(packageFqName)
+            .removePrefix(".")
+            .replace('.', '/')
+        return if (packagePath.isEmpty()) name else "$packagePath/$name"
+    }
 
 /**
  * The path string passed into this `@Layout` annotation, e.g. `".components.layouts.PageLayout"`, or null if it

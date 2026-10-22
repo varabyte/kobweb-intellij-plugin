@@ -18,7 +18,7 @@ import org.jetbrains.kotlin.name.isSubpackageOf
  *   `@file:PackageMapping` annotations, e.g. "com.example.pages.blog" to "articles". These are the raw values as
  *   written in the annotation, so an inferred dynamic segment ("{}") will be named after its package.
  */
-class PageRouteResolver(private val pagesPackage: FqName, private val packageMappings: Map<FqName, String>) {
+class PageRouteResolver(val pagesPackage: FqName, private val packageMappings: Map<FqName, String>) {
     /**
      * Returns the route that Kobweb generates for a page, e.g. "/blog/post" or "/users/{user}/posts/{post}".
      *
@@ -35,8 +35,7 @@ class PageRouteResolver(private val pagesPackage: FqName, private val packageMap
         val routeOverride = routeOverride?.takeIf { it.isNotBlank() }
         val isAbsolute = routeOverride?.startsWith('/') == true
 
-        // Note: Kobweb itself checks this with a plain string prefix match, so pages in "pages_old" would count as
-        // being under "pages" (and end up with a strange route). We match whole package segments instead.
+        // Only whole package names count, so pages in "pages_old" aren't under "pages"
         if (!isAbsolute && !pagePackage.isSubpackageOf(pagesPackage)) return null
 
         // Only the last segment can be inferred, a catch-all, or optional, e.g. "/a/{b}/c/{}" is OK but "/a/{}/c/{b}"
@@ -81,10 +80,10 @@ class PageRouteResolver(private val pagesPackage: FqName, private val packageMap
             val mapping = packageMappings[curr]?.let { mapping ->
                 // e.g. "{}" under "pages.users" is "{users}"
                 DynamicRouteSegment.tryCreate(mapping)?.takeIf { it.isInferred }
-                    ?.withReplacedName(segmentFor(curr.shortName().asString()))?.rawValue
+                    ?.withReplacedName(segmentFor(curr))?.rawValue
                     ?: mapping
             }
-            segments.add(0, mapping ?: segmentFor(curr.shortName().asString()))
+            segments.add(0, mapping ?: segmentFor(curr))
             curr = curr.parent()
         }
         return (segments.joinToString("/") + "/").let { if (it.startsWith('/')) it else "/$it" }
@@ -96,6 +95,12 @@ class PageRouteResolver(private val pagesPackage: FqName, private val packageMap
          * "blog-post" for "BlogPost".
          */
         fun slugFor(fileName: String): String = segmentFor(fileName)
+
+        /**
+         * Returns the route segment Kobweb generates for a package (unless a package mapping says otherwise), e.g.
+         * "our-team" for "com.example.pages.ourTeam".
+         */
+        fun segmentFor(pkg: FqName): String = segmentFor(pkg.shortName().asString())
 
         // Converts a name to kebab-case, also collapsing underscores (which are usually there to work around
         // reserved words or names that start with a digit), e.g. "_2021" -> "2021" and "fun_" -> "fun"

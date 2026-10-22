@@ -126,21 +126,9 @@ fun KtNamedFunction.findDefaultLayout(): DefaultLayout? {
 
 /**
  * A short, human-readable path for the file that sets this default layout, for showing to users (e.g. in tooltips and
- * inspection messages).
- *
- * Note that this isn't a real file path, and shouldn't be used to find the file. It's built from the file's package,
- * relative to the project's group, plus its name. For example, `DefaultLayout.kt` in package `com.example.pages.blog`
- * (with group `com.example`) is "pages/blog/DefaultLayout.kt". This tells files apart when many share a name (e.g. a
- * `DefaultLayout.kt` per package).
+ * inspection messages). See [kobwebDisplayPath] for details.
  */
-val DefaultLayout.displayPath: String
-    get() {
-        val file = annotation.containingKtFile
-        val packagePath = PackageShortcuts(file.kobwebGroup).relativize(file.packageFqName)
-            .removePrefix(".")
-            .replace('.', '/')
-        return if (packagePath.isEmpty()) file.name else "$packagePath/${file.name}"
-    }
+val DefaultLayout.displayPath: String get() = annotation.containingKtFile.kobwebDisplayPath
 
 /**
  * Annotates this page with [annotationText], right after its `@Page` annotation, which is where Kobweb's docs put

@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
+import org.jetbrains.kotlin.psi.KtEscapeStringTemplateEntry
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtImportDirective
@@ -27,6 +28,7 @@ import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtSimpleNameExpression
+import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.KtUserType
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 
@@ -181,6 +183,15 @@ fun KtFile.addImportIfNeeded(fqn: FqName) {
 }
 
 /**
+ * The text of this string with its escape sequences decoded, e.g. "café" for `"caf\u00E9"`.
+ *
+ * This is the value the string has at runtime, unlike [com.intellij.psi.ElementManipulators.getValueText], which returns
+ * its text as written in the source. Template expressions (e.g. `$name`) can't be decoded, so they're kept as written.
+ */
+val KtStringTemplateExpression.unescapedText: String
+    get() = entries.joinToString("") { entry -> (entry as? KtEscapeStringTemplateEntry)?.unescapedValue ?: entry.text }
+
+/**
  * Removes this file's import of [fqn], unless something in the file still uses it.
  *
  * To stay on the safe side, any use of the imported name counts, even if it refers to something else.
@@ -191,7 +202,11 @@ fun KtFile.removeImportIfUnused(fqn: FqName) {
     val isUsed = PsiTreeUtil.findChildrenOfType(this, KtSimpleNameExpression::class.java).any { nameExpr ->
         nameExpr.getReferencedName() == importedName && nameExpr.getStrictParentOfType<KtImportDirective>() == null
     }
-    if (!isUsed) import.delete()
+    if (isUsed) return
+
+    import.delete()
+    // If that was the last import, also remove the blank line that separated the imports from the code above them
+    importList?.takeIf { it.imports.isEmpty() }?.let { (it.prevSibling as? PsiWhiteSpace)?.delete() }
 }
 
 /**

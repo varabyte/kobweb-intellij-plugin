@@ -87,10 +87,22 @@ abstract class KobwebInspectionTestBase : KobwebApplicationTestCase() {
 
     protected fun doTest(
         @Language("kotlin") code: String,
-        thenFix: PostInspectionFix? = null
+        thenFix: PostInspectionFix? = null,
+    ) {
+        doTest(
+            "KobwebInspectionTest.kt",
+            code,
+            thenFix
+        )
+    }
+
+    protected fun doTest(
+        fileName: String,
+        @Language("kotlin") code: String,
+        thenFix: PostInspectionFix? = null,
     ) {
         myFixture.enableInspections(produceInspection())
-        myFixture.configureByText("KobwebInspectionTest.kt", code)
+        myFixture.configureByText(fileName, code)
         myFixture.checkHighlighting(
             /* checkWarnings = */ true,
             /* checkInfos = */ false,
