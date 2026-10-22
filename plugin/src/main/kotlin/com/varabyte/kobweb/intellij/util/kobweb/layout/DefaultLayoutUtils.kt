@@ -12,7 +12,9 @@ import com.intellij.psi.util.PsiTreeUtil
 import com.varabyte.kobweb.intellij.util.kobweb.PackageShortcuts
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
 import com.varabyte.kobweb.intellij.util.psi.addImportIfNeeded
+import com.varabyte.kobweb.intellij.util.psi.deleteWithSurroundingWhitespace
 import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
+import com.varabyte.kobweb.intellij.util.psi.removeImportIfUnused
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.idea.base.util.module
 import org.jetbrains.kotlin.idea.stubindex.KotlinAnnotationsIndex
@@ -177,4 +179,16 @@ fun KtNamedFunction.addNoLayoutAnnotation() {
 fun KtNamedFunction.addLayoutAnnotation(path: String) {
     val pathText = KtPsiFactory(project).createStringTemplate(path).text
     addAnnotationAfterPage("@${LAYOUT_FQN.shortName()}($pathText)", LAYOUT_FQN)
+}
+
+/**
+ * Removes this page's `@NoLayout` annotation, if it has one, so it uses its default layout again (if any).
+ */
+fun KtNamedFunction.removeNoLayoutAnnotation() {
+    val noLayoutAnnotation = annotationEntries.firstOrNull { it.isAnnotationOfType(NO_LAYOUT_FQN) } ?: return
+    val file = containingKtFile
+
+    noLayoutAnnotation.deleteWithSurroundingWhitespace()
+
+    file.removeImportIfUnused(NO_LAYOUT_FQN)
 }
