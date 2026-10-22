@@ -4,7 +4,7 @@ import com.intellij.codeInsight.hints.declarative.HintFormat
 import com.intellij.codeInsight.hints.declarative.InlayHintsCollector
 import com.intellij.codeInsight.hints.declarative.InlayHintsProvider
 import com.intellij.codeInsight.hints.declarative.InlayTreeSink
-import com.intellij.codeInsight.hints.declarative.InlineInlayPosition
+import com.intellij.codeInsight.hints.declarative.EndOfLinePosition
 import com.intellij.codeInsight.hints.declarative.SharedBypassCollector
 import com.intellij.openapi.editor.Editor
 import com.intellij.psi.ElementManipulators
@@ -41,7 +41,10 @@ class KobwebPageRouteInlayHintsProvider : InlayHintsProvider {
                 }
 
                 sink.addPresentation(
-                    InlineInlayPosition(pageAnnotation.textRange.endOffset, relatedToPrevious = true),
+                    // Note: We use an end-of-line hint (instead of an inline one right after the annotation) because
+                    // IntelliJ truncates long inline hints, and we want to show routes in full. Usually, the `@Page`
+                    // annotation is on its own line so this is almost always fine.
+                    EndOfLinePosition(editor.document.getLineNumber(pageAnnotation.textRange.endOffset)),
                     tooltip = UxGlobals.textBundle.message("kobweb.inlay.hints.page.route.tooltip", route),
                     hintFormat = HintFormat.default,
                 ) {
@@ -49,5 +52,9 @@ class KobwebPageRouteInlayHintsProvider : InlayHintsProvider {
                 }
             }
         }
+    }
+
+    companion object {
+        const val PROVIDER_ID = "kobweb.page.route.hints"
     }
 }

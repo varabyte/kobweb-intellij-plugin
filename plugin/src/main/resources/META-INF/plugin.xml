@@ -30,8 +30,8 @@
                 class="com.varabyte.kobweb.intellij.inlay.OptOutOfDefaultLayoutAction">
             <add-to-group group-id="InlayMenu"/>
         </action>
-        <action id="Kobweb.ConfigureAnnotationHints"
-                class="com.varabyte.kobweb.intellij.inlay.ConfigureKobwebAnnotationHintsAction">
+        <action id="Kobweb.ConfigureInlayHints"
+                class="com.varabyte.kobweb.intellij.inlay.ConfigureKobwebInlayHintsAction">
             <add-to-group group-id="InlayMenu"/>
         </action>
     </actions>

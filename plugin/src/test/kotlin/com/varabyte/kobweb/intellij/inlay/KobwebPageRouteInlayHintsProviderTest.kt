@@ -89,7 +89,7 @@ class KobwebPageRouteInlayHintsProviderTest : KobwebInlayHintsTestBase() {
         )
     }
 
-    fun testHintIsShownInlineWhenPageAnnotationSharesItsLine() {
+    fun testHintIsShownAtEndOfLineWhenPageAnnotationSharesItsLine() {
         doTest(
             "About.kt",
             """
@@ -98,7 +98,7 @@ class KobwebPageRouteInlayHintsProviderTest : KobwebInlayHintsTestBase() {
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.core.Page
 
-            @Page/*<# /about #>*/ @Composable
+            @Page @Composable/*<# /about #>*/
             fun AboutPage() {
             }
             """.trimIndent()

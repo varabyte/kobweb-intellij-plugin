@@ -15,7 +15,6 @@ import com.intellij.codeInsight.hints.declarative.InlineInlayPosition
 import com.intellij.codeInsight.hints.declarative.PsiPointerInlayActionNavigationHandler
 import com.intellij.codeInsight.hints.declarative.PsiPointerInlayActionPayload
 import com.intellij.codeInsight.hints.declarative.SharedBypassCollector
-import com.intellij.codeInsight.hints.settings.showInlaySettings
 import com.intellij.modcommand.ActionContext
 import com.intellij.modcommand.ModCommandExecutor
 import com.intellij.openapi.actionSystem.ActionUpdateThread
@@ -43,7 +42,6 @@ import com.varabyte.kobweb.intellij.util.kobweb.layout.displayPath
 import com.varabyte.kobweb.intellij.util.kobweb.layout.findDefaultLayout
 import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
-import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtNamedFunction
 
@@ -192,26 +190,5 @@ class OptOutOfDefaultLayoutAction : AnAction() {
         WriteCommandAction.writeCommandAction(page.project, page.containingFile)
             .withName(e.presentation.text)
             .run<Throwable> { page.addNoLayoutAnnotation() }
-    }
-}
-
-/**
- * An action in the menu of our annotation hints, which opens the settings for them.
- *
- * Declarative inlay hints only get a "Disable" action in their menu by default, so we add this one ourselves.
- */
-class ConfigureKobwebAnnotationHintsAction : AnAction() {
-    override fun getActionUpdateThread() = ActionUpdateThread.BGT
-
-    override fun update(e: AnActionEvent) {
-        e.presentation.isEnabledAndVisible =
-            e.getData(InlayHintsProvider.PROVIDER_ID) == KobwebAnnotationInlayHintsProvider.PROVIDER_ID
-    }
-
-    override fun actionPerformed(e: AnActionEvent) {
-        val project = e.project ?: return
-        showInlaySettings(project, KotlinLanguage.INSTANCE) { model ->
-            model.id == KobwebAnnotationInlayHintsProvider.PROVIDER_ID
-        }
     }
 }
