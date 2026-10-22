@@ -4,6 +4,7 @@ import com.intellij.modcommand.ModPsiUpdater
 import com.intellij.openapi.project.Project
 import com.varabyte.kobweb.intellij.inspections.style.AttributeModifierInStyleSheetBlockInspection
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
+import com.varabyte.kobweb.intellij.util.psi.deleteFromCallChain
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.idea.codeinsight.api.applicable.inspections.KotlinModCommandQuickFix
@@ -61,6 +62,6 @@ class MoveAttrModifierToExtraModifierQuickFix(private val attrModifierName: Stri
         }
 
         // At this point we've made a copy of the original attribute modifier, so it is now safe to delete it.
-        DeleteAttrModifierQuickFix.removeCallExpression(callExpression)
+        callExpression.deleteFromCallChain()
     }
 }

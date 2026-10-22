@@ -206,6 +206,21 @@ fun KtAnnotationEntry.deleteWithSurroundingWhitespace() {
 }
 
 /**
+ * Deletes this call from the chain it's part of, along with the `.` before it.
+ *
+ * For example, deleting `c()` from `a.b().c().d()` leaves `a.b().d()`.
+ */
+fun KtCallExpression.deleteFromCallChain() {
+    val dotExpr = parent as? KtDotQualifiedExpression
+    if (dotExpr != null && dotExpr.selectorExpression == this) {
+        dotExpr.replace(dotExpr.receiverExpression)
+    } else {
+        // If this call isn't part of a chain (e.g. `foo()` on its own), just delete it
+        delete()
+    }
+}
+
+/**
  * Returns true if this type, as written, refers to the declaration with the fully qualified name [fqn].
  *
  * Both qualified (`a.b.C`) and unqualified (`C`) references are supported, the latter via [KtFile.isInScopeAs], which
