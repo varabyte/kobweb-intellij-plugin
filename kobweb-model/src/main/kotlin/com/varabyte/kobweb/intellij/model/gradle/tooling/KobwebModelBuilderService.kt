@@ -13,6 +13,7 @@ private class KobwebModelImpl(
     override val projectType: KobwebProjectType,
     override val group: String?,
     override val pagesPackage: String?,
+    override val publicPath: String?,
     override val worker: WorkerBlock?,
 ) : KobwebModel
 
@@ -50,6 +51,14 @@ private fun Project.findPagesPackage(): String {
     return kobwebBlock?.getPropertyValue("getPagesPackage") ?: ".pages"
 }
 
+/**
+ * Read the `kobweb { publicPath.set(...) }` value from a project's build script.
+ */
+private fun Project.findPublicPath(): String {
+    // If we can't read it for some reason, fall back to Kobweb's default
+    return kobwebBlock?.getPropertyValue("getPublicPath") ?: "public"
+}
+
 private fun Project.createWorkerBlock() = WorkerBlock(fqcn = findWorkerFqcn())
 
 private fun Project.toKobwebModel(): KobwebModel? {
@@ -66,6 +75,7 @@ private fun Project.toKobwebModel(): KobwebModel? {
         projectType,
         group.toString(),
         findPagesPackage(),
+        findPublicPath(),
         if (projectType == KobwebProjectType.Worker) createWorkerBlock() else null
     )
 }

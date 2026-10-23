@@ -19,6 +19,9 @@ import com.varabyte.kobweb.intellij.model.WorkerBlock
  * @property pagesPackage The root package of all pages (e.g. ".pages"), from `kobweb { pagesPackage.set(...) }`. Like
  *   other Kobweb packages, it is relative to [group] if it starts with a leading period. Only ever set for local
  *   projects, as an external project's pages are already compiled.
+ * @property publicPath The folder inside the project's resources that Kobweb serves files from as is (e.g. "public"),
+ *   from `kobweb { publicPath.set(...) }`. Only ever set for local projects, as an external project's metadata doesn't
+ *   include it.
  * @property worker Values from the `kobweb { worker { ... } }` block. Only ever set for local worker projects.
  */
 data class KobwebProject(
@@ -27,6 +30,7 @@ data class KobwebProject(
     val source: Source,
     val group: String? = null,
     val pagesPackage: String? = null,
+    val publicPath: String? = null,
     val worker: WorkerBlock? = null,
 ) {
     /**

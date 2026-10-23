@@ -47,6 +47,7 @@ private fun Module.findKobwebProject(kobwebProjectsCache: KobwebProjectCacheServ
             KobwebProject.Source.Local(gradleModule),
             kobwebModel.group,
             kobwebModel.pagesPackage,
+            kobwebModel.publicPath,
             kobwebModel.worker,
         ).also {
             kobwebProjectsCache.add(it)

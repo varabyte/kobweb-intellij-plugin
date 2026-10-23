@@ -8,6 +8,7 @@ import com.intellij.psi.PsiReferenceProvider
 import com.intellij.psi.PsiReferenceRegistrar
 import com.intellij.util.ProcessingContext
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
+import com.varabyte.kobweb.intellij.util.kobweb.route.linkPath
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.KtValueArgument
 

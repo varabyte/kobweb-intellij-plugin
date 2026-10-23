@@ -136,6 +136,13 @@
                 enabledByDefault="true"
                 level="WEAK WARNING"
                 implementationClass="com.varabyte.kobweb.intellij.inspections.route.RedundantRouteInspection"/>
+        <localInspection
+                language="kotlin"
+                groupKey="kobweb.name"
+                key="inspection.unknown.route.display.name"
+                enabledByDefault="true"
+                level="WARNING"
+                implementationClass="com.varabyte.kobweb.intellij.inspections.route.UnknownRouteInspection"/>
         <intentionAction>
             <className>com.varabyte.kobweb.intellij.intentions.style.ExtractCssStyleIntention</className>
             <categoryKey>kobweb.name</categoryKey>

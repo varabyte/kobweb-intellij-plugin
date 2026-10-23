@@ -1,7 +1,5 @@
 package com.varabyte.kobweb.intellij.references.route
 
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.ElementManipulators
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiReferenceBase
 import com.intellij.psi.impl.source.resolve.ResolveCache
@@ -9,41 +7,10 @@ import com.varabyte.kobweb.intellij.util.kobweb.route.LinkPath
 import com.varabyte.kobweb.intellij.util.kobweb.route.findLedToBy
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPages
 import com.varabyte.kobweb.intellij.util.kobweb.route.isRoutePathArgument
+import com.varabyte.kobweb.intellij.util.kobweb.route.linkPath
+import com.varabyte.kobweb.intellij.util.kobweb.route.linkPathRange
 import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.psi.KtEscapeStringTemplateEntry
-import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
-
-/**
- * The parts of this string, in order, for parsing as a [LinkPath]: its text (with escape sequences decoded), or null for
- * template expressions (e.g. "$id"), whose values can't be known until runtime.
- */
-private val KtStringTemplateExpression.linkPathParts: List<String?>
-    get() = entries.map { entry ->
-        when (entry) {
-            is KtLiteralStringTemplateEntry -> entry.text
-            is KtEscapeStringTemplateEntry -> entry.unescapedValue
-            else -> null
-        }
-    }
-
-/**
- * The path in this string, if it's one that could lead to a page (see [LinkPath.parse]).
- */
-val KtStringTemplateExpression.linkPath: LinkPath? get() = LinkPath.parse(linkPathParts)
-
-/**
- * Returns the range of the path inside this string, i.e. without any query parameters or fragment.
- */
-private fun KtStringTemplateExpression.linkPathRange(): TextRange {
-    val valueRange = ElementManipulators.getValueTextRange(this)
-    val queryOrFragmentStart = entries
-        .filterIsInstance<KtLiteralStringTemplateEntry>()
-        .firstNotNullOfOrNull { entry ->
-            entry.text.indexOfAny(charArrayOf('?', '#')).takeIf { it >= 0 }?.let { entry.startOffsetInParent + it }
-        }
-    return if (queryOrFragmentStart != null) TextRange(valueRange.startOffset, queryOrFragmentStart) else valueRange
-}
 
 /**
  * A reference from a string that holds a route, e.g. the `"/blog/post"` in `Link("/blog/post")`, to the page it leads

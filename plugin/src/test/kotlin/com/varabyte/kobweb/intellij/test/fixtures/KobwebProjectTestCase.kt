@@ -108,6 +108,7 @@ abstract class KobwebProjectTestCase(private val projectType: KobwebProjectType)
     protected fun registerKobwebProject(
         group: String? = TEST_GROUP,
         pagesPackage: String = ".pages",
+        publicPath: String = "public",
         worker: WorkerBlock? = if (projectType == KobwebProjectType.Worker) WorkerBlock() else null,
     ) {
         if (worker != null && projectType != KobwebProjectType.Worker) {
@@ -115,7 +116,7 @@ abstract class KobwebProjectTestCase(private val projectType: KobwebProjectType)
         }
 
         project.service<KobwebProjectCacheService>()
-            .add(KobwebProject("test-shell", projectType, Local(this.module), group, pagesPackage, worker))
+            .add(KobwebProject("test-shell", projectType, Local(this.module), group, pagesPackage, publicPath, worker))
 
         // Kotlin analysis may have cached results based on the previous registration (e.g. from an earlier test)
         // (Wrapped in `runInEdtAndWait` for as some tests run off the UI thread)

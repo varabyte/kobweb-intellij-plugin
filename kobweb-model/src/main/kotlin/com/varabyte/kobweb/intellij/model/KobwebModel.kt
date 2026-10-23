@@ -45,6 +45,14 @@ interface KobwebModel : Serializable {
     val pagesPackage: String?
 
     /**
+     * The folder inside the project's resources that Kobweb serves files from as is, from the
+     * `kobweb { publicPath.set(...) }` value in the build script (e.g. "public", for "src/jsMain/resources/public").
+     *
+     * This is null if this model was saved by an older version of the plugin, until the next Gradle sync.
+     */
+    val publicPath: String?
+
+    /**
      * Values from the `kobweb { worker { ... } }` block in a worker project's build script.
      *
      * This is always null for non-worker projects.

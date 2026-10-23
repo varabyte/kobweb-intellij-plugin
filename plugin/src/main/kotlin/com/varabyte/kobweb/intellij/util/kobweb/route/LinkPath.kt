@@ -11,12 +11,33 @@ class LinkPath private constructor(val segments: List<String?>) {
     /**
      * Returns true if this path matches [route] exactly, e.g. "/users/bob/posts" matches "/users/{user}/posts".
      *
-     * Segments with unknown values only match dynamic segments, since links to pages with static routes are written
-     * out in full.
+     * Segments with unknown values only match dynamic segments (see [UnknownSegmentsStrategy.MATCH_DYNAMIC]).
      *
      * See also [leadsTo], which also accounts for trailing slashes.
      */
     fun matches(route: PageRoute): Boolean = matches(route.segments, segments)
+
+    /**
+     * How segments whose values aren't known until runtime (e.g. the "$id" in "/posts/$id") are matched against a
+     * route's segments.
+     */
+    enum class UnknownSegmentsStrategy {
+        /**
+         * Each unknown segment fills a single dynamic segment, which finds the route a path was most likely written
+         * for, since links to pages with static routes are written out in full. For example, "/posts/$id" leads to
+         * "/posts/{post}" but not "/posts/new".
+         */
+        MATCH_DYNAMIC,
+
+        /**
+         * An unknown segment could hold anything, including static text or even several segments, which finds every
+         * route a path could possibly lead to. For example, "/posts/$id" might lead to "/posts/new" (if `id` is
+         * "new"), and "/docs/$path" might lead to "/docs/a/b" (if `path` is "a/b").
+         *
+         * So only the segments before the first unknown one are checked, e.g. "/pots/$id" can't lead to "/posts/new".
+         */
+        MATCH_ANYTHING,
+    }
 
     /**
      * Returns true if this path leads to a page served at [route], i.e. it [matches] the route, or it does if a
@@ -24,12 +45,42 @@ class LinkPath private constructor(val segments: List<String?>) {
      *
      * This is because Kobweb's router adds or removes a trailing slash if that leads to a page and the path as written
      * doesn't.
+     *
+     * Paths without unknown segments lead to the same routes either way, but see [UnknownSegmentsStrategy] for how
+     * [unknownSegmentsStrategy] affects the ones that have them.
      */
-    fun leadsTo(route: PageRoute): Boolean {
+    fun leadsTo(
+        route: PageRoute,
+        unknownSegmentsStrategy: UnknownSegmentsStrategy = UnknownSegmentsStrategy.MATCH_DYNAMIC,
+    ): Boolean {
+        val firstUnknownIndex = segments.indexOf(null)
+        if (unknownSegmentsStrategy == UnknownSegmentsStrategy.MATCH_ANYTHING && firstUnknownIndex >= 0) {
+            return startsLike(route, segments.subList(0, firstUnknownIndex))
+        }
+
         if (matches(route)) return true
 
         val toggledSlash = if (segments.lastOrNull() == "") segments.dropLast(1) else segments + ""
         return toggledSlash.isNotEmpty() && matches(route.segments, toggledSlash)
+    }
+
+    // True if the route could start with these (known) path segments, e.g. "/posts/{post}/edit" could start with
+    // ["posts", "new"]
+    private fun startsLike(route: PageRoute, knownSegments: List<String?>): Boolean {
+        val routeSegments = route.segments
+        for ((i, pathSegment) in knownSegments.withIndex()) {
+            val routeSegment = routeSegments.getOrNull(i) ?: return false
+            val dynamicSegment = DynamicRouteSegment.tryCreate(routeSegment)
+            when {
+                // A static segment, which only matches the same text
+                dynamicSegment == null -> if (pathSegment != routeSegment) return false
+                // A catch-all segment, which matches the rest of the path
+                dynamicSegment.isCatchAll -> return true
+                // Otherwise, a dynamic segment matches any non-empty segment
+                pathSegment == "" -> return false
+            }
+        }
+        return true
     }
 
     override fun toString() = segments.joinToString("/", prefix = "/") { it ?: "?" }

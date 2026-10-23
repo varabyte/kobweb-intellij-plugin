@@ -1,0 +1,20 @@
+<html lang="en">
+<body>
+Reports routes that don't lead to any page or public resource, which are usually typos or links to pages that were
+moved or deleted.
+<p>
+This inspection applies to parameters that are annotated by Kobweb with <code>@RoutePath</code> (excluding ones where
+<code>mustExist</code> is set to <code>false</code>), such as the <code>path</code> parameter in the <code>Link</code>
+composable.
+<pre><code>
+// pages/blog/Post.kt is served at "/blog/post"
+Link("/blog/post")    // OK
+Link("/blog/pots")    // Doesn't correspond to any known page or public resource
+Link("/blog/$slug")   // OK, as the value of "slug" isn't known until runtime
+// resources/public/docs/resume.pdf is served at "/docs/resume.pdf"
+Link("/docs/resume.pdf") // OK
+Link("/dcos/resume.pdf") // Unknown resource
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>

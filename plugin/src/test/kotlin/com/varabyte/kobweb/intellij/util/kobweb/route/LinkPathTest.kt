@@ -1,5 +1,8 @@
 package com.varabyte.kobweb.intellij.util.kobweb.route
 
+import com.varabyte.kobweb.intellij.util.kobweb.route.LinkPath.UnknownSegmentsStrategy
+import com.varabyte.kobweb.intellij.util.kobweb.route.LinkPath.UnknownSegmentsStrategy.MATCH_DYNAMIC
+import com.varabyte.kobweb.intellij.util.kobweb.route.LinkPath.UnknownSegmentsStrategy.MATCH_ANYTHING
 import com.varabyte.truthish.assertThat
 import org.junit.Test
 
@@ -12,7 +15,11 @@ class LinkPathTest {
         return LinkPath.parse(parts)
     }
 
-    private fun leadsTo(path: String, route: String) = path(path)!!.leadsTo(PageRoute(route))
+    private fun leadsTo(
+        path: String,
+        route: String,
+        unknownSegmentsStrategy: UnknownSegmentsStrategy = MATCH_DYNAMIC,
+    ) = path(path)!!.leadsTo(PageRoute(route), unknownSegmentsStrategy)
 
     @Test
     fun onlyAbsolutePathsWithinTheSiteAreParsed() {
@@ -119,5 +126,34 @@ class LinkPathTest {
         val pages = listOf(PageDefinition(fqn = "/posts/new", route = PageRoute("/posts/new"), function = null))
         // Even though "$id" could be "new" at runtime
         assertThat(pages.findLedToBy(path("/posts/$")!!)).isNull()
+    }
+
+    @Test
+    fun pathsWithoutUnknownSegmentsLeadToTheSameRoutesEitherWay() {
+        for (unknownSegments in UnknownSegmentsStrategy.entries) {
+            assertThat(leadsTo("/blog/post", "/blog/post", unknownSegments)).isTrue()
+            assertThat(leadsTo("/blog", "/blog/", unknownSegments)).isTrue()
+            assertThat(leadsTo("/blog/pots", "/blog/post", unknownSegments)).isFalse()
+        }
+    }
+
+    @Test
+    fun unknownSegmentsCanMatchAnything() {
+        // Including static segments, e.g. if "$id" is "new"
+        assertThat(leadsTo("/posts/$", "/posts/new", MATCH_ANYTHING)).isTrue()
+        // Or several segments, e.g. if "$path" is "a/b"
+        assertThat(leadsTo("/docs/$", "/docs/a/b", MATCH_ANYTHING)).isTrue()
+        // Which also covers any segments after them, e.g. if "$id" is "new/x"
+        assertThat(leadsTo("/posts/$/edit", "/posts/new/x/edit", MATCH_ANYTHING)).isTrue()
+        // Or nothing at all
+        assertThat(leadsTo("/posts/$", "/posts/", MATCH_ANYTHING)).isTrue()
+    }
+
+    @Test
+    fun segmentsBeforeTheFirstUnknownOneMustMatch() {
+        assertThat(leadsTo("/pots/$", "/posts/new", MATCH_ANYTHING)).isFalse()
+        assertThat(leadsTo("/blog/posts/$", "/blog", MATCH_ANYTHING)).isFalse()
+        assertThat(leadsTo("/users/bob/$", "/users/{user}/posts", MATCH_ANYTHING)).isTrue()
+        assertThat(leadsTo("/docs/a/b/$", "/docs/{...path}", MATCH_ANYTHING)).isTrue()
     }
 }
