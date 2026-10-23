@@ -6,6 +6,43 @@ import org.junit.Test
 
 class KobwebMetadataTest {
     @Test
+    fun readModuleMetadata() {
+        val metadata = Json.readKobwebModuleMetadata(
+            """
+            { "kobwebVersion": "0.25.2", "group": "com.example" }
+            """.trimIndent()
+        )!!
+
+        assertThat(metadata.kobwebVersion).isEqualTo("0.25.2")
+        assertThat(metadata.group).isEqualTo("com.example")
+    }
+
+    @Test
+    fun readModuleMetadataWithoutGroup() {
+        // Kobweb only started recording the group in 0.25.2
+        val metadata = Json.readKobwebModuleMetadata(
+            """
+            { "kobwebVersion": "0.25.1" }
+            """.trimIndent()
+        )!!
+
+        assertThat(metadata.kobwebVersion).isEqualTo("0.25.1")
+        assertThat(metadata.group).isNull()
+    }
+
+    @Test
+    fun readModuleMetadataWithoutVersion() {
+        // Kobweb always records its version, so the file is malformed without it
+        assertThat(Json.readKobwebModuleMetadata("""{ "group": "com.example" }""")).isNull()
+    }
+
+    @Test
+    fun readMalformedModuleMetadata() {
+        assertThat(Json.readKobwebModuleMetadata("not json")).isNull()
+        assertThat(Json.readKobwebModuleMetadata("[]")).isNull()
+    }
+
+    @Test
     fun readFrontendMetadata() {
         // Trimmed down from a real library's frontend.json.
         val metadata = Json.readKobwebFrontendMetadata(
