@@ -22,6 +22,13 @@ enum class KobwebProjectType {
  * models saved by earlier versions of the plugin.
  */
 interface KobwebModel : Serializable {
+    companion object {
+        // Kobweb's defaults for its settings (see the conventions set in `KobwebBlock` in the Kobweb Gradle plugin),
+        // for when we can't read the actual values
+        const val DEFAULT_PAGES_PACKAGE = ".pages"
+        const val DEFAULT_PUBLIC_PATH = "public"
+    }
+
     val projectType: KobwebProjectType
 
     /**

@@ -2,6 +2,7 @@ package com.varabyte.kobweb.intellij.project
 
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.vfs.VirtualFile
+import com.varabyte.kobweb.intellij.model.KobwebModel
 import com.varabyte.kobweb.intellij.model.KobwebProjectType
 import com.varabyte.kobweb.intellij.model.WorkerBlock
 
@@ -17,11 +18,11 @@ import com.varabyte.kobweb.intellij.model.WorkerBlock
  *   used internally within a Kobweb module, this isn't really an issue. At worst, it means we will not be able to
  *   navigate Kobweb shortcuts while browsing such a project.
  * @property pagesPackage The root package of all pages (e.g. ".pages"), from `kobweb { pagesPackage.set(...) }`. Like
- *   other Kobweb packages, it is relative to [group] if it starts with a leading period. Only ever set for local
- *   projects, as an external project's pages are already compiled.
+ *   other Kobweb packages, it is relative to [group] if it starts with a leading period. Only read for local projects,
+ *   so external projects (whose pages are already compiled) always have Kobweb's default.
  * @property publicPath The folder inside the project's resources that Kobweb serves files from as is (e.g. "public"),
- *   from `kobweb { publicPath.set(...) }`. Only ever set for local projects, as an external project's metadata doesn't
- *   include it.
+ *   from `kobweb { publicPath.set(...) }`. Only read for local projects, so external projects (whose metadata doesn't
+ *   include it) always have Kobweb's default.
  * @property worker Values from the `kobweb { worker { ... } }` block. Only ever set for local worker projects.
  */
 data class KobwebProject(
@@ -29,8 +30,8 @@ data class KobwebProject(
     val type: KobwebProjectType,
     val source: Source,
     val group: String? = null,
-    val pagesPackage: String? = null,
-    val publicPath: String? = null,
+    val pagesPackage: String = KobwebModel.DEFAULT_PAGES_PACKAGE,
+    val publicPath: String = KobwebModel.DEFAULT_PUBLIC_PATH,
     val worker: WorkerBlock? = null,
 ) {
     /**

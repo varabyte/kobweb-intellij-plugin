@@ -17,6 +17,7 @@ import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.fixtures.DefaultLightProjectDescriptor
 import com.intellij.testFramework.runInEdtAndWait
 import com.intellij.util.PathUtil
+import com.varabyte.kobweb.intellij.model.KobwebModel
 import com.varabyte.kobweb.intellij.model.KobwebProjectType
 import com.varabyte.kobweb.intellij.model.WorkerBlock
 import com.varabyte.kobweb.intellij.project.KobwebProject
@@ -107,8 +108,8 @@ abstract class KobwebProjectTestCase(private val projectType: KobwebProjectType)
      */
     protected fun registerKobwebProject(
         group: String? = TEST_GROUP,
-        pagesPackage: String = ".pages",
-        publicPath: String = "public",
+        pagesPackage: String = KobwebModel.DEFAULT_PAGES_PACKAGE,
+        publicPath: String = KobwebModel.DEFAULT_PUBLIC_PATH,
         worker: WorkerBlock? = if (projectType == KobwebProjectType.Worker) WorkerBlock() else null,
     ) {
         if (worker != null && projectType != KobwebProjectType.Worker) {

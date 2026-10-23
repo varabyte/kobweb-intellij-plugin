@@ -4,6 +4,7 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
+import com.varabyte.kobweb.intellij.model.KobwebModel
 import com.varabyte.kobweb.intellij.model.KobwebProjectType
 import com.varabyte.kobweb.intellij.project.KobwebProject
 import com.varabyte.kobweb.intellij.project.findKobwebModel
@@ -46,8 +47,10 @@ private fun Module.findKobwebProject(kobwebProjectsCache: KobwebProjectCacheServ
             kobwebModel.projectType,
             KobwebProject.Source.Local(gradleModule),
             kobwebModel.group,
-            kobwebModel.pagesPackage,
-            kobwebModel.publicPath,
+            // These are only missing if IntelliJ restored a model saved by an older version of this plugin, so assume
+            // Kobweb's defaults until the next Gradle sync
+            kobwebModel.pagesPackage ?: KobwebModel.DEFAULT_PAGES_PACKAGE,
+            kobwebModel.publicPath ?: KobwebModel.DEFAULT_PUBLIC_PATH,
             kobwebModel.worker,
         ).also {
             kobwebProjectsCache.add(it)
@@ -125,7 +128,5 @@ val KobwebProject.qualifiedPagesPackage: FqName?
     get() {
         // See `PsiElement.kobwebGroup` for why we treat an empty group as unknown
         val shortcuts = PackageShortcuts(group?.takeIf { it.isNotEmpty() }?.let(::FqName))
-        // The pages package is only missing if IntelliJ restored a model saved by an older version of this plugin, so
-        // assume Kobweb's default until the next Gradle sync
-        return shortcuts.resolve(pagesPackage ?: ".pages")
+        return shortcuts.resolve(pagesPackage)
     }

@@ -4,19 +4,12 @@ import com.intellij.openapi.roots.ModuleRootManager
 import com.intellij.openapi.roots.OrderEnumerator
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
+import com.varabyte.kobweb.intellij.model.KobwebModel
 import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_MODULE
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
 import org.jetbrains.jps.model.java.JavaResourceRootType
 import org.jetbrains.kotlin.config.ResourceKotlinRootType
 import org.jetbrains.kotlin.idea.base.util.module
-
-/**
- * Kobweb's default folder for files it serves as is, e.g. `public/resume.pdf` is served at "/resume.pdf".
- *
- * Projects can choose a different one with `kobweb { publicPath.set(...) }`, but the metadata of compiled Kobweb
- * libraries doesn't say which one they used, so we assume this one for them.
- */
-private const val DEFAULT_PUBLIC_PATH = "public"
 
 /**
  * Returns the file (or folder) that [path] leads to in a public folder, e.g. `src/jsMain/resources/public/resume.pdf`
@@ -39,18 +32,16 @@ fun PsiElement.findPublicResource(path: LinkPath): VirtualFile? {
     val moduleFile = modules.firstNotNullOfOrNull { dependency ->
         // Kobweb only serves public files from Kobweb projects
         val kobwebProject = dependency.findKobwebProject() ?: return@firstNotNullOfOrNull null
-        // The public path is only missing if IntelliJ restored a model saved by an older version of this plugin, so
-        // assume Kobweb's default until the next Gradle sync
-        val publicPath = kobwebProject.publicPath ?: DEFAULT_PUBLIC_PATH
         // Kotlin multiplatform modules mark their resources with Kotlin's own root type
         ModuleRootManager.getInstance(dependency)
             .getSourceRoots(setOf(JavaResourceRootType.RESOURCE, ResourceKotlinRootType))
-            .firstNotNullOfOrNull { root -> root.findPublicFile(publicPath) }
+            .firstNotNullOfOrNull { root -> root.findPublicFile(kobwebProject.publicPath) }
     }
     if (moduleFile != null) return moduleFile
 
-    // Kobweb only copies public files from libraries that are Kobweb libraries
+    // Kobweb only copies public files from libraries that are Kobweb libraries. Their metadata doesn't say which public
+    // path they were built with, so assume Kobweb's default
     return OrderEnumerator.orderEntries(module).recursively().librariesOnly().classes().roots
         .filter { root -> root.findFileByRelativePath(KOBWEB_METADATA_MODULE) != null }
-        .firstNotNullOfOrNull { root -> root.findPublicFile(DEFAULT_PUBLIC_PATH) }
+        .firstNotNullOfOrNull { root -> root.findPublicFile(KobwebModel.DEFAULT_PUBLIC_PATH) }
 }

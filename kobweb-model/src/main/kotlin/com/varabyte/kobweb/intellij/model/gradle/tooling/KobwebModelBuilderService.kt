@@ -48,7 +48,7 @@ private fun Project.findWorkerFqcn(): String? {
  */
 private fun Project.findPagesPackage(): String {
     // If we can't read it for some reason, fall back to Kobweb's default
-    return kobwebBlock?.getPropertyValue("getPagesPackage") ?: ".pages"
+    return kobwebBlock?.getPropertyValue("getPagesPackage") ?: KobwebModel.DEFAULT_PAGES_PACKAGE
 }
 
 /**
@@ -56,7 +56,7 @@ private fun Project.findPagesPackage(): String {
  */
 private fun Project.findPublicPath(): String {
     // If we can't read it for some reason, fall back to Kobweb's default
-    return kobwebBlock?.getPropertyValue("getPublicPath") ?: "public"
+    return kobwebBlock?.getPropertyValue("getPublicPath") ?: KobwebModel.DEFAULT_PUBLIC_PATH
 }
 
 private fun Project.createWorkerBlock() = WorkerBlock(fqcn = findWorkerFqcn())
