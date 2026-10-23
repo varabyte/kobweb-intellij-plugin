@@ -12,36 +12,48 @@ import org.jetbrains.kotlin.config.ResourceKotlinRootType
 import org.jetbrains.kotlin.idea.base.util.module
 
 /**
- * Returns the file (or folder) that [path] leads to in a public folder, e.g. `src/jsMain/resources/public/resume.pdf`
- * for "/resume.pdf", which Kobweb serves as is.
+ * Returns the folders whose files Kobweb serves from, e.g. `src/jsMain/resources/public`.
  *
- * This checks the resources of this element's module plus any Kobweb modules it depends on, as well as any Kobweb
- * libraries it depends on (whose public files Kobweb copies into the site). Returns null if there's no such file, or if
- * the path has segments that aren't known until runtime.
+ * This includes the public folders in the resources of this element's module plus any Kobweb modules it depends on,
+ * followed by those of any Kobweb libraries it depends on (whose public files Kobweb copies into the site).
+ *
+ * If a file called `resume.pdf` was found in any of the public folders, it would get served at "/resume.pdf".
  */
-fun PsiElement.findPublicResource(path: LinkPath): VirtualFile? {
-    val module = module ?: return null
-    if (path.segments.any { it == null }) return null
-    fun VirtualFile.findPublicFile(publicPath: String) =
-        findFileByRelativePath((listOf(publicPath.trim('/')) + path.segments).joinToString("/"))
+fun PsiElement.findPublicFolders(): List<VirtualFile> {
+    val module = module ?: return emptyList()
+    fun VirtualFile.findFolder(relativePath: String) =
+        findFileByRelativePath(relativePath.trim('/'))?.takeIf { it.isDirectory }
 
     val modules = buildList {
         OrderEnumerator.orderEntries(module).recursively().withoutSdk().withoutLibraries().productionOnly()
             .forEachModule { dependency -> add(dependency); true }
     }
-    val moduleFile = modules.firstNotNullOfOrNull { dependency ->
+    val moduleFolders = modules.flatMap { dependency ->
         // Kobweb only serves public files from Kobweb projects
-        val kobwebProject = dependency.findKobwebProject() ?: return@firstNotNullOfOrNull null
+        val kobwebProject = dependency.findKobwebProject() ?: return@flatMap emptyList()
         // Kotlin multiplatform modules mark their resources with Kotlin's own root type
         ModuleRootManager.getInstance(dependency)
             .getSourceRoots(setOf(JavaResourceRootType.RESOURCE, ResourceKotlinRootType))
-            .firstNotNullOfOrNull { root -> root.findPublicFile(kobwebProject.publicPath) }
+            .mapNotNull { root -> root.findFolder(kobwebProject.publicPath) }
     }
-    if (moduleFile != null) return moduleFile
 
     // Kobweb only copies public files from libraries that are Kobweb libraries. Their metadata doesn't say which public
     // path they were built with, so assume Kobweb's default
-    return OrderEnumerator.orderEntries(module).recursively().librariesOnly().classes().roots
+    val libraryFolders = OrderEnumerator.orderEntries(module).recursively().librariesOnly().classes().roots
         .filter { root -> root.findFileByRelativePath(KOBWEB_METADATA_MODULE) != null }
-        .firstNotNullOfOrNull { root -> root.findPublicFile(KobwebModel.DEFAULT_PUBLIC_PATH) }
+        .mapNotNull { root -> root.findFolder(KobwebModel.DEFAULT_PUBLIC_PATH) }
+
+    return moduleFolders + libraryFolders
+}
+
+/**
+ * Returns the file (or folder) that [path] leads to in a public folder (see [findPublicFolders]), e.g.
+ * `src/jsMain/resources/public/resume.pdf` for "/resume.pdf".
+ *
+ * Returns null if there's no such file, or if the path has segments that aren't known until runtime.
+ */
+fun PsiElement.findPublicResource(path: LinkPath): VirtualFile? {
+    if (path.segments.any { it == null }) return null
+    val relativePath = path.segments.joinToString("/")
+    return findPublicFolders().firstNotNullOfOrNull { folder -> folder.findFileByRelativePath(relativePath) }
 }

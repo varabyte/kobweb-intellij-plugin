@@ -1,9 +1,15 @@
+@file:Suppress("FunctionName")
+
 package com.varabyte.kobweb.intellij.references.route
 
+import com.intellij.openapi.util.Disposer
+import com.intellij.psi.PsiFile
 import com.intellij.psi.util.parentOfType
+import com.intellij.testFramework.PsiTestUtil
 import com.varabyte.kobweb.intellij.test.fixtures.KobwebApplicationTestCase
 import com.varabyte.truthish.assertThat
 import org.intellij.lang.annotations.Language
+import org.jetbrains.jps.model.java.JavaResourceRootType
 import org.jetbrains.kotlin.analysis.api.permissions.KaAllowAnalysisOnEdt
 import org.jetbrains.kotlin.analysis.api.permissions.allowAnalysisOnEdt
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -169,15 +175,15 @@ class RouteReferenceTest : KobwebApplicationTestCase() {
     fun testTemplateExpressionsOnlyLeadToDynamicRoutes() {
         assertThat(
             resolveRouteAtCaret(
-                """
-                package $TEST_GROUP.components
+                $$"""
+                package $$TEST_GROUP.components
 
                 import androidx.compose.runtime.Composable
                 import com.varabyte.kobweb.silk.components.navigation.Link
 
                 @Composable
                 fun Nav(id: String) {
-                    Link("/po<caret>sts/${'$'}id")
+                    Link("/po<caret>sts/$id")
                 }
                 """.trimIndent()
             )
@@ -214,6 +220,34 @@ class RouteReferenceTest : KobwebApplicationTestCase() {
                 """.trimIndent()
             )
         ).isNull()
+    }
+
+    @OptIn(KaAllowAnalysisOnEdt::class)
+    fun testRoutesToPublicFilesLeadToThem() {
+        val resourcesRoot = myFixture.addFileToProject("resources/public/favicon.ico", "").virtualFile.parent.parent
+        PsiTestUtil.addSourceRoot(module, resourcesRoot, JavaResourceRootType.RESOURCE)
+        Disposer.register(testRootDisposable) { PsiTestUtil.removeSourceRoot(module, resourcesRoot) }
+
+        myFixture.configureByText(
+            "Links.kt",
+            """
+            package $TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.navigation.Link
+
+            @Composable
+            fun Nav() {
+                Link("/favi<caret>con.ico")
+            }
+            """.trimIndent()
+        )
+        val stringExpr = myFixture.file.findElementAt(myFixture.caretOffset)!!
+            .parentOfType<KtStringTemplateExpression>(withSelf = true)!!
+        val reference = stringExpr.references.filterIsInstance<RouteReference>().single()
+
+        assertThat(allowAnalysisOnEdt { (reference.resolve() as? PsiFile)?.virtualFile?.path })
+            .isEqualTo(resourcesRoot.path + "/public/favicon.ico")
     }
 
     fun testParametersAnnotatedWithRoutePathTakeRoutes() {

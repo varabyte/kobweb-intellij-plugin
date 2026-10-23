@@ -1,11 +1,13 @@
 package com.varabyte.kobweb.intellij.references.route
 
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiReferenceBase
 import com.intellij.psi.impl.source.resolve.ResolveCache
 import com.varabyte.kobweb.intellij.util.kobweb.route.LinkPath
 import com.varabyte.kobweb.intellij.util.kobweb.route.findLedToBy
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPages
+import com.varabyte.kobweb.intellij.util.kobweb.route.findPublicResource
 import com.varabyte.kobweb.intellij.util.kobweb.route.isRoutePathArgument
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPath
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPathRange
@@ -14,7 +16,7 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
 /**
  * A reference from a string that holds a route, e.g. the `"/blog/post"` in `Link("/blog/post")`, to the page it leads
- * to.
+ * to, or else to the public file it leads to (e.g. `"/favicon.ico"`, see [findPublicResource]).
  *
  * Segments that aren't known until runtime (e.g. the `$id` in `"/posts/$id"`) only match dynamic segments (see
  * [LinkPath.matches]).
@@ -44,7 +46,12 @@ class RouteReference(element: KtStringTemplateExpression) : PsiReferenceBase<KtS
         val path = element.linkPath ?: return null
         if (!analyze(element) { element.isRoutePathArgument() }) return null
 
-        return element.findPages().findLedToBy(path)?.function
+        element.findPages().findLedToBy(path)?.function?.let { return it }
+
+        // Otherwise, it may lead to a file that Kobweb serves as is, e.g. "/favicon.ico"
+        val publicFile = element.findPublicResource(path) ?: return null
+        val psiManager = PsiManager.getInstance(element.project)
+        return if (publicFile.isDirectory) psiManager.findDirectory(publicFile) else psiManager.findFile(publicFile)
     }
 
     // Renaming a page function doesn't change its route -- it is derived from the file name! So leave the string alone

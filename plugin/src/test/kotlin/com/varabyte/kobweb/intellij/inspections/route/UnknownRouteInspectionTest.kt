@@ -112,6 +112,8 @@ class UnknownRouteInspectionTest : KobwebInspectionTestBase() {
     fun testPublicResourcesAreNotFlagged() {
         val resourcesRoot = myFixture.addFileToProject("resources/public/resume.pdf", "")
             .virtualFile.parent.parent
+        // Files Kobweb generates are public files too
+        myFixture.addFileToProject("resources/public/_kobweb/fonts/font.woff2", "")
         PsiTestUtil.addSourceRoot(module, resourcesRoot, JavaResourceRootType.RESOURCE)
         Disposer.register(testRootDisposable) { PsiTestUtil.removeSourceRoot(module, resourcesRoot) }
 
@@ -125,6 +127,7 @@ class UnknownRouteInspectionTest : KobwebInspectionTestBase() {
             @Composable
             fun Nav() {
                 Link("/resume.pdf")
+                Link("/_kobweb/fonts/font.woff2")
                 Link("<warning>/missing.pdf</warning>")
             }
             """.trimIndent(),

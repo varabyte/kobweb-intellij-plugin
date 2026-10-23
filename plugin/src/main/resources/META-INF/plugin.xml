@@ -182,6 +182,18 @@
                 id="kobwebLayoutPathCompletionConfidence"
                 order="before kotlinSkipAutopopupInStrings"
                 implementationClass="com.varabyte.kobweb.intellij.completion.layout.LayoutPathCompletionConfidence"/>
+        <!-- Must run before Kotlin's, which suppresses auto-popups in all strings -->
+        <completion.confidence
+                language="kotlin"
+                id="kobwebRouteCompletionConfidence"
+                order="before kotlinSkipAutopopupInStrings"
+                implementationClass="com.varabyte.kobweb.intellij.completion.route.RouteCompletionConfidence"/>
+        <!-- Runs first, so that it can stop IntelliJ from suggesting file paths in routes -->
+        <completion.contributor
+                language="kotlin"
+                order="first"
+                implementationClass="com.varabyte.kobweb.intellij.completion.route.RouteCompletionContributor"/>
+        <typedHandler implementation="com.varabyte.kobweb.intellij.completion.route.RouteTypedHandler"/>
         <colorProvider implementation="com.varabyte.kobweb.intellij.colors.KobwebColorProvider" />
         <codeInsight.declarativeInlayProvider
                 implementationClass="com.varabyte.kobweb.intellij.inlay.KobwebModifierInlayHintsProvider"
