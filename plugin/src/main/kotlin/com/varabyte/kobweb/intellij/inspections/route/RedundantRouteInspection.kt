@@ -68,7 +68,7 @@ class RedundantRouteInspection : LocalInspectionTool() {
                         routeOverrideExpr,
                         UxGlobals.textBundle.message(
                             "inspection.redundant.route.override.display.text",
-                            resolver.resolve(page, null).orEmpty(),
+                            resolver.resolve(page, null)?.value.orEmpty(),
                         ),
                         ProblemHighlightType.LIKE_UNUSED_SYMBOL,
                         RemoveRouteOverrideQuickFix(),

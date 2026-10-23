@@ -16,7 +16,7 @@ class LinkPath private constructor(val segments: List<String?>) {
      *
      * See also [leadsTo], which also accounts for trailing slashes.
      */
-    fun matches(route: String): Boolean = matches(route.removePrefix("/").split('/'), segments)
+    fun matches(route: PageRoute): Boolean = matches(route.segments, segments)
 
     /**
      * Returns true if this path leads to a page served at [route], i.e. it [matches] the route, or it does if a
@@ -25,11 +25,11 @@ class LinkPath private constructor(val segments: List<String?>) {
      * This is because Kobweb's router adds or removes a trailing slash if that leads to a page and the path as written
      * doesn't.
      */
-    fun leadsTo(route: String): Boolean {
+    fun leadsTo(route: PageRoute): Boolean {
         if (matches(route)) return true
 
         val toggledSlash = if (segments.lastOrNull() == "") segments.dropLast(1) else segments + ""
-        return toggledSlash.isNotEmpty() && matches(route.removePrefix("/").split('/'), toggledSlash)
+        return toggledSlash.isNotEmpty() && matches(route.segments, toggledSlash)
     }
 
     override fun toString() = segments.joinToString("/", prefix = "/") { it ?: "?" }

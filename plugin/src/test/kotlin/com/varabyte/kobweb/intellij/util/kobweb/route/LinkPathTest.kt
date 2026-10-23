@@ -12,7 +12,7 @@ class LinkPathTest {
         return LinkPath.parse(parts)
     }
 
-    private fun leadsTo(path: String, route: String) = path(path)!!.leadsTo(route)
+    private fun leadsTo(path: String, route: String) = path(path)!!.leadsTo(PageRoute(route))
 
     @Test
     fun onlyAbsolutePathsWithinTheSiteAreParsed() {
@@ -99,8 +99,8 @@ class LinkPathTest {
     @Test
     fun routerPrecedenceIsUsedForConcretePaths() {
         val pages = listOf("/posts/new", "/posts/{post}", "/blog", "/blog/", "/docs/{...path}", "/docs/intro")
-            .map { route -> PageDefinition(fqn = route, route = route, function = null) }
-        fun routeLedToBy(path: String) = pages.findLedToBy(path(path)!!)?.route
+            .map { route -> PageDefinition(fqn = route, route = PageRoute(route), function = null) }
+        fun routeLedToBy(path: String) = pages.findLedToBy(path(path)!!)?.route?.value
 
         // Static segments win over dynamic ones
         assertThat(routeLedToBy("/posts/new")).isEqualTo("/posts/new")
@@ -116,7 +116,7 @@ class LinkPathTest {
 
     @Test
     fun unknownSegmentsDontLeadToStaticPages() {
-        val pages = listOf(PageDefinition(fqn = "/posts/new", route = "/posts/new", function = null))
+        val pages = listOf(PageDefinition(fqn = "/posts/new", route = PageRoute("/posts/new"), function = null))
         // Even though "$id" could be "new" at runtime
         assertThat(pages.findLedToBy(path("/posts/$")!!)).isNull()
     }

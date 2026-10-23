@@ -76,10 +76,10 @@ class InvalidRouteInspection : LocalInspectionTool() {
                 }
 
                 val route = resolver.resolve(page, routeOverride) ?: return
-                if (route.removePrefix("/").substringBefore('/') == "api") {
+                if (route.segments.first() == "api") {
                     holder.registerProblem(
                         routeOverrideExpr ?: pageAnnotation,
-                        UxGlobals.textBundle.message("inspection.invalid.route.reserved.api.display.text", route),
+                        UxGlobals.textBundle.message("inspection.invalid.route.reserved.api.display.text", route.value),
                         // Kobweb fails the build over this, unlike the other problems here
                         ProblemHighlightType.GENERIC_ERROR,
                     )

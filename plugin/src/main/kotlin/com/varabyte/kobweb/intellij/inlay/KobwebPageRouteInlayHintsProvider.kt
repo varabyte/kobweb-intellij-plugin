@@ -36,7 +36,7 @@ class KobwebPageRouteInlayHintsProvider : InlayHintsProvider {
 
                 // If the page spells out its full route already, there's nothing to add
                 val routeOverride = pageAnnotation.valueArguments.firstOrNull()?.getArgumentExpression()
-                if (routeOverride is KtStringTemplateExpression && routeOverride.unescapedText == route) {
+                if (routeOverride is KtStringTemplateExpression && routeOverride.unescapedText == route.value) {
                     return
                 }
 
@@ -45,10 +45,10 @@ class KobwebPageRouteInlayHintsProvider : InlayHintsProvider {
                     // IntelliJ truncates long inline hints, and we want to show routes in full. Usually, the `@Page`
                     // annotation is on its own line so this is almost always fine.
                     EndOfLinePosition(editor.document.getLineNumber(pageAnnotation.textRange.endOffset)),
-                    tooltip = UxGlobals.textBundle.message("kobweb.inlay.hints.page.route.tooltip", route),
+                    tooltip = UxGlobals.textBundle.message("kobweb.inlay.hints.page.route.tooltip", route.value),
                     hintFormat = HintFormat.default,
                 ) {
-                    text(route)
+                    text(route.value)
                 }
             }
         }

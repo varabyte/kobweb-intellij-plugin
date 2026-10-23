@@ -20,11 +20,28 @@ import com.intellij.util.Processor
 import com.varabyte.kobweb.intellij.references.route.RouteReference
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.route.DynamicRouteSegment
+import com.varabyte.kobweb.intellij.util.kobweb.route.PageRoute
 import com.varabyte.kobweb.intellij.util.kobweb.route.findRoute
-import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
+
+/**
+ * Text to search for when finding strings that lead to this route, e.g. "post" for "/blog/post".
+ *
+ * Checking whether a string leads to a route is relatively expensive, so instead of checking every string in the
+ * project, we first ask IntelliJ for only the strings that contain this text, which it can answer quickly from its
+ * index of the words in every file. Every string that leads to this route contains each of its static segments, so
+ * this never misses one.
+ *
+ * We use the last static segment, as it usually tells a route apart from similar ones: every link under "/blog"
+ * contains "blog", but only links to "/blog/post" contain "post".
+ *
+ * Returns null if the route has no static segments, e.g. "/" or "/{slug}", in which case every string has to be
+ * checked.
+ */
+private val PageRoute.searchText: String?
+    get() = segments.lastOrNull { segment -> segment.isNotEmpty() && DynamicRouteSegment.tryCreate(segment) == null }
 
 /**
  * Calls [process] with every string in [scope] (in Kotlin files).
@@ -53,7 +70,7 @@ private fun SearchScope.forEachString(process: (KtStringTemplateExpression) -> U
  */
 class PageRouteUsageSearcher : CustomUsageSearcher() {
     override fun processElementUsages(element: PsiElement, processor: Processor<in Usage>, options: FindUsagesOptions) {
-        val (page, route) = ReadAction.compute<Pair<KtNamedFunction, String>?, Throwable> {
+        val (page, route) = ReadAction.compute<Pair<KtNamedFunction, PageRoute>?, Throwable> {
             val page = element as? KtNamedFunction ?: return@compute null
             if (!page.isInReadableKobwebProject()) return@compute null
             page.findRoute()?.let { route -> page to route }
@@ -68,48 +85,23 @@ class PageRouteUsageSearcher : CustomUsageSearcher() {
                 .forEach { reference -> processor.process(UsageInfo2UsageAdapter(UsageInfo(reference))) }
         }
 
-        val searchWord = findSearchWord(route)
-        if (searchWord != null) {
+        val searchText = route.searchText
+        if (searchText != null) {
             PsiSearchHelper.getInstance(element.project).processElementsWithWord(
                 { occurrence, _ ->
                     occurrence.parentOfType<KtStringTemplateExpression>(withSelf = true)?.let(::processString)
                     true
                 },
                 options.searchScope,
-                searchWord,
+                searchText,
                 UsageSearchContext.IN_STRINGS,
                 /* caseSensitive = */ true,
             )
         } else {
-            // Without a word to look up, we have to check every string, but routes without any words are rare (e.g.
-            // the home page, "/")
+            // Without any text to look up, we have to check every string, but routes without any static segments are
+            // rare (e.g. the home page, "/")
             ReadAction.run<Throwable> { options.searchScope.forEachString(::processString) }
         }
     }
 
-    companion object {
-        /**
-         * Returns a word from [route] to look up strings that might lead to it, e.g. "post" for "/blog/post".
-         *
-         * IntelliJ indexes the individual words in every string, so looking up one of a route's words quickly gives us
-         * every string that contains it. Any string that leads to the route has to contain all of its words (except
-         * for dynamic segments, which links fill in with other values), so whichever word we choose, we won't miss any
-         * of them. From there, we can do the more expensive work of checking whether each string actually leads to the
-         * route, on a much smaller set of strings.
-         *
-         * Which word we choose only affects how many unrelated strings we have to check. We use one from the last
-         * static segment, as that's usually what tells a route apart from its siblings (e.g. every link under "/blog"
-         * contains "blog", but only links to "/blog/post" contain "post").
-         *
-         * Returns null if the route doesn't have any words, e.g. "/" or "/{slug}".
-         */
-        @VisibleForTesting
-        internal fun findSearchWord(route: String): String? {
-            val lastStaticSegment = route.split('/')
-                .lastOrNull { segment -> segment.isNotEmpty() && DynamicRouteSegment.tryCreate(segment) == null }
-                ?: return null
-            // A segment can hold more than one word, e.g. "blog-post" is indexed as "blog" and "post"
-            return Regex("[A-Za-z0-9_]+").findAll(lastStaticSegment).map { it.value }.maxByOrNull { it.length }
-        }
-    }
 }

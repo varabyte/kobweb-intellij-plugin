@@ -105,30 +105,49 @@ class PageRouteUsageSearcherTest : KobwebApplicationTestCase() {
         )
     }
 
-    fun testRouteWithoutWordsUsages() {
-        // "/" has no words to look up, so every string has to be checked
-        assertThat(project.findUsages(homePage)).containsExactly(
-            "Nav.kt: Link(\"[/]\")",
+    fun testRouteWithSeveralWordsInOneSegmentUsages() {
+        // IntelliJ indexes "release-notes" as two words, "release" and "notes", rather than as one
+        val releaseNotesPage = myFixture.addFileToProject(
+            "pages/ReleaseNotes.kt",
+            // language=kotlin
+            """
+            package $TEST_GROUP.pages
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+
+            @Page
+            @Composable
+            fun ReleaseNotesPage() {
+            }
+            """.trimIndent()
+        ).findDescendantOfType<KtNamedFunction>()!!
+
+        myFixture.addFileToProject(
+            "components/Footer.kt",
+            // language=kotlin
+            """
+            package $TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.navigation.Link
+
+            @Composable
+            fun Footer() {
+                Link("/release-notes")
+            }
+            """.trimIndent()
+        )
+
+        assertThat(project.findUsages(releaseNotesPage)).containsExactly(
+            "Footer.kt: Link(\"[/release-notes]\")",
         )
     }
 
-    fun testSearchWordComesFromTheLastStaticSegment() {
-        assertThat(PageRouteUsageSearcher.findSearchWord("/blog/post")).isEqualTo("post")
-        assertThat(PageRouteUsageSearcher.findSearchWord("/docs/{section}/advanced")).isEqualTo("advanced")
-        assertThat(PageRouteUsageSearcher.findSearchWord("/users/{user}")).isEqualTo("users")
-        // Index pages end with an empty segment
-        assertThat(PageRouteUsageSearcher.findSearchWord("/blog/")).isEqualTo("blog")
-    }
-
-    fun testSearchWordIsLongestWordInSegment() {
-        // "blog-post" is indexed as two words, "blog" and "post"
-        assertThat(PageRouteUsageSearcher.findSearchWord("/our-team")).isEqualTo("team")
-        assertThat(PageRouteUsageSearcher.findSearchWord("/release-notes")).isEqualTo("release")
-    }
-
-    fun testRoutesWithoutStaticWordsHaveNoSearchWord() {
-        assertThat(PageRouteUsageSearcher.findSearchWord("/")).isNull()
-        assertThat(PageRouteUsageSearcher.findSearchWord("/{slug}")).isNull()
-        assertThat(PageRouteUsageSearcher.findSearchWord("/{a}/{b}/{c}")).isNull()
+    fun testRouteWithoutWordsUsages() {
+        // "/" has no static segments to look up, so every string has to be checked
+        assertThat(project.findUsages(homePage)).containsExactly(
+            "Nav.kt: Link(\"[/]\")",
+        )
     }
 }

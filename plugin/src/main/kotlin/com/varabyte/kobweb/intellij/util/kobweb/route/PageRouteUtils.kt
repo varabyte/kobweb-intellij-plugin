@@ -112,7 +112,7 @@ val KtNamedFunction.pageFileName: String get() = FileUtilRt.getNameWithoutExtens
  *
  * This is useful for comparing alternatives, e.g. to check if a route override is redundant.
  */
-fun PageRouteResolver.resolve(page: KtNamedFunction, routeOverride: String?): String? {
+fun PageRouteResolver.resolve(page: KtNamedFunction, routeOverride: String?): PageRoute? {
     return resolve(page.containingKtFile.packageFqName, page.pageFileName, routeOverride)
 }
 
@@ -124,7 +124,7 @@ fun PageRouteResolver.resolve(page: KtNamedFunction, routeOverride: String?): St
  * @return null if this function isn't a page, if Kobweb skips it (e.g. it lives outside the pages package), or if we
  *   can't tell its route (e.g. its route override is a constant).
  */
-fun KtNamedFunction.findRoute(): String? {
+fun KtNamedFunction.findRoute(): PageRoute? {
     if (!isTopLevel) return null
     val pageAnnotation = annotationEntries.firstOrNull { it.isAnnotationOfType(PAGE_FQN) } ?: return null
     val routeOverride = if (pageAnnotation.valueArguments.isEmpty()) null else {

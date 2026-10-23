@@ -13,6 +13,7 @@ class PageRouteResolverTest {
     ): String? {
         return PageRouteResolver(FqName("com.example.pages"), packageMappings.mapKeys { (pkg, _) -> FqName(pkg) })
             .resolve(FqName(pagePackage), fileName, routeOverride)
+            ?.value
     }
 
     @Test

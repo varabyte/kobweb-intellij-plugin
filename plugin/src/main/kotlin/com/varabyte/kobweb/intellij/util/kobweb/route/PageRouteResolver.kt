@@ -30,7 +30,7 @@ class PageRouteResolver(val pagesPackage: FqName, private val packageMappings: M
      *   is absolute), or its route override has an inferred, catch-all or optional dynamic segment anywhere but at
      *   the end.
      */
-    fun resolve(pagePackage: FqName, fileName: String, routeOverride: String?): String? {
+    fun resolve(pagePackage: FqName, fileName: String, routeOverride: String?): PageRoute? {
         @Suppress("NAME_SHADOWING") // Kobweb treats a blank override the same as no override
         val routeOverride = routeOverride?.takeIf { it.isNotBlank() }
         val isAbsolute = routeOverride?.startsWith('/') == true
@@ -66,7 +66,7 @@ class PageRouteResolver(val pagesPackage: FqName, private val packageMappings: M
         }
 
         // "index" pages are served at their parent route
-        return "$routeWithoutSlug$slug".let { if (it.endsWith("/index")) it.removeSuffix("index") else it }
+        return PageRoute("$routeWithoutSlug$slug".let { if (it.endsWith("/index")) it.removeSuffix("index") else it })
     }
 
     /**

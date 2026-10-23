@@ -24,7 +24,7 @@ import org.jetbrains.kotlin.psi.KtNamedFunction
  * @property function The page function's declaration. This can be null if a library advertises a page that we couldn't
  *   find a declaration for.
  */
-class PageDefinition(val fqn: String, val route: String, val function: KtNamedFunction?)
+class PageDefinition(val fqn: String, val route: PageRoute, val function: KtNamedFunction?)
 
 private fun Module.collectPages(): List<PageDefinition> {
     // Kobweb includes the pages of any Kobweb modules this one depends on (e.g. a library in the same project)
@@ -47,7 +47,7 @@ private fun Module.collectPages(): List<PageDefinition> {
         .map { page ->
             PageDefinition(
                 page.fqn,
-                page.route,
+                PageRoute(page.route),
                 KotlinTopLevelFunctionFqnNameIndex[page.fqn, project, libraryScope].firstOrNull(),
             )
         }
@@ -81,7 +81,7 @@ fun List<PageDefinition>.findLedToBy(path: LinkPath): PageDefinition? {
 
     // Rank each route segment, where lower ranks win: static segments, then dynamic ones
     fun PageDefinition.segmentRanks() =
-        route.removePrefix("/").split('/').map { segment -> if (DynamicRouteSegment.tryCreate(segment) == null) 0 else 1 }
+        route.segments.map { segment -> if (DynamicRouteSegment.tryCreate(segment) == null) 0 else 1 }
 
     return matches.minWithOrNull { a, b ->
         val (aRanks, bRanks) = a.segmentRanks() to b.segmentRanks()
