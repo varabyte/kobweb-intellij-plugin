@@ -1,11 +1,14 @@
 package com.varabyte.kobweb.intellij.util.kobweb
 
 import com.intellij.ide.util.PropertiesComponent
+import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.io.FileUtil
 import com.intellij.psi.PsiElement
 import com.varabyte.kobweb.intellij.model.KobwebProjectType
 import com.varabyte.kobweb.intellij.project.KobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
+import org.jetbrains.kotlin.idea.base.util.module
 import org.jetbrains.kotlin.psi.KtFile
 
 enum class KobwebPluginState {
@@ -95,10 +98,22 @@ fun PsiElement.isInReadableKobwebProject(limitTo: Set<KobwebProjectType> = Kobwe
  *
  * If this method returns true, then the readable version will also return true (but not vice versa);
  *
+ * Generated code (e.g. what Kobweb's Gradle plugin and KSP processors write into the build folder) counts as readable
+ * but not writable, since any changes to it would be overwritten the next time it's generated.
+ *
  * This is a useful test to see if a Kobweb Plugin write action (like an inspection) can run here.
  *
  * @param limitTo See the docs for [isInReadableKobwebProject] for more info.
  */
 fun PsiElement.isInWritableKobwebProject(limitTo: Set<KobwebProjectType> = KobwebProjectTypes.Framework): Boolean {
-    return isInKobwebProject { it.type in limitTo && it.source is KobwebProject.Source.Local }
+    return isInKobwebProject { it.type in limitTo && it.source is KobwebProject.Source.Local } && !isInBuildDirectory()
+}
+
+/**
+ * Returns true if this element is in its Gradle project's build directory, which is where generated code lives.
+ */
+private fun PsiElement.isInBuildDirectory(): Boolean {
+    val file = containingFile?.virtualFile ?: return false
+    val gradleProjectPath = module?.let(ExternalSystemApiUtil::getExternalProjectPath) ?: return false
+    return FileUtil.isAncestor("$gradleProjectPath/build", file.path, /* strict = */ true)
 }
