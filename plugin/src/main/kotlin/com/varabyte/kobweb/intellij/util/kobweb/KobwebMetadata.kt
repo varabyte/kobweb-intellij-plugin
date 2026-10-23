@@ -1,7 +1,10 @@
 package com.varabyte.kobweb.intellij.util.kobweb
 
+import com.intellij.openapi.vfs.VirtualFile
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -45,4 +48,66 @@ fun Json.readKobwebModuleMetadata(text: String): KobwebModuleMetadata? {
         // Malformed metadata. Shouldn't happen, but there's nothing useful we can do about it here.
         null
     }
+}
+
+/**
+ * The values we use from a [KOBWEB_METADATA_FRONTEND] file (see `FrontendData` in the Kobweb codebase), which Kobweb
+ * libraries use to list what they define.
+ *
+ * @property layouts The library's layouts.
+ * @property pages The library's pages.
+ */
+class KobwebFrontendMetadata(val layouts: List<Layout>, val pages: List<Page>) {
+    /**
+     * A layout defined by a library (see `LayoutEntry` in the Kobweb codebase).
+     *
+     * @property fqn The fully qualified name of the layout function, e.g. "com.example.layouts.PageLayout".
+     */
+    class Layout(val fqn: String)
+
+    /**
+     * A page defined by a library (see `PageEntry` in the Kobweb codebase).
+     *
+     * @property fqn The fully qualified name of the page function, e.g. "com.example.pages.AboutPage".
+     * @property route The route the page is served at, e.g. "/about".
+     */
+    class Page(val fqn: String, val route: String)
+}
+
+/**
+ * Parses the contents of a [KOBWEB_METADATA_FRONTEND] file, returning null if it's malformed.
+ *
+ * Individual entries that are malformed (e.g. a page without a route) are skipped.
+ */
+fun Json.readKobwebFrontendMetadata(text: String): KobwebFrontendMetadata? {
+    return try {
+        val root = parseToJsonElement(text).jsonObject
+        fun entries(listName: String) = root[listName]?.jsonArray.orEmpty().filterIsInstance<JsonObject>()
+        fun JsonObject.string(key: String) = get(key)?.jsonPrimitive?.contentOrNull
+
+        KobwebFrontendMetadata(
+            layouts = entries("layouts").mapNotNull { entry ->
+                KobwebFrontendMetadata.Layout(fqn = entry.string("fqn") ?: return@mapNotNull null)
+            },
+            pages = entries("pages").mapNotNull { entry ->
+                KobwebFrontendMetadata.Page(
+                    fqn = entry.string("fqn") ?: return@mapNotNull null,
+                    route = entry.string("route") ?: return@mapNotNull null,
+                )
+            },
+        )
+    } catch (_: Exception) {
+        // Malformed metadata. Shouldn't happen, but there's nothing useful we can do about it here.
+        null
+    }
+}
+
+/**
+ * Reads this artifact's [KOBWEB_METADATA_FRONTEND] file, where the receiver is the root of the artifact (e.g. a klib).
+ *
+ * Returns null if the artifact doesn't have the file (e.g. it isn't a Kobweb library), or it's malformed.
+ */
+fun VirtualFile.readKobwebFrontendMetadata(): KobwebFrontendMetadata? {
+    val frontendFile = findFileByRelativePath(KOBWEB_METADATA_FRONTEND) ?: return null
+    return Json.readKobwebFrontendMetadata(frontendFile.contentsToByteArray().decodeToString())
 }

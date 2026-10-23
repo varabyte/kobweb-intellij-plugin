@@ -3,20 +3,14 @@ package com.varabyte.kobweb.intellij.util.kobweb.layout
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.roots.OrderEnumerator
 import com.intellij.openapi.roots.ProjectRootModificationTracker
-import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiModificationTracker
-import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_FRONTEND
 import com.varabyte.kobweb.intellij.util.kobweb.PackageShortcuts
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
+import com.varabyte.kobweb.intellij.util.kobweb.readKobwebFrontendMetadata
 import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.kotlin.idea.base.util.module
 import org.jetbrains.kotlin.idea.stubindex.KotlinAnnotationsIndex
 import org.jetbrains.kotlin.idea.stubindex.KotlinTopLevelFunctionFqnNameIndex
@@ -89,19 +83,6 @@ fun KtNamedFunction.isLayoutFunction(): Boolean {
     return isTopLevel && hasAnnotation(LAYOUT_FQN) && !hasAnnotation(PAGE_FQN)
 }
 
-private fun VirtualFile.readLayoutFqnsFromKobwebMetadata(): List<String> {
-    // Kobweb libraries list the layouts they define in this file (see `FrontendData` in the Kobweb codebase)
-    val frontendFile = findFileByRelativePath(KOBWEB_METADATA_FRONTEND) ?: return emptyList()
-    return try {
-        Json.parseToJsonElement(frontendFile.contentsToByteArray().decodeToString())
-            .jsonObject["layouts"]?.jsonArray.orEmpty()
-            .mapNotNull { (it as? JsonObject)?.get("fqn")?.jsonPrimitive?.content }
-    } catch (_: Exception) {
-        // Malformed metadata. Shouldn't happen, but there's nothing useful we can do about it here.
-        emptyList()
-    }
-}
-
 private fun Module.collectLayouts(): List<LayoutDefinition> {
     val scope = getModuleWithDependenciesAndLibrariesScope(false)
 
@@ -114,9 +95,9 @@ private fun Module.collectLayouts(): List<LayoutDefinition> {
     // Annotations in compiled dependencies aren't indexed, but Kobweb libraries tell us what layouts they define
     val libraryLayouts = OrderEnumerator.orderEntries(this).recursively().librariesOnly().classes().roots
         .asSequence()
-        .flatMap { root -> root.readLayoutFqnsFromKobwebMetadata() }
-        .map { fqn ->
-            LayoutDefinition(fqn, KotlinTopLevelFunctionFqnNameIndex[fqn, project, scope].firstOrNull())
+        .flatMap { root -> root.readKobwebFrontendMetadata()?.layouts.orEmpty() }
+        .map { layout ->
+            LayoutDefinition(layout.fqn, KotlinTopLevelFunctionFqnNameIndex[layout.fqn, project, scope].firstOrNull())
         }
 
     return (sourceLayouts + libraryLayouts).distinctBy { it.fqn }.toList()
