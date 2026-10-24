@@ -4,20 +4,57 @@ package com.varabyte.kobweb.intellij.util.kobweb.route
  * The path part of a URL written in code that may point at a page, e.g. "/users/bob/posts" in
  * `Link("/users/bob/posts?sort=new")`.
  *
- * @param parts A list of [Part]s containing segment text values, e.g. ["users", "bob", "posts"], associated with the
- *   ranges where those text values were found inside their parent source route.
+ * @property segments The path's segments, i.e. the pieces between slashes, e.g. "users", "bob", and "posts".
  */
-class LinkPath private constructor(val parts: List<Part>) {
-    private val segments: List<String?> = parts.map { it.text }
+class LinkPath private constructor(val segments: List<Segment>) {
+    private val segmentTexts: List<String?> = segments.map { it.text }
 
     /**
-     * The piece of route between slashes.
+     * A piece of the path between slashes, e.g. "bob" in "/users/bob/posts".
+     *
+     * @property text The segment's text, with any escape sequences decoded, or null if its value can't be known until
+     *   runtime, i.e. it contains a template expression (like "$id" in "/posts/$id").
+     * @property sourceRange Where the segment was written in the code, relative to the start of the string.
+     */
+    class Segment(val text: String?, val sourceRange: IntRange) {
+        init {
+            // Slashes separate segments, and "?" or "#" ends the path
+            require(text == null || text.none { c -> c == '/' || c == '?' || c == '#' }) {
+                "A segment can't contain separators, but got \"$text\""
+            }
+        }
+    }
+
+    /**
+     * A piece of a URL's string literal, for [parse] to read: a run of literal text, an escape sequence, or a template
+     * expression. Pieces don't necessarily line up with segments: one piece of literal text can hold several segments
+     * (e.g. "/users/bob/posts" is a single piece with three segments), and one segment can be made of several pieces
+     * (e.g. the segment "post-$id" is the piece "post-" followed by the template expression "$id").
      *
      * @property text The piece's text, with any escape sequences decoded, or null if it's a template expression, whose
-     *   value can't be known until runtime, e.g. a template expression like "$id" in "/posts/$id".
-     * @property sourceRange Where the piece was written in the source.
+     *   value can't be known until runtime.
+     * @property sourceRange Where the piece was written in the code, relative to the start of the string (see also
+     *   [sourceRangeOf]).
      */
-    class Part(val text: String?, val sourceRange: IntRange)
+    class Part(val text: String?, val sourceRange: IntRange) {
+        init {
+            // Decoding escapes only ever shortens text, e.g. "\u002F" (6 characters) becomes "/"
+            require(text == null || text.length <= sourceRange.count()) {
+                "A part's text can't be longer than its source, but got \"$text\" for $sourceRange"
+            }
+        }
+
+        /**
+         * Returns where the character at [index] of [text] was written, e.g. 7..7 for the "b" in "/users/bob".
+         *
+         * Usually that's a single position, but the characters of a decoded escape sequence can't be told apart in
+         * the code, so they all get its whole range, e.g. all six characters of "\u002F" for its "/".
+         */
+        fun sourceRangeOf(index: Int): IntRange {
+            val isVerbatim = text?.length == sourceRange.count()
+            return if (isVerbatim) (sourceRange.first + index).let { it..it } else sourceRange
+        }
+    }
 
     /**
      * Returns true if this path matches [route] exactly, e.g. "/users/bob/posts" matches "/users/{user}/posts".
@@ -26,7 +63,7 @@ class LinkPath private constructor(val parts: List<Part>) {
      *
      * See also [leadsTo], which also accounts for trailing slashes.
      */
-    fun matches(route: PageRoute): Boolean = matches(route.segments, segments)
+    fun matches(route: PageRoute): Boolean = matches(route.segments, segmentTexts)
 
     /**
      * How segments whose values aren't known until runtime (e.g. the "$id" in "/posts/$id") are matched against a
@@ -64,14 +101,14 @@ class LinkPath private constructor(val parts: List<Part>) {
         route: PageRoute,
         unknownSegmentsStrategy: UnknownSegmentsStrategy = UnknownSegmentsStrategy.MATCH_DYNAMIC,
     ): Boolean {
-        val firstUnknownIndex = segments.indexOf(null)
+        val firstUnknownIndex = segmentTexts.indexOf(null)
         if (unknownSegmentsStrategy == UnknownSegmentsStrategy.MATCH_ANYTHING && firstUnknownIndex >= 0) {
-            return startsLike(route, segments.subList(0, firstUnknownIndex))
+            return startsLike(route, segmentTexts.subList(0, firstUnknownIndex))
         }
 
         if (matches(route)) return true
 
-        val toggledSlash = if (segments.lastOrNull() == "") segments.dropLast(1) else segments + ""
+        val toggledSlash = if (segmentTexts.lastOrNull() == "") segmentTexts.dropLast(1) else segmentTexts + ""
         return toggledSlash.isNotEmpty() && matches(route.segments, toggledSlash)
     }
 
@@ -94,7 +131,7 @@ class LinkPath private constructor(val parts: List<Part>) {
         return true
     }
 
-    override fun toString() = segments.joinToString("/", prefix = "/") { it ?: "?" }
+    override fun toString() = segmentTexts.joinToString("/", prefix = "/") { it ?: "?" }
 
     companion object {
         /**
@@ -104,27 +141,25 @@ class LinkPath private constructor(val parts: List<Part>) {
          *
          * Any query parameters and fragment are ignored.
          *
-         * @param parts The pieces of source the URL was written in, in order.
+         * @param parts The pieces of the URL's string literal, in order.
          */
         fun parse(parts: List<Part>): LinkPath? {
             val first = parts.firstOrNull()?.text ?: return null
             if (!first.startsWith('/') || first.startsWith("//")) return null
 
-            val segments = mutableListOf<String?>()
-            val segmentRanges = mutableListOf<IntRange>()
-            var segment: StringBuilder? = StringBuilder() // null while the current segment is unknown
+            val segments = mutableListOf<Segment>()
+            var segmentText: StringBuilder? = StringBuilder() // null while the current segment is unknown
             var segmentStart = parts.first().sourceRange.first
             var pathEnd = parts.last().sourceRange.last + 1
+            fun addSegment(end: Int) = segments.add(Segment(segmentText?.toString(), segmentStart until end))
             loop@ for (part in parts) {
                 val text = part.text
                 if (text == null) {
-                    segment = null
+                    segmentText = null
                     continue
                 }
-                val isVerbatim = text.length == part.sourceRange.count()
                 for ((i, c) in text.withIndex()) {
-                    val charOffset = part.sourceRange.first + i
-                    val charRange = if (isVerbatim) charOffset..charOffset else part.sourceRange
+                    val charRange = part.sourceRangeOf(i)
                     when (c) {
                         // The path ends where the query or fragment begins
                         '?', '#' -> {
@@ -133,22 +168,19 @@ class LinkPath private constructor(val parts: List<Part>) {
                         }
 
                         '/' -> {
-                            segments.add(segment?.toString())
-                            segmentRanges.add(segmentStart until charRange.first)
-                            segment = StringBuilder()
+                            addSegment(end = charRange.first)
+                            segmentText = StringBuilder()
                             segmentStart = charRange.last + 1
                         }
 
-                        else -> segment?.append(c)
+                        else -> segmentText?.append(c)
                     }
                 }
             }
-            segments.add(segment?.toString())
-            segmentRanges.add(segmentStart until pathEnd)
+            addSegment(end = pathEnd)
 
             // The path starts with a slash, which leaves an empty first segment behind
-            fun List<Pair<String?, IntRange>>.toLinkPath(): LinkPath = LinkPath(this.map { Part(it.first, it.second) })
-            return segments.drop(1).zip(segmentRanges.drop(1)).toLinkPath()
+            return LinkPath(segments.drop(1))
         }
 
         // True if the path matches the route definition, e.g. route "/about" is matched by path "/about",

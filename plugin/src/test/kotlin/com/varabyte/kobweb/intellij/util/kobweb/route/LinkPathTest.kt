@@ -4,6 +4,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.route.LinkPath.UnknownSegmentsSt
 import com.varabyte.kobweb.intellij.util.kobweb.route.LinkPath.UnknownSegmentsStrategy.MATCH_DYNAMIC
 import com.varabyte.kobweb.intellij.util.kobweb.route.LinkPath.UnknownSegmentsStrategy.MATCH_ANYTHING
 import com.varabyte.truthish.assertThat
+import com.varabyte.truthish.assertThrows
 import org.junit.Test
 
 class LinkPathTest {
@@ -27,14 +28,14 @@ class LinkPathTest {
         unknownSegmentsStrategy: UnknownSegmentsStrategy = MATCH_DYNAMIC,
     ) = path(path)!!.leadsTo(PageRoute(route), unknownSegmentsStrategy)
 
-    private val LinkPath.segments: List<String?> get() = parts.map { it.text }
-    private val LinkPath.segmentRanges: List<IntRange> get() = parts.map { it.sourceRange }
+    private val LinkPath.segmentTexts: List<String?> get() = segments.map { it.text }
+    private val LinkPath.segmentRanges: List<IntRange> get() = segments.map { it.sourceRange }
 
     @Test
     fun onlyAbsolutePathsWithinTheSiteAreParsed() {
-        assertThat(path("/blog/post")?.segments).isEqualTo(listOf("blog", "post"))
-        assertThat(path("/")?.segments).isEqualTo(listOf(""))
-        assertThat(path("/blog/")?.segments).isEqualTo(listOf("blog", ""))
+        assertThat(path("/blog/post")?.segmentTexts).isEqualTo(listOf("blog", "post"))
+        assertThat(path("/")?.segmentTexts).isEqualTo(listOf(""))
+        assertThat(path("/blog/")?.segmentTexts).isEqualTo(listOf("blog", ""))
 
         assertThat(path("blog/post")).isNull()
         assertThat(path("https://example.com/blog")).isNull()
@@ -48,17 +49,17 @@ class LinkPathTest {
 
     @Test
     fun queryParametersAndFragmentsAreIgnored() {
-        assertThat(path("/blog/post?sort=new")?.segments).isEqualTo(listOf("blog", "post"))
-        assertThat(path("/blog/post#comments")?.segments).isEqualTo(listOf("blog", "post"))
-        assertThat(path("/blog/?page=2")?.segments).isEqualTo(listOf("blog", ""))
+        assertThat(path("/blog/post?sort=new")?.segmentTexts).isEqualTo(listOf("blog", "post"))
+        assertThat(path("/blog/post#comments")?.segmentTexts).isEqualTo(listOf("blog", "post"))
+        assertThat(path("/blog/?page=2")?.segmentTexts).isEqualTo(listOf("blog", ""))
         // Even if the query has a template expression
-        assertThat(path("/blog/post?id=$")?.segments).isEqualTo(listOf("blog", "post"))
+        assertThat(path("/blog/post?id=$")?.segmentTexts).isEqualTo(listOf("blog", "post"))
     }
 
     @Test
     fun segmentsWithTemplateExpressionsAreUnknown() {
-        assertThat(path("/posts/$")?.segments).isEqualTo(listOf("posts", null))
-        assertThat(path("/posts/post-$/edit")?.segments).isEqualTo(listOf("posts", null, "edit"))
+        assertThat(path("/posts/$")?.segmentTexts).isEqualTo(listOf("posts", null))
+        assertThat(path("/posts/post-$/edit")?.segmentTexts).isEqualTo(listOf("posts", null, "edit"))
     }
 
     @Test
@@ -76,8 +77,28 @@ class LinkPathTest {
         val path = LinkPath.parse(
             listOf(LinkPath.Part("/a", 0..1), LinkPath.Part("/", 2..7), LinkPath.Part("b", 8..8))
         )!!
-        assertThat(path.segments).isEqualTo(listOf("a", "b"))
+        assertThat(path.segmentTexts).isEqualTo(listOf("a", "b"))
         assertThat(path.segmentRanges).isEqualTo(listOf(1..1, 8..8))
+    }
+
+    @Test
+    fun partsTraceEachCharacterBackToTheSource() {
+        // "/users/bob", written as is
+        assertThat(LinkPath.Part("/users/bob", 0..9).sourceRangeOf(7)).isEqualTo(7..7)
+        // "\u002F", which decodes to "/"
+        assertThat(LinkPath.Part("/", 2..7).sourceRangeOf(0)).isEqualTo(2..7)
+    }
+
+    @Test
+    fun partsCantBeLongerThanTheirSource() {
+        assertThrows<IllegalArgumentException> { LinkPath.Part("/users", 0..1) }
+    }
+
+    @Test
+    fun segmentsCantContainSeparators() {
+        assertThrows<IllegalArgumentException> { LinkPath.Segment("users/bob", 0..8) }
+        assertThrows<IllegalArgumentException> { LinkPath.Segment("post?sort=new", 0..12) }
+        assertThrows<IllegalArgumentException> { LinkPath.Segment("post#comments", 0..12) }
     }
 
     @Test
