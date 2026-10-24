@@ -229,7 +229,7 @@ class UnknownRouteInspectionTest : KobwebInspectionTestBase() {
         )
     }
 
-    fun testComparisonsWithRoutePathPropertiesAreChecked() {
+    fun testComparisonsAndAssignmentsWithRoutePathPropertiesAreChecked() {
         doTest(
             """
             package $TEST_GROUP.components
@@ -240,7 +240,7 @@ class UnknownRouteInspectionTest : KobwebInspectionTestBase() {
                 @RoutePath
                 val knownPath = "/blog/post"
 
-                // The getter describes the value being compared
+                // The getter describes the value being compared, and the setter the value being assigned
                 @get:RoutePath(mustExist = false)
                 @set:RoutePath(mustExist = true)
                 var currentPath = "/"
@@ -250,6 +250,32 @@ class UnknownRouteInspectionTest : KobwebInspectionTestBase() {
                 println(routes.knownPath == "/blog/post")
                 println(routes.knownPath == "<warning>/missing</warning>")
                 println(routes.currentPath == "/missing")
+                routes.currentPath = "/blog/post"
+                routes.currentPath = "<warning>/missing</warning>"
+            }
+            """.trimIndent(),
+        )
+    }
+
+    fun testPathsSetByRouteInterceptorsAreChecked() {
+        // The version of Kobweb we test against doesn't annotate `RouteInterceptorScope.path` yet, but we recognize it
+        // anyway
+        doTest(
+            """
+            package $TEST_GROUP.components
+
+            import com.varabyte.kobweb.navigation.Router
+
+            fun interceptRoutes(router: Router) {
+                router.addRouteInterceptor {
+                    // The current path might not lead anywhere, but the one it's redirected to should
+                    if (path == "/old/blog/post") {
+                        path = "/blog/post"
+                    }
+                    if (path == "/old/missing") {
+                        path = "<warning>/missing</warning>"
+                    }
+                }
             }
             """.trimIndent(),
         )

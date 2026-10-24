@@ -312,6 +312,45 @@ class RouteReferenceTest : KobwebApplicationTestCase() {
         ).isEqualTo("BlogPostPage")
     }
 
+    fun testAssignmentsToRoutePathPropertiesLeadToPages() {
+        assertThat(
+            resolveRouteAtCaret(
+                """
+                package $TEST_GROUP.components
+
+                import com.varabyte.kobweb.core.RoutePath
+
+                class Redirect {
+                    @set:RoutePath
+                    var target = ""
+                }
+
+                fun redirect(redirect: Redirect) {
+                    redirect.target = "/blog/po<caret>st"
+                }
+                """.trimIndent()
+            )
+        ).isEqualTo("BlogPostPage")
+
+        // The version of Kobweb we test against doesn't annotate `RouteInterceptorScope.path` yet, but we recognize it
+        // anyway
+        assertThat(
+            resolveRouteAtCaret(
+                """
+                package $TEST_GROUP.components
+
+                import com.varabyte.kobweb.navigation.Router
+
+                fun interceptRoutes(router: Router) {
+                    router.addRouteInterceptor {
+                        path = "/blog/po<caret>st"
+                    }
+                }
+                """.trimIndent()
+            )
+        ).isEqualTo("BlogPostPage")
+    }
+
     fun testWhenBranchesOnRoutePathPropertiesLeadToPages() {
         assertThat(
             resolveRouteAtCaret(

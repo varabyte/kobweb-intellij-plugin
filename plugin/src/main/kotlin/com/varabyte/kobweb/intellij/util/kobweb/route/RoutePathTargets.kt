@@ -23,14 +23,18 @@ import org.jetbrains.kotlin.psi.KtWhenConditionWithExpression
 import org.jetbrains.kotlin.psi.KtWhenExpression
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 
+private val KOBWEB_CORE_PACKAGE = FqName("com.varabyte.kobweb.core")
+private val KOBWEB_NAVIGATION_PACKAGE = FqName("com.varabyte.kobweb.navigation")
+
 /**
  * Kobweb's annotation for parameters and properties that hold a route, e.g. `Link`'s `path`.
  */
-private val ROUTE_PATH_CLASS_ID = ClassId.topLevel(FqName("com.varabyte.kobweb.core.RoutePath"))
+private val ROUTE_PATH_CLASS_ID = ClassId(KOBWEB_CORE_PACKAGE, Name.identifier("RoutePath"))
 
 /**
  * Something that a route string is used with, which holds a route, e.g. `Link`'s `path` parameter for the `"/blog"` in
- * `Link("/blog")`, or the `ctx.route.path` property for the `"/blog"` in `ctx.route.path == "/blog"`.
+ * `Link("/blog")`, or the `ctx.route.path` property for the `"/blog"` in `ctx.route.path == "/blog"`, or the `path`
+ * property for the `"/blog"` in `path = "/blog"`.
  *
  * @property type What the target accepts, from `@RoutePath(type = ...)`.
  * @property mustExist Whether the route should lead to a page (or another resource the site serves). False for targets
@@ -61,32 +65,53 @@ class RoutePathTarget(val type: Type, val mustExist: Boolean) {
 private val LEGACY_ROUTE_PARAMETERS = mapOf(
     CallableId(FqName("com.varabyte.kobweb.silk.components.navigation"), Name.identifier("Link"))
         to ("path" to RoutePathTarget.Type.URL),
-    CallableId(FqName("com.varabyte.kobweb.navigation"), Name.identifier("Anchor"))
+    CallableId(KOBWEB_NAVIGATION_PACKAGE, Name.identifier("Anchor"))
         to ("href" to RoutePathTarget.Type.URL),
     // Can also navigate to other sites
-    CallableId(FqName("com.varabyte.kobweb.navigation"), FqName("Router"), Name.identifier("navigateTo"))
+    CallableId(KOBWEB_NAVIGATION_PACKAGE, FqName("Router"), Name.identifier("navigateTo"))
         to ("pathQueryAndFragment" to RoutePathTarget.Type.URL),
-    CallableId(FqName("com.varabyte.kobweb.navigation"), FqName("Router"), Name.identifier("tryRoutingTo"))
+    CallableId(KOBWEB_NAVIGATION_PACKAGE, FqName("Router"), Name.identifier("tryRoutingTo"))
         to ("pathQueryAndFragment" to RoutePathTarget.Type.PATH_QUERY_AND_FRAGMENT),
 )
 
 /**
- * Hardcoded list of properties that hold a route in versions of Kobweb from before it annotated them with `@RoutePath`.
+ * Hardcoded list of property getters that return a route in versions of Kobweb from before it annotated them with
+ * `@RoutePath`, i.e. what strings compared against them should look like.
  *
- * Kobweb marks these with `mustExist = false`, as they hold the current route, which might not lead to any page.
+ * Kobweb marks these with `mustExist = false`, as they hold routes that might not lead to any page (e.g. the current
+ * route, which might be a 404).
  */
-private val LEGACY_ROUTE_PROPERTIES = listOf(
+private val LEGACY_ROUTE_GETTERS = buildMap {
     // `RouteInfo` was nested inside `PageContext` in older versions of Kobweb
-    FqName("RouteInfo"),
-    FqName("PageContext.RouteInfo"),
-).flatMap { routeInfo ->
-    listOf(
-        CallableId(FqName("com.varabyte.kobweb.core"), routeInfo, Name.identifier("path"))
-            to RoutePathTarget.Type.PATH_ONLY,
-        CallableId(FqName("com.varabyte.kobweb.core"), routeInfo, Name.identifier("pathQueryAndFragment"))
-            to RoutePathTarget.Type.PATH_QUERY_AND_FRAGMENT,
+    for (routeInfo in listOf(FqName("RouteInfo"), FqName("PageContext.RouteInfo"))) {
+        put(
+            CallableId(KOBWEB_CORE_PACKAGE, routeInfo, Name.identifier("path")),
+            RoutePathTarget(RoutePathTarget.Type.PATH_ONLY, mustExist = false),
+        )
+        put(
+            CallableId(KOBWEB_CORE_PACKAGE, routeInfo, Name.identifier("pathQueryAndFragment")),
+            RoutePathTarget(RoutePathTarget.Type.PATH_QUERY_AND_FRAGMENT, mustExist = false),
+        )
+    }
+    put(
+        CallableId(KOBWEB_NAVIGATION_PACKAGE, FqName("RouteInterceptorScope"), Name.identifier("path")),
+        RoutePathTarget(RoutePathTarget.Type.PATH_ONLY, mustExist = false),
     )
-}.toMap()
+    put(
+        CallableId(KOBWEB_NAVIGATION_PACKAGE, FqName("RouteInterceptorScope"), Name.identifier("pathQueryAndFragment")),
+        RoutePathTarget(RoutePathTarget.Type.PATH_QUERY_AND_FRAGMENT, mustExist = false),
+    )
+}
+
+/**
+ * Hardcoded list of property setters that take a route in versions of Kobweb from before it annotated them with
+ * `@RoutePath`, i.e. what strings assigned to them should look like.
+ */
+private val LEGACY_ROUTE_SETTERS = mapOf(
+    // Route interceptors redirect to the path they set, so it should lead somewhere
+    CallableId(KOBWEB_NAVIGATION_PACKAGE, FqName("RouteInterceptorScope"), Name.identifier("path"))
+        to RoutePathTarget(RoutePathTarget.Type.PATH_ONLY, mustExist = true),
+)
 
 /**
  * Returns the expression this string is compared against, if any, e.g. `ctx.route.path` for the `"/blog"` in
@@ -109,15 +134,24 @@ private fun KtStringTemplateExpression.findComparedExpression(): KtExpression? {
 }
 
 /**
- * Returns true if this string is used in a way that could have a [RoutePathTarget], i.e. it's passed into a function
- * or compared against something.
+ * Returns the expression this string is assigned to, if any, e.g. `path` for the `"/blog"` in `path = "/blog"`.
+ */
+private fun KtStringTemplateExpression.findAssignedExpression(): KtExpression? {
+    val assignment = parent as? KtBinaryExpression ?: return null
+    if (assignment.operationToken != KtTokens.EQ || assignment.right != this) return null
+    return assignment.left
+}
+
+/**
+ * Returns true if this string is used in a way that could have a [RoutePathTarget], i.e. it's passed into a function,
+ * compared against something, or assigned to something.
  *
  * This is a quick syntax check to do before [findRoutePathTarget], which requires Kotlin analysis.
  *
  * See also: [hasRoutePathTarget], the complete (but more expensive) check.
  */
 fun KtStringTemplateExpression.mayHaveRoutePathTarget(): Boolean {
-    return parent is KtValueArgument || findComparedExpression() != null
+    return parent is KtValueArgument || findComparedExpression() != null || findAssignedExpression() != null
 }
 
 /**
@@ -159,23 +193,42 @@ private fun KtStringTemplateExpression.findRoutePathParameter(): RoutePathTarget
 }
 
 /**
+ * Returns the property this expression refers to, if any, e.g. `path` for `ctx.route.path`.
+ */
+context(kaSession: KaSession)
+private fun KtExpression.resolveToProperty(): KaPropertySymbol? = with(kaSession) {
+    val reference = (this@resolveToProperty as? KtQualifiedExpression)?.selectorExpression ?: this@resolveToProperty
+    return (reference as? KtNameReferenceExpression)?.mainReference?.resolveToSymbol() as? KaPropertySymbol
+}
+
+/**
  * Returns the property that this string is compared against if that property holds a route, i.e. it's annotated with
  * Kobweb's `@RoutePath` (or its getter is, which takes priority, as that's what describes the value being compared).
  *
  * Older versions of Kobweb didn't have the annotation, so we also recognize the properties it was later added to, e.g.
  * `ctx.route.path`.
  */
-context(kaSession: KaSession)
-private fun KtStringTemplateExpression.findRoutePathProperty(): RoutePathTarget? = with(kaSession) {
-    val comparedExpr = findComparedExpression() ?: return null
-    val reference = (comparedExpr as? KtQualifiedExpression)?.selectorExpression ?: comparedExpr
-    val property = (reference as? KtNameReferenceExpression)?.mainReference?.resolveToSymbol() as? KaPropertySymbol
-        ?: return null
-    property.getter?.readRoutePathAnnotation()?.let { return it }
-    property.readRoutePathAnnotation()?.let { return it }
+context(_: KaSession)
+private fun KtStringTemplateExpression.findComparedRoutePathProperty(): RoutePathTarget? {
+    val property = findComparedExpression()?.resolveToProperty() ?: return null
+    return property.getter?.readRoutePathAnnotation()
+        ?: property.readRoutePathAnnotation()
+        ?: LEGACY_ROUTE_GETTERS[property.callableId]
+}
 
-    val legacyType = LEGACY_ROUTE_PROPERTIES[property.callableId] ?: return null
-    return RoutePathTarget(legacyType, mustExist = false)
+/**
+ * Returns the property that this string is assigned to if that property takes a route, i.e. it's annotated with
+ * Kobweb's `@RoutePath` (or its setter is, which takes priority, as that's what describes the value being assigned).
+ *
+ * Older versions of Kobweb didn't have the annotation, so we also recognize the properties it was later added to, e.g.
+ * `RouteInterceptorScope.path`.
+ */
+context(_: KaSession)
+private fun KtStringTemplateExpression.findAssignedRoutePathProperty(): RoutePathTarget? {
+    val property = findAssignedExpression()?.resolveToProperty() ?: return null
+    return property.setter?.readRoutePathAnnotation()
+        ?: property.readRoutePathAnnotation()
+        ?: LEGACY_ROUTE_SETTERS[property.callableId]
 }
 
 /**
@@ -188,7 +241,7 @@ private fun KtStringTemplateExpression.findRoutePathProperty(): RoutePathTarget?
  */
 context(_: KaSession)
 fun KtStringTemplateExpression.findRoutePathTarget(): RoutePathTarget? {
-    return findRoutePathParameter() ?: findRoutePathProperty()
+    return findRoutePathParameter() ?: findComparedRoutePathProperty() ?: findAssignedRoutePathProperty()
 }
 
 /**

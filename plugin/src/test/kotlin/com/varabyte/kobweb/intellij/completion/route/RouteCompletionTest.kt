@@ -136,6 +136,24 @@ class RouteCompletionTest : KobwebApplicationTestCase() {
         ).containsExactly("/blog/", "/blog/post").inOrder()
     }
 
+    fun testStringsAssignedToRoutePathPropertiesAreCompleted() {
+        assertThat(
+            complete(
+                """
+                package $TEST_GROUP.components
+
+                import com.varabyte.kobweb.navigation.Router
+
+                fun interceptRoutes(router: Router) {
+                    router.addRouteInterceptor {
+                        path = "/bl<caret>"
+                    }
+                }
+                """.trimIndent()
+            )!!
+        ).containsExactly("/blog/", "/blog/post").inOrder()
+    }
+
     fun testStringsNotPassedToRouteParametersAreNotCompleted() {
         assertThat(
             complete(

@@ -13,8 +13,8 @@ import com.varabyte.kobweb.intellij.util.kobweb.route.mayHaveRoutePathTarget
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
 /**
- * Adds a [RouteReference] to strings that look like routes and are passed into functions or compared against something,
- * e.g. `Link("/blog/post")` or `ctx.route.path == "/blog/post"`.
+ * Adds a [RouteReference] to strings that look like routes and are passed into functions, compared against something, or
+ * assigned to something, e.g. `Link("/blog/post")`, `ctx.route.path == "/blog/post"`, or `path = "/blog/post"`.
  *
  * This is what powers navigation from a route to its page (and finding a page's usages).
  */

@@ -122,4 +122,21 @@ class InvalidRouteFormatInspectionTest : KobwebInspectionTestBase() {
             """.trimIndent(),
         )
     }
+
+    fun testAssignmentsAreCheckedAgainstWhatThePropertyTakes() {
+        doTest(
+            """
+            package $TEST_GROUP.components
+
+            import com.varabyte.kobweb.navigation.Router
+
+            fun interceptRoutes(router: Router) {
+                router.addRouteInterceptor {
+                    path = "/blog/post"
+                    path = "/blog/post<error descr="Only a path, such as \"/some/page\", is expected here, without query parameters or a fragment.">?sort=new</error>"
+                }
+            }
+            """.trimIndent(),
+        )
+    }
 }

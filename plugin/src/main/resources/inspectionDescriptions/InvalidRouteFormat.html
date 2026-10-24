@@ -12,8 +12,8 @@ its <code>@RoutePath(type = ...)</code> annotation, which is one of:
   <li><code>PATH_ONLY</code>: just a path within the site, e.g. <code>"/blog/post"</code>, without query parameters or a
     fragment.</li>
 </ul>
-This applies to strings passed to annotated function parameters, as well as to strings compared against annotated
-properties, e.g. <code>ctx.route.path == "/blog/post"</code>.
+This applies to strings passed to annotated function parameters, as well as to strings compared against or assigned to
+annotated properties, e.g. <code>ctx.route.path == "/blog/post"</code>.
 <pre><code>
 // OK
 router.tryRoutingTo("/blog/post?sort=new")

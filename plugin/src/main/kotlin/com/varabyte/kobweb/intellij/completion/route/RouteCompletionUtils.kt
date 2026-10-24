@@ -10,7 +10,7 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
  * Returns the text of this string up to [offset] (a position in its file) if it could be the start of a route that
  * we'd complete, e.g. "/bl" for `Link("/bl|")`, or "" for `Link("|")`.
  *
- * Returns null if it can't be, e.g. if the string isn't passed into a function or compared against something (see
+ * Returns null if it can't be, e.g. if the string isn't used in a way that could hold a route (see
  * [mayHaveRoutePathTarget]), the text is relative ("blog"), it already has a query or fragment, or it has template
  * expressions or escapes before [offset].
  *

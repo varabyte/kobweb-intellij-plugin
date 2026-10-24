@@ -21,8 +21,9 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
  * Segments that aren't known until runtime (e.g. the `$id` in `"/posts/$id"`) only match dynamic segments (see
  * [LinkPath.matches]).
  *
- * This reference is created for any absolute path passed into a function or compared against something, but it only
- * resolves if that holds a route (see [hasRoutePathTarget]), which requires Kotlin analysis to check.
+ * This reference is created for any absolute path passed into a function, compared against something, or assigned to
+ * something, but it only resolves if that holds a route (see [hasRoutePathTarget]), which requires Kotlin analysis to
+ * check.
  *
  * Note that a page's route comes from its file and package, not its function's name, so renaming a page function
  * doesn't change any strings.
