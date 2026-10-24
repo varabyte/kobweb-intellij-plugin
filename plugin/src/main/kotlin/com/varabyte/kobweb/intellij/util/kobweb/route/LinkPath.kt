@@ -4,21 +4,18 @@ package com.varabyte.kobweb.intellij.util.kobweb.route
  * The path part of a URL written in code that may point at a page, e.g. "/users/bob/posts" in
  * `Link("/users/bob/posts?sort=new")`.
  *
- * @property segments The path's segments, e.g. ["users", "bob", "posts"]. A segment is null if its value can't be known
- *   until runtime, i.e. it contains a template expression (like "$id" in "/posts/$id").
- * @property segmentRanges Where each of [segments] was written in the source (see [Part.sourceRange]), e.g. where
- *   "users", "bob", and "posts" are inside `"/users/bob/posts"`.
+ * @param parts A list of [Part]s containing segment text values, e.g. ["users", "bob", "posts"], associated with the
+ *   ranges where those text values were found inside their parent source route.
  */
-class LinkPath private constructor(val segments: List<String?>, val segmentRanges: List<IntRange>) {
+class LinkPath private constructor(val parts: List<Part>) {
+    private val segments: List<String?> = parts.map { it.text }
+
     /**
-     * A piece of the source a URL was written in, e.g. a string's literal text, an escape sequence, or a template
-     * expression.
+     * The piece of route between slashes.
      *
      * @property text The piece's text, with any escape sequences decoded, or null if it's a template expression, whose
-     *   value can't be known until runtime.
-     * @property sourceRange Where the piece was written in the source. If [text] is as long as the source, each of its
-     *   characters has its own position, but otherwise (i.e. for escape sequences, e.g. "\u00e9" for "é") all of them
-     *   belong to the whole range.
+     *   value can't be known until runtime, e.g. a template expression like "$id" in "/posts/$id".
+     * @property sourceRange Where the piece was written in the source.
      */
     class Part(val text: String?, val sourceRange: IntRange)
 
@@ -150,7 +147,8 @@ class LinkPath private constructor(val segments: List<String?>, val segmentRange
             segmentRanges.add(segmentStart until pathEnd)
 
             // The path starts with a slash, which leaves an empty first segment behind
-            return LinkPath(segments.drop(1), segmentRanges.drop(1))
+            fun List<Pair<String?, IntRange>>.toLinkPath(): LinkPath = LinkPath(this.map { Part(it.first, it.second) })
+            return segments.drop(1).zip(segmentRanges.drop(1)).toLinkPath()
         }
 
         // True if the path matches the route definition, e.g. route "/about" is matched by path "/about",

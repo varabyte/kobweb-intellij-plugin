@@ -53,7 +53,7 @@ fun PsiElement.findPublicFolders(): List<VirtualFile> {
  * Returns null if there's no such file, or if the path has segments that aren't known until runtime.
  */
 fun PsiElement.findPublicResource(path: LinkPath): VirtualFile? {
-    if (path.segments.any { it == null }) return null
-    val relativePath = path.segments.joinToString("/")
+    if (path.parts.any { it.text == null }) return null
+    val relativePath = path.parts.joinToString("/") { it.text!! }
     return findPublicFolders().firstNotNullOfOrNull { folder -> folder.findFileByRelativePath(relativePath) }
 }

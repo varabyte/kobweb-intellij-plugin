@@ -38,18 +38,18 @@ class DynamicRouteSegmentAnnotator : Annotator {
         for ((i, dynamicSegment) in dynamicSegments.withIndex()) {
             if (dynamicSegment == null) continue
             // A catch-all segment is filled by the rest of the path
-            val indices = (if (dynamicSegment.isCatchAll) i..path.segments.lastIndex else listOf(i))
-                .filter { index -> path.segmentRanges.getOrNull(index)?.isEmpty() == false }
+            val indices = (if (dynamicSegment.isCatchAll) i..path.parts.lastIndex else listOf(i))
+                .filter { index -> path.parts.getOrNull(index)?.sourceRange?.isEmpty() == false }
             if (indices.isEmpty()) continue
             // e.g. "a/b/c" for a catch-all segment filled by "/a/b/c", even though each part is highlighted separately
             val value = stringExpr.text.substring(
-                path.segmentRanges[indices.first()].first,
-                path.segmentRanges[indices.last()].last + 1,
+                path.parts[indices.first()].sourceRange.first,
+                path.parts[indices.last()].sourceRange.last + 1,
             )
 
             // Template expressions (i.e. segments whose values are unknown) are already highlighted as code
-            for (index in indices.filter { index -> path.segments[index] != null }) {
-                val range = path.segmentRanges[index].let { range -> TextRange(range.first, range.last + 1) }
+            for (index in indices.filter { index -> path.parts[index].text != null }) {
+                val range = path.parts[index].sourceRange.let { range -> TextRange(range.first, range.last + 1) }
                 holder.newAnnotation(
                     HighlightSeverity.INFORMATION,
                     UxGlobals.textBundle.message(

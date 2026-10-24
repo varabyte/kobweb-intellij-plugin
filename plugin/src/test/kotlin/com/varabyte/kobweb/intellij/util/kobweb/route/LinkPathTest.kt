@@ -27,6 +27,9 @@ class LinkPathTest {
         unknownSegmentsStrategy: UnknownSegmentsStrategy = MATCH_DYNAMIC,
     ) = path(path)!!.leadsTo(PageRoute(route), unknownSegmentsStrategy)
 
+    private val LinkPath.segments: List<String?> get() = parts.map { it.text }
+    private val LinkPath.segmentRanges: List<IntRange> get() = parts.map { it.sourceRange }
+
     @Test
     fun onlyAbsolutePathsWithinTheSiteAreParsed() {
         assertThat(path("/blog/post")?.segments).isEqualTo(listOf("blog", "post"))

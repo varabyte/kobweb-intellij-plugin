@@ -34,7 +34,7 @@ class UnknownRouteInspection : LocalInspectionTool() {
                 if (expression.parent !is KtValueArgument) return
                 val path = expression.linkPath ?: return
                 // API routes are served by the backend, not by pages
-                if (path.segments.first() == "api") return
+                if (path.parts.first().text == "api") return
 
                 // Unknown segments could hold anything at runtime, so only report paths that can't lead to any page
                 val pages = expression.findPages()
