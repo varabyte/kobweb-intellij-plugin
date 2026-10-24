@@ -1,0 +1,30 @@
+<html lang="en">
+<body>
+Reports routes passed to parameters that don't accept them as written, according to the parameter's
+<code>@RoutePath(type = ...)</code>, which is one of:
+<ul>
+  <li><code>URL</code> (the default): any URL, including ones to other sites, e.g. <code>"/blog/post"</code> or
+    <code>"https://example.com"</code>. Used by <code>Link</code> and
+    <code>Router.navigateTo</code>, for example.</li>
+  <li><code>PATH_QUERY_AND_FRAGMENT</code>: a path within the site, optionally followed by query parameters and a
+    fragment, e.g. <code>"/blog/post?sort=new#comments"</code>, but not a full URL. Used by
+    <code>Router.tryRoutingTo</code>, for example.</li>
+  <li><code>PATH_ONLY</code>: just a path within the site, e.g. <code>"/blog/post"</code>, without query parameters or a
+    fragment.</li>
+</ul>
+<pre><code>
+// OK
+router.tryRoutingTo("/blog/post?sort=new")
+// Not OK: not a path within the site.
+router.tryRoutingTo("https://example.com/blog")
+
+// User code can use the annotation as well
+fun Breadcrumb(@RoutePath(RoutePathType.PATH_ONLY) path: String)
+// OK
+Breadcrumb("/blog/post")
+// Not OK: accepts paths only, no fragments or query parameters
+Breadcrumb("/blog/post#comments")
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>

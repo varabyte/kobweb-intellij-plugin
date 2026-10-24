@@ -19,25 +19,45 @@ import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 private val ROUTE_PATH_CLASS_ID = ClassId.topLevel(FqName("com.varabyte.kobweb.core.RoutePath"))
 
 /**
+ * A parameter that takes a route, e.g. `Link`'s `path`.
+ *
+ * @property type What the parameter accepts, from `@RoutePath(type = ...)`.
+ * @property mustExist Whether the route should lead to a page (or another resource the site serves). False for
+ *   parameters marked `@RoutePath(mustExist = false)`, e.g. ones that build links to pages that may not exist yet.
+ */
+class RoutePathParameter(val type: Type, val mustExist: Boolean) {
+    /**
+     * What sort of route format is accepted.
+     *
+     * Mirrors `RoutePathType` in Kobweb, whose entries have the same names.
+     */
+    enum class Type {
+        /** Any URL, including ones to other sites (e.g. "https://example.com"). */
+        URL,
+
+        /** A path, optionally followed by query parameters and a fragment, e.g. "/blog/post?sort=new#comments". */
+        PATH_QUERY_AND_FRAGMENT,
+
+        /** Just a path, e.g. "/blog/post". */
+        PATH_ONLY,
+    }
+}
+
+/**
  * Hardcoded list of parameters that take a route in versions of Kobweb from before it annotated them with `@RoutePath`,
  * by the function they belong to.
  */
 private val LEGACY_ROUTE_PARAMETERS = mapOf(
-    CallableId(FqName("com.varabyte.kobweb.silk.components.navigation"), Name.identifier("Link")) to "path",
-    CallableId(FqName("com.varabyte.kobweb.navigation"), Name.identifier("Anchor")) to "href",
+    CallableId(FqName("com.varabyte.kobweb.silk.components.navigation"), Name.identifier("Link"))
+        to ("path" to RoutePathParameter.Type.URL),
+    CallableId(FqName("com.varabyte.kobweb.navigation"), Name.identifier("Anchor"))
+        to ("href" to RoutePathParameter.Type.URL),
+    // Can also navigate to other sites
     CallableId(FqName("com.varabyte.kobweb.navigation"), FqName("Router"), Name.identifier("navigateTo"))
-        to "pathQueryAndFragment",
+        to ("pathQueryAndFragment" to RoutePathParameter.Type.URL),
     CallableId(FqName("com.varabyte.kobweb.navigation"), FqName("Router"), Name.identifier("tryRoutingTo"))
-        to "pathQueryAndFragment",
+        to ("pathQueryAndFragment" to RoutePathParameter.Type.PATH_QUERY_AND_FRAGMENT),
 )
-
-/**
- * A parameter that takes a route, e.g. `Link`'s `path`.
- *
- * @property mustExist Whether the route should lead to a page (or another resource the site serves). False for
- *   parameters marked `@RoutePath(mustExist = false)`, e.g. ones that build links to pages that may not exist yet.
- */
-class RoutePathParameter(val mustExist: Boolean)
 
 /**
  * Returns the parameter that this expression is passed into if that parameter takes a route, e.g. `Link`'s `path` for
@@ -58,16 +78,19 @@ fun KtExpression.findRoutePathParameter(): RoutePathParameter? = with(kaSession)
     val routePath = parameter.annotations[ROUTE_PATH_CLASS_ID].firstOrNull()
     if (routePath != null) {
         // Arguments left at their default value aren't listed
-        val mustExist = routePath.arguments
-            .firstOrNull { argument -> argument.name.asString() == "mustExist" }
-            ?.let { argument -> (argument.expression as? KaAnnotationValue.ConstantValue)?.value?.value as? Boolean }
+        fun findArgument(name: String) = routePath.arguments.firstOrNull { it.name.asString() == name }?.expression
+        val type = (findArgument("type") as? KaAnnotationValue.EnumEntryValue)?.callableId?.callableName?.asString()
+            ?.let { typeName -> RoutePathParameter.Type.entries.firstOrNull { it.name == typeName } }
+            ?: RoutePathParameter.Type.URL
+        val mustExist = (findArgument("mustExist") as? KaAnnotationValue.ConstantValue)?.value?.value as? Boolean
             ?: true
-        return RoutePathParameter(mustExist)
+        return RoutePathParameter(type, mustExist)
     }
 
     val callableId = call.symbol.callableId ?: return null
-    if (LEGACY_ROUTE_PARAMETERS[callableId] != parameter.name.asString()) return null
-    return RoutePathParameter(mustExist = true)
+    val (legacyName, legacyType) = LEGACY_ROUTE_PARAMETERS[callableId] ?: return null
+    if (legacyName != parameter.name.asString()) return null
+    return RoutePathParameter(legacyType, mustExist = true)
 }
 
 /**
