@@ -123,6 +123,8 @@ fun KtStringTemplateExpression.mayHaveRoutePathTarget(): Boolean {
 /**
  * Reads this declaration's `@RoutePath` annotation, if it has one.
  */
+// The session isn't used, but a `KaAnnotated` is only valid inside one anyway, so this documents that
+@Suppress("UNUSED_PARAMETER")
 context(_: KaSession)
 private fun KaAnnotated.readRoutePathAnnotation(): RoutePathTarget? {
     val routePath = annotations[ROUTE_PATH_CLASS_ID].firstOrNull() ?: return null
@@ -184,7 +186,7 @@ private fun KtStringTemplateExpression.findRoutePathProperty(): RoutePathTarget?
  *
  * This method must be called inside an `analyze` block.
  */
-context(kaSession: KaSession)
+context(_: KaSession)
 fun KtStringTemplateExpression.findRoutePathTarget(): RoutePathTarget? {
     return findRoutePathParameter() ?: findRoutePathProperty()
 }
@@ -194,5 +196,5 @@ fun KtStringTemplateExpression.findRoutePathTarget(): RoutePathTarget? {
  *
  * This method must be called inside an `analyze` block.
  */
-context(kaSession: KaSession)
+context(_: KaSession)
 fun KtStringTemplateExpression.hasRoutePathTarget(): Boolean = findRoutePathTarget() != null

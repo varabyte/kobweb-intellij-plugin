@@ -149,7 +149,7 @@ fun KtNamedFunction.isModifierChainingExtension(): Boolean {
 /**
  * Like [isModifierChainingExtension] but also includes
  */
-context(kaSession: KaSession)
+context(_: KaSession)
 fun KtNamedFunction.isModifierChainingFunction(): Boolean {
     return (isModifierExtension() || isModifierFunction()) && returnsModifier()
 }
