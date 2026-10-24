@@ -6,8 +6,22 @@ package com.varabyte.kobweb.intellij.util.kobweb.route
  *
  * @property segments The path's segments, e.g. ["users", "bob", "posts"]. A segment is null if its value can't be known
  *   until runtime, i.e. it contains a template expression (like "$id" in "/posts/$id").
+ * @property segmentRanges Where each of [segments] was written in the source (see [Part.sourceRange]), e.g. where
+ *   "users", "bob", and "posts" are inside `"/users/bob/posts"`.
  */
-class LinkPath private constructor(val segments: List<String?>) {
+class LinkPath private constructor(val segments: List<String?>, val segmentRanges: List<IntRange>) {
+    /**
+     * A piece of the source a URL was written in, e.g. a string's literal text, an escape sequence, or a template
+     * expression.
+     *
+     * @property text The piece's text, with any escape sequences decoded, or null if it's a template expression, whose
+     *   value can't be known until runtime.
+     * @property sourceRange Where the piece was written in the source. If [text] is as long as the source, each of its
+     *   characters has its own position, but otherwise (i.e. for escape sequences, e.g. "\u00e9" for "é") all of them
+     *   belong to the whole range.
+     */
+    class Part(val text: String?, val sourceRange: IntRange)
+
     /**
      * Returns true if this path matches [route] exactly, e.g. "/users/bob/posts" matches "/users/{user}/posts".
      *
@@ -93,27 +107,39 @@ class LinkPath private constructor(val segments: List<String?>) {
          *
          * Any query parameters and fragment are ignored.
          *
-         * @param parts The URL's text, in order. A null part is a template expression, whose value can't be known
-         *   until runtime.
+         * @param parts The pieces of source the URL was written in, in order.
          */
-        fun parse(parts: List<String?>): LinkPath? {
-            val first = parts.firstOrNull() ?: return null
+        fun parse(parts: List<Part>): LinkPath? {
+            val first = parts.firstOrNull()?.text ?: return null
             if (!first.startsWith('/') || first.startsWith("//")) return null
 
             val segments = mutableListOf<String?>()
+            val segmentRanges = mutableListOf<IntRange>()
             var segment: StringBuilder? = StringBuilder() // null while the current segment is unknown
+            var segmentStart = parts.first().sourceRange.first
+            var pathEnd = parts.last().sourceRange.last + 1
             loop@ for (part in parts) {
-                if (part == null) {
+                val text = part.text
+                if (text == null) {
                     segment = null
                     continue
                 }
-                for (c in part) {
+                val isVerbatim = text.length == part.sourceRange.count()
+                for ((i, c) in text.withIndex()) {
+                    val charOffset = part.sourceRange.first + i
+                    val charRange = if (isVerbatim) charOffset..charOffset else part.sourceRange
                     when (c) {
                         // The path ends where the query or fragment begins
-                        '?', '#' -> break@loop
+                        '?', '#' -> {
+                            pathEnd = charRange.first
+                            break@loop
+                        }
+
                         '/' -> {
                             segments.add(segment?.toString())
+                            segmentRanges.add(segmentStart until charRange.first)
                             segment = StringBuilder()
+                            segmentStart = charRange.last + 1
                         }
 
                         else -> segment?.append(c)
@@ -121,9 +147,10 @@ class LinkPath private constructor(val segments: List<String?>) {
                 }
             }
             segments.add(segment?.toString())
+            segmentRanges.add(segmentStart until pathEnd)
 
             // The path starts with a slash, which leaves an empty first segment behind
-            return LinkPath(segments.drop(1))
+            return LinkPath(segments.drop(1), segmentRanges.drop(1))
         }
 
         // True if the path matches the route definition, e.g. route "/about" is matched by path "/about",

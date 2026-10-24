@@ -201,6 +201,10 @@
                 order="first"
                 implementationClass="com.varabyte.kobweb.intellij.completion.route.RouteCompletionContributor"/>
         <typedHandler implementation="com.varabyte.kobweb.intellij.completion.route.RouteTypedHandler"/>
+        <annotator
+                language="kotlin"
+                implementationClass="com.varabyte.kobweb.intellij.highlighting.route.DynamicRouteSegmentAnnotator"/>
+        <colorSettingsPage implementation="com.varabyte.kobweb.intellij.highlighting.KobwebColorSettingsPage"/>
         <colorProvider implementation="com.varabyte.kobweb.intellij.colors.KobwebColorProvider" />
         <codeInsight.declarativeInlayProvider
                 implementationClass="com.varabyte.kobweb.intellij.inlay.KobwebModifierInlayHintsProvider"

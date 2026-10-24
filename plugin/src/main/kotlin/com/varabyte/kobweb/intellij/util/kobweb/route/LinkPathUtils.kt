@@ -7,16 +7,17 @@ import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
 /**
- * The parts of this string, in order, for parsing as a [LinkPath]: its text (with escape sequences decoded), or null for
- * template expressions (e.g. "$id"), whose values can't be known until runtime.
+ * The parts of this string, in order, for parsing as a [LinkPath] (see [LinkPath.Part]), positioned relative to this
+ * string.
  */
-private val KtStringTemplateExpression.linkPathParts: List<String?>
+private val KtStringTemplateExpression.linkPathParts: List<LinkPath.Part>
     get() = entries.map { entry ->
-        when (entry) {
+        val text = when (entry) {
             is KtLiteralStringTemplateEntry -> entry.text
             is KtEscapeStringTemplateEntry -> entry.unescapedValue
             else -> null
         }
+        LinkPath.Part(text, entry.startOffsetInParent until entry.startOffsetInParent + entry.textLength)
     }
 
 /**

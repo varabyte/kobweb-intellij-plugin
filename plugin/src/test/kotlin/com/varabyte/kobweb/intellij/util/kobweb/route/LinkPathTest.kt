@@ -12,7 +12,13 @@ class LinkPathTest {
      */
     private fun path(path: String): LinkPath? {
         val parts = path.split('$').flatMapIndexed { i, part -> if (i == 0) listOf(part) else listOf(null, part) }
-        return LinkPath.parse(parts)
+        var offset = 0
+        return LinkPath.parse(
+            parts.map { part ->
+                val length = part?.length ?: 1 // A template expression is written as a single "$"
+                LinkPath.Part(part, offset until offset + length).also { offset += length }
+            }
+        )
     }
 
     private fun leadsTo(
@@ -50,6 +56,25 @@ class LinkPathTest {
     fun segmentsWithTemplateExpressionsAreUnknown() {
         assertThat(path("/posts/$")?.segments).isEqualTo(listOf("posts", null))
         assertThat(path("/posts/post-$/edit")?.segments).isEqualTo(listOf("posts", null, "edit"))
+    }
+
+    @Test
+    fun segmentRangesSayWhereEachSegmentWasWritten() {
+        assertThat(path("/users/bob/posts")?.segmentRanges).isEqualTo(listOf(1..5, 7..9, 11..15))
+        // Ranges stop where the query or fragment begins, and an empty segment has an empty range
+        assertThat(path("/blog/?page=2")?.segmentRanges).isEqualTo(listOf(1..4, 6 until 6))
+        // A template expression is part of the segment it's in
+        assertThat(path("/posts/post-$/edit")?.segmentRanges).isEqualTo(listOf(1..5, 7..12, 14..17))
+    }
+
+    @Test
+    fun escapeSequencesBelongToTheWholeOfTheirSource() {
+        // "/a\u002Fb", where the escape sequence decodes to a slash
+        val path = LinkPath.parse(
+            listOf(LinkPath.Part("/a", 0..1), LinkPath.Part("/", 2..7), LinkPath.Part("b", 8..8))
+        )!!
+        assertThat(path.segments).isEqualTo(listOf("a", "b"))
+        assertThat(path.segmentRanges).isEqualTo(listOf(1..1, 8..8))
     }
 
     @Test
