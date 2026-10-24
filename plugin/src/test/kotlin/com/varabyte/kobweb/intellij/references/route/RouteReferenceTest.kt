@@ -22,25 +22,6 @@ class RouteReferenceTest : KobwebApplicationTestCase() {
     override fun setUp() {
         super.setUp()
 
-        // Newer versions of Kobweb have this annotation, but the version we test against doesn't
-        myFixture.addFileToProject(
-            "RoutePath.kt",
-            // language=kotlin
-            """
-            package com.varabyte.kobweb.core
-
-            enum class RoutePathType { URL, PATH_QUERY_AND_FRAGMENT, PATH_ONLY }
-
-            @Target(
-                AnnotationTarget.VALUE_PARAMETER,
-                AnnotationTarget.PROPERTY,
-                AnnotationTarget.PROPERTY_SETTER,
-                AnnotationTarget.PROPERTY_GETTER,
-            )
-            annotation class RoutePath(val type: RoutePathType = RoutePathType.URL, val mustExist: Boolean = true)
-            """.trimIndent()
-        )
-
         myFixture.addFileToProject(
             "pages/Index.kt",
             // language=kotlin
