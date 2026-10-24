@@ -6,14 +6,14 @@ import com.intellij.openapi.util.TextRange
 import com.intellij.psi.ElementManipulators
 import com.intellij.psi.PsiElementVisitor
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
-import com.varabyte.kobweb.intellij.util.kobweb.route.RoutePathParameter
-import com.varabyte.kobweb.intellij.util.kobweb.route.findRoutePathParameter
+import com.varabyte.kobweb.intellij.util.kobweb.route.RoutePathTarget
+import com.varabyte.kobweb.intellij.util.kobweb.route.findRoutePathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPathRange
+import com.varabyte.kobweb.intellij.util.kobweb.route.mayHaveRoutePathTarget
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
-import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.psi.KtVisitorVoid
 
 /** Matches the scheme at the start of a URL, e.g. "https:" or "mailto:". */
@@ -30,43 +30,46 @@ private val KtStringTemplateExpression.isFullUrl: Boolean
     }
 
 /**
- * Reports routes passed to parameters that don't accept them as written, according to the parameter's
- * `@RoutePath(type = ...)`, e.g. a full URL passed to `Router.tryRoutingTo`, which only takes a path (plus optional
- * query parameters and fragment).
+ * Reports route strings that aren't in the format expected by the parameter or property they're used with, according
+ * to its `@RoutePath(type = ...)` annotation, e.g. a full URL passed to `Router.tryRoutingTo`, which only takes a path
+ * (plus optional query parameters and fragment).
+ *
+ * This applies to strings passed to annotated function parameters, as well as to strings compared against annotated
+ * properties, e.g. `ctx.route.path == "/blog?sort=new"`, which can never be true, as `path` only holds a path.
  */
-class InvalidRouteArgumentInspection : LocalInspectionTool() {
+class InvalidRouteFormatInspection : LocalInspectionTool() {
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
         if (!holder.file.isInWritableKobwebProject()) return KtVisitorVoid.EMPTY_VISITOR
 
         return object : KtVisitorVoid() {
             override fun visitStringTemplateExpression(expression: KtStringTemplateExpression) {
                 super.visitStringTemplateExpression(expression)
-                if (expression.parent !is KtValueArgument) return
+                if (!expression.mayHaveRoutePathTarget()) return
 
                 val isFullUrl = expression.isFullUrl
                 val valueRange = ElementManipulators.getValueTextRange(expression)
                 // Everything after the path, if anything, is the query parameters and fragment
                 val queryAndFragmentRange = TextRange(expression.linkPathRange().endOffset, valueRange.endOffset)
                     .takeIf { range -> !range.isEmpty }
-                // Checked before analysis, as most strings are fine whatever the parameter takes
+                // Checked before analysis, as most strings are fine whatever the target holds
                 if (!isFullUrl && queryAndFragmentRange == null) return
 
-                val parameter = analyze(expression) { expression.findRoutePathParameter() } ?: return
+                val target = analyze(expression) { expression.findRoutePathTarget() } ?: return
                 fun reportFullUrl() = holder.registerProblem(
                     expression,
                     valueRange,
-                    UxGlobals.textBundle.message("inspection.invalid.route.argument.full.url.display.text"),
+                    UxGlobals.textBundle.message("inspection.invalid.route.format.full.url.display.text"),
                 )
                 fun reportQueryAndFragment(range: TextRange) = holder.registerProblem(
                     expression,
                     range,
-                    UxGlobals.textBundle.message("inspection.invalid.route.argument.query.display.text"),
+                    UxGlobals.textBundle.message("inspection.invalid.route.format.query.display.text"),
                 )
 
-                when (parameter.type) {
-                    RoutePathParameter.Type.URL -> {}
-                    RoutePathParameter.Type.PATH_QUERY_AND_FRAGMENT -> if (isFullUrl) reportFullUrl()
-                    RoutePathParameter.Type.PATH_ONLY -> when {
+                when (target.type) {
+                    RoutePathTarget.Type.URL -> {}
+                    RoutePathTarget.Type.PATH_QUERY_AND_FRAGMENT -> if (isFullUrl) reportFullUrl()
+                    RoutePathTarget.Type.PATH_ONLY -> when {
                         isFullUrl -> reportFullUrl()
                         queryAndFragmentRange != null -> reportQueryAndFragment(queryAndFragmentRange)
                     }

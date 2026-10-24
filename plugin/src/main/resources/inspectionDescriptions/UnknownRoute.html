@@ -5,7 +5,7 @@ moved or deleted.
 <p>
 This inspection applies to parameters that are annotated by Kobweb with <code>@RoutePath</code> (excluding ones where
 <code>mustExist</code> is set to <code>false</code>), such as the <code>path</code> parameter in the <code>Link</code>
-composable.
+composable, as well as to routes compared against properties annotated the same way.
 <pre><code>
 // pages/blog/Post.kt is served at "/blog/post"
 Link("/blog/post")    // OK

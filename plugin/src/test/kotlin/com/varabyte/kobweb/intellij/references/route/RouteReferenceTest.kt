@@ -22,6 +22,25 @@ class RouteReferenceTest : KobwebApplicationTestCase() {
     override fun setUp() {
         super.setUp()
 
+        // Newer versions of Kobweb have this annotation, but the version we test against doesn't
+        myFixture.addFileToProject(
+            "RoutePath.kt",
+            // language=kotlin
+            """
+            package com.varabyte.kobweb.core
+
+            enum class RoutePathType { URL, PATH_QUERY_AND_FRAGMENT, PATH_ONLY }
+
+            @Target(
+                AnnotationTarget.VALUE_PARAMETER,
+                AnnotationTarget.PROPERTY,
+                AnnotationTarget.PROPERTY_SETTER,
+                AnnotationTarget.PROPERTY_GETTER,
+            )
+            annotation class RoutePath(val type: RoutePathType = RoutePathType.URL, val mustExist: Boolean = true)
+            """.trimIndent()
+        )
+
         myFixture.addFileToProject(
             "pages/Index.kt",
             // language=kotlin
@@ -251,18 +270,6 @@ class RouteReferenceTest : KobwebApplicationTestCase() {
     }
 
     fun testParametersAnnotatedWithRoutePathTakeRoutes() {
-        // Newer versions of Kobweb have this annotation, but the version we test against doesn't
-        myFixture.addFileToProject(
-            "RoutePath.kt",
-            // language=kotlin
-            """
-            package com.varabyte.kobweb.core
-
-            @Target(AnnotationTarget.VALUE_PARAMETER)
-            annotation class RoutePath
-            """.trimIndent()
-        )
-
         assertThat(
             resolveRouteAtCaret(
                 """
@@ -278,6 +285,68 @@ class RouteReferenceTest : KobwebApplicationTestCase() {
                 @Composable
                 fun Nav() {
                     NavItem("/blog/po<caret>st")
+                }
+                """.trimIndent()
+            )
+        ).isEqualTo("BlogPostPage")
+    }
+
+    fun testComparisonsWithRoutePathPropertiesLeadToPages() {
+        @Language("kotlin")
+        fun produceNav(comparison: String) = """
+            package $TEST_GROUP.components
+
+            import com.varabyte.kobweb.core.RoutePath
+
+            class CurrentRoute(@property:RoutePath val path: String, val title: String)
+
+            fun isActive(route: CurrentRoute): Boolean {
+                return $comparison
+            }
+        """.trimIndent()
+
+        assertThat(resolveRouteAtCaret(produceNav("route.path == \"/blog/po<caret>st\""))).isEqualTo("BlogPostPage")
+        assertThat(resolveRouteAtCaret(produceNav("\"/blog/po<caret>st\" != route.path"))).isEqualTo("BlogPostPage")
+        // Not a property that holds a route
+        assertThat(resolveRouteAtCaret(produceNav("route.title == \"/blog/po<caret>st\""))).isNull()
+    }
+
+    fun testComparisonsWithCurrentRouteLeadToPages() {
+        // The version of Kobweb we test against doesn't annotate `ctx.route.path` yet, but we recognize it anyway
+        assertThat(
+            resolveRouteAtCaret(
+                """
+                package $TEST_GROUP.components
+
+                import androidx.compose.runtime.Composable
+                import com.varabyte.kobweb.core.rememberPageContext
+
+                @Composable
+                fun Nav() {
+                    val ctx = rememberPageContext()
+                    println(ctx.route.path == "/blog/po<caret>st")
+                }
+                """.trimIndent()
+            )
+        ).isEqualTo("BlogPostPage")
+    }
+
+    fun testWhenBranchesOnRoutePathPropertiesLeadToPages() {
+        assertThat(
+            resolveRouteAtCaret(
+                """
+                package $TEST_GROUP.components
+
+                import com.varabyte.kobweb.core.RoutePath
+
+                class CurrentRoute(@property:RoutePath val path: String)
+
+                fun titleFor(route: CurrentRoute): String {
+                    return when (route.path) {
+                        "/" -> "Home"
+                        "/blog/po<caret>st" -> "Blog"
+                        else -> "Unknown"
+                    }
                 }
                 """.trimIndent()
             )

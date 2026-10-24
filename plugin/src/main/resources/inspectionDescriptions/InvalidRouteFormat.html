@@ -1,7 +1,7 @@
 <html lang="en">
 <body>
-Reports routes passed to parameters that don't accept them as written, according to the parameter's
-<code>@RoutePath(type = ...)</code>, which is one of:
+Reports route strings that aren't in the format expected by the parameter or property they're used with, according to
+its <code>@RoutePath(type = ...)</code> annotation, which is one of:
 <ul>
   <li><code>URL</code> (the default): any URL, including ones to other sites, e.g. <code>"/blog/post"</code> or
     <code>"https://example.com"</code>. Used by <code>Link</code> and
@@ -12,6 +12,8 @@ Reports routes passed to parameters that don't accept them as written, according
   <li><code>PATH_ONLY</code>: just a path within the site, e.g. <code>"/blog/post"</code>, without query parameters or a
     fragment.</li>
 </ul>
+This applies to strings passed to annotated function parameters, as well as to strings compared against annotated
+properties, e.g. <code>ctx.route.path == "/blog/post"</code>.
 <pre><code>
 // OK
 router.tryRoutingTo("/blog/post?sort=new")
@@ -24,6 +26,10 @@ fun Breadcrumb(@RoutePath(RoutePathType.PATH_ONLY) path: String)
 Breadcrumb("/blog/post")
 // Not OK: accepts paths only, no fragments or query parameters
 Breadcrumb("/blog/post#comments")
+
+// Not OK: ctx.route.path will never include query parameters,
+// so this check is never true
+if (ctx.route.path == "/blog/post?sort=new") { ... }
 </code></pre>
 <!-- tooltip end -->
 </body>

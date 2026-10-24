@@ -10,12 +10,12 @@ import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.route.DynamicRouteSegment
 import com.varabyte.kobweb.intellij.util.kobweb.route.findLedToBy
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPages
-import com.varabyte.kobweb.intellij.util.kobweb.route.isRoutePathArgument
+import com.varabyte.kobweb.intellij.util.kobweb.route.hasRoutePathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPath
+import com.varabyte.kobweb.intellij.util.kobweb.route.mayHaveRoutePathTarget
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
-import org.jetbrains.kotlin.psi.KtValueArgument
 
 /**
  * Highlights the values that fill the dynamic segments of the page a route leads to, e.g. "me" and "123" in
@@ -26,14 +26,14 @@ import org.jetbrains.kotlin.psi.KtValueArgument
 class DynamicRouteSegmentAnnotator : Annotator {
     override fun annotate(element: PsiElement, holder: AnnotationHolder) {
         val stringExpr = element as? KtStringTemplateExpression ?: return
-        if (stringExpr.parent !is KtValueArgument) return
+        if (!stringExpr.mayHaveRoutePathTarget()) return
         val path = stringExpr.linkPath ?: return
         if (!stringExpr.isInReadableKobwebProject()) return
 
         val page = stringExpr.findPages().findLedToBy(path) ?: return
         val dynamicSegments = page.route.segments.map(DynamicRouteSegment::tryCreate)
         if (dynamicSegments.all { it == null }) return
-        if (!analyze(stringExpr) { stringExpr.isRoutePathArgument() }) return
+        if (!analyze(stringExpr) { stringExpr.hasRoutePathTarget() }) return
 
         for ((i, dynamicSegment) in dynamicSegments.withIndex()) {
             if (dynamicSegment == null) continue

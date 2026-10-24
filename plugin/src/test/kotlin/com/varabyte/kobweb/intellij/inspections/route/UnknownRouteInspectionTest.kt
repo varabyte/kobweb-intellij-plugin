@@ -15,6 +15,25 @@ class UnknownRouteInspectionTest : KobwebInspectionTestBase() {
     override fun setUp() {
         super.setUp()
 
+        // Newer versions of Kobweb have this annotation, but the version we test against doesn't
+        myFixture.addFileToProject(
+            "RoutePath.kt",
+            // language=kotlin
+            """
+            package com.varabyte.kobweb.core
+
+            enum class RoutePathType { URL, PATH_QUERY_AND_FRAGMENT, PATH_ONLY }
+
+            @Target(
+                AnnotationTarget.VALUE_PARAMETER,
+                AnnotationTarget.PROPERTY,
+                AnnotationTarget.PROPERTY_SETTER,
+                AnnotationTarget.PROPERTY_GETTER,
+            )
+            annotation class RoutePath(val type: RoutePathType = RoutePathType.URL, val mustExist: Boolean = true)
+            """.trimIndent()
+        )
+
         myFixture.addFileToProject(
             "pages/blog/Post.kt",
             // language=kotlin
@@ -205,18 +224,6 @@ class UnknownRouteInspectionTest : KobwebInspectionTestBase() {
     }
 
     fun testRoutePathParametersAreChecked() {
-        // Newer versions of Kobweb have this annotation, but the version we test against doesn't
-        myFixture.addFileToProject(
-            "RoutePath.kt",
-            // language=kotlin
-            """
-            package com.varabyte.kobweb.core
-
-            @Target(AnnotationTarget.VALUE_PARAMETER)
-            annotation class RoutePath(val mustExist: Boolean = true)
-            """.trimIndent()
-        )
-
         doTest(
             """
             package $TEST_GROUP.components
@@ -236,6 +243,32 @@ class UnknownRouteInspectionTest : KobwebInspectionTestBase() {
             fun Nav() {
                 NavItem("<warning>/missing</warning>")
                 PlannedNavItem("/missing")
+            }
+            """.trimIndent(),
+        )
+    }
+
+    fun testComparisonsWithRoutePathPropertiesAreChecked() {
+        doTest(
+            """
+            package $TEST_GROUP.components
+
+            import com.varabyte.kobweb.core.RoutePath
+
+            class Routes {
+                @RoutePath
+                val knownPath = "/blog/post"
+
+                // The getter describes the value being compared
+                @get:RoutePath(mustExist = false)
+                @set:RoutePath(mustExist = true)
+                var currentPath = "/"
+            }
+
+            fun check(routes: Routes) {
+                println(routes.knownPath == "/blog/post")
+                println(routes.knownPath == "<warning>/missing</warning>")
+                println(routes.currentPath == "/missing")
             }
             """.trimIndent(),
         )

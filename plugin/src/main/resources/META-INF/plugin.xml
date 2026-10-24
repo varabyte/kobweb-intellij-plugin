@@ -132,10 +132,10 @@
         <localInspection
                 language="kotlin"
                 groupKey="kobweb.name"
-                key="inspection.invalid.route.argument.display.name"
+                key="inspection.invalid.route.format.display.name"
                 enabledByDefault="true"
                 level="ERROR"
-                implementationClass="com.varabyte.kobweb.intellij.inspections.route.InvalidRouteArgumentInspection"/>
+                implementationClass="com.varabyte.kobweb.intellij.inspections.route.InvalidRouteFormatInspection"/>
         <localInspection
                 language="kotlin"
                 groupKey="kobweb.name"

@@ -23,14 +23,14 @@ import com.varabyte.kobweb.intellij.util.kobweb.route.PageDefinition
 import com.varabyte.kobweb.intellij.util.kobweb.route.PageRoute
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPages
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPublicFolders
-import com.varabyte.kobweb.intellij.util.kobweb.route.isRoutePathArgument
+import com.varabyte.kobweb.intellij.util.kobweb.route.hasRoutePathTarget
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.idea.KotlinIcons
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
 /**
- * Suggests the routes of pages, as well as public files, inside strings passed to parameters that take a route, e.g.
- * "/blog/post" while typing `Link("/bl")`.
+ * Suggests the routes of pages, as well as public files, inside strings used with something that holds a route (see
+ * [hasRoutePathTarget]), e.g. "/blog/post" while typing `Link("/bl")` or `ctx.route.path == "/bl"`.
  *
  * Routes with dynamic segments (e.g. "/users/{user}/posts") are inserted as a template, so that the value of each
  * dynamic segment can be typed in turn.
@@ -69,7 +69,7 @@ private object RouteCompletionProvider : CompletionProvider<CompletionParameters
         // the caret). Map it back to the real file, so we can analyze it and look up which Kobweb project it belongs to.
         val originalStringExpr = CompletionUtil.getOriginalOrSelf(stringExpr)
         if (!originalStringExpr.isInWritableKobwebProject()) return
-        if (!analyze(originalStringExpr) { originalStringExpr.isRoutePathArgument() }) return
+        if (!analyze(originalStringExpr) { originalStringExpr.hasRoutePathTarget() }) return
 
         // Match against everything typed so far in the string, not just the text after the last slash
         val routeResult = result.withPrefixMatcher(prefix)

@@ -14,8 +14,8 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
  * By default, the IDE suppresses auto-popups inside string literals (where, normally, completion suggestions would
  * just be noise). Routes are an exception, as we can suggest the routes of pages.
  *
- * Note that this only checks that the string looks like a route, as checking whether it's passed into a parameter that
- * takes one requires Kotlin analysis, which is left to [RouteCompletionContributor]. (If it isn't, no popup appears,
+ * Note that this only checks that the string looks like a route, as checking whether it's used with something that
+ * holds one requires Kotlin analysis, which is left to [RouteCompletionContributor]. (If it isn't, no popup appears,
  * since there's nothing to suggest.)
  */
 class RouteCompletionConfidence : CompletionConfidence() {

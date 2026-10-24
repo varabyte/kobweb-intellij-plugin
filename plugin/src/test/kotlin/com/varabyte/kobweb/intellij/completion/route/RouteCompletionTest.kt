@@ -16,6 +16,25 @@ class RouteCompletionTest : KobwebApplicationTestCase() {
     override fun setUp() {
         super.setUp()
 
+        // Newer versions of Kobweb have this annotation, but the version we test against doesn't
+        myFixture.addFileToProject(
+            "RoutePath.kt",
+            // language=kotlin
+            """
+            package com.varabyte.kobweb.core
+
+            enum class RoutePathType { URL, PATH_QUERY_AND_FRAGMENT, PATH_ONLY }
+
+            @Target(
+                AnnotationTarget.VALUE_PARAMETER,
+                AnnotationTarget.PROPERTY,
+                AnnotationTarget.PROPERTY_SETTER,
+                AnnotationTarget.PROPERTY_GETTER,
+            )
+            annotation class RoutePath(val type: RoutePathType = RoutePathType.URL, val mustExist: Boolean = true)
+            """.trimIndent()
+        )
+
         myFixture.addFileToProject(
             "pages/blog/Post.kt",
             // language=kotlin
@@ -118,6 +137,22 @@ class RouteCompletionTest : KobwebApplicationTestCase() {
 
     fun testRelativePathsAreNotCompleted() {
         assertThat(complete(produceNav("bl<caret>")).orEmpty()).isEmpty()
+    }
+
+    fun testStringsComparedWithRoutePathPropertiesAreCompleted() {
+        assertThat(
+            complete(
+                """
+                package $TEST_GROUP.components
+
+                import com.varabyte.kobweb.core.RoutePath
+
+                class CurrentRoute(@property:RoutePath val path: String)
+
+                fun isBlog(route: CurrentRoute) = route.path == "/bl<caret>"
+                """.trimIndent()
+            )!!
+        ).containsExactly("/blog/", "/blog/post").inOrder()
     }
 
     fun testStringsNotPassedToRouteParametersAreNotCompleted() {

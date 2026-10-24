@@ -9,11 +9,12 @@ import com.intellij.psi.PsiReferenceRegistrar
 import com.intellij.util.ProcessingContext
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPath
+import com.varabyte.kobweb.intellij.util.kobweb.route.mayHaveRoutePathTarget
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
-import org.jetbrains.kotlin.psi.KtValueArgument
 
 /**
- * Adds a [RouteReference] to strings passed into functions that look like routes, e.g. `Link("/blog/post")`.
+ * Adds a [RouteReference] to strings that look like routes and are passed into functions or compared against something,
+ * e.g. `Link("/blog/post")` or `ctx.route.path == "/blog/post"`.
  *
  * This is what powers navigation from a route to its page (and finding a page's usages).
  */
@@ -26,7 +27,7 @@ class RouteReferenceContributor : PsiReferenceContributor() {
                     val stringExpr = element as KtStringTemplateExpression
                     // Checking whether the argument actually takes a route requires Kotlin analysis, which is too
                     // expensive to do here, so the reference checks that when it resolves
-                    if (stringExpr.parent !is KtValueArgument) return PsiReference.EMPTY_ARRAY
+                    if (!stringExpr.mayHaveRoutePathTarget()) return PsiReference.EMPTY_ARRAY
                     if (stringExpr.linkPath == null) return PsiReference.EMPTY_ARRAY
                     if (!stringExpr.isInReadableKobwebProject()) return PsiReference.EMPTY_ARRAY
 
