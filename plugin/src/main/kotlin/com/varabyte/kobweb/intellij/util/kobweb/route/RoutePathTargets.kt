@@ -6,6 +6,7 @@ import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationValue
 import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPropertySymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.CallableId
@@ -14,8 +15,11 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtBinaryExpression
 import org.jetbrains.kotlin.psi.KtCallElement
+import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
+import org.jetbrains.kotlin.psi.KtParameter
+import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.KtValueArgument
@@ -143,15 +147,30 @@ private fun KtStringTemplateExpression.findAssignedExpression(): KtExpression? {
 }
 
 /**
+ * Returns the declaration this string is the initial value of, if any, e.g. the `home` property for the `"/blog"` in
+ * `val home = "/blog"`, or the default `path` parameter for the `"/blog"` in `fun NavItem(path: String = "/blog")`.
+ */
+private fun KtStringTemplateExpression.findInitializedDeclaration(): KtCallableDeclaration? {
+    return when (val parent = parent) {
+        is KtProperty -> parent.takeIf { it.initializer == this }
+        is KtParameter -> parent.takeIf { it.defaultValue == this }
+        else -> null
+    }
+}
+
+/**
  * Returns true if this string is used in a way that could have a [RoutePathTarget], i.e. it's passed into a function,
- * compared against something, or assigned to something.
+ * compared against something, assigned to something, or the initial value of something.
  *
  * This is a quick syntax check to do before [findRoutePathTarget], which requires Kotlin analysis.
  *
  * See also: [hasRoutePathTarget], the complete (but more expensive) check.
  */
 fun KtStringTemplateExpression.mayHaveRoutePathTarget(): Boolean {
-    return parent is KtValueArgument || findComparedExpression() != null || findAssignedExpression() != null
+    return parent is KtValueArgument
+        || findComparedExpression() != null
+        || findAssignedExpression() != null
+        || findInitializedDeclaration() != null
 }
 
 /**
@@ -232,6 +251,42 @@ private fun KtStringTemplateExpression.findAssignedRoutePathProperty(): RoutePat
 }
 
 /**
+ * Reads the `@RoutePath` annotation that describes this property's initial value, if any.
+ *
+ * The setter's annotation takes priority, as it describes values written into the property (even though Kotlin
+ * doesn't actually call the setter for an initial value), then the property's, then the getter's.
+ */
+context(_: KaSession)
+private fun KaPropertySymbol.readInitialValueRoutePathAnnotation(): RoutePathTarget? {
+    return setter?.readRoutePathAnnotation()
+        ?: readRoutePathAnnotation()
+        ?: getter?.readRoutePathAnnotation()
+}
+
+/**
+ * Returns the declaration that this string is the initial value of if that declaration holds a route, i.e. it's
+ * annotated with Kobweb's `@RoutePath`, e.g. `@RoutePath val home = "/blog"` or
+ * `fun NavItem(@RoutePath path: String = "/blog")`.
+ *
+ * The default value of a constructor property (e.g. `class Nav(@property:RoutePath val path: String = "/blog")`) is
+ * also the property's initial value, so its annotations count too.
+ */
+context(kaSession: KaSession)
+private fun KtStringTemplateExpression.findInitializedRoutePathDeclaration(): RoutePathTarget? = with(kaSession) {
+    return when (val declaration = findInitializedDeclaration()) {
+        is KtParameter -> {
+            val parameter = declaration.symbol
+            parameter.readRoutePathAnnotation()
+                ?: (parameter as? KaValueParameterSymbol)?.generatedPrimaryConstructorProperty
+                    ?.readInitialValueRoutePathAnnotation()
+        }
+
+        is KtProperty -> (declaration.symbol as? KaPropertySymbol)?.readInitialValueRoutePathAnnotation()
+        else -> null
+    }
+}
+
+/**
  * Returns what this string is used with if that holds a route (see [RoutePathTarget]), e.g. `Link`'s `path` parameter
  * for the `"/blog"` in `Link("/blog")`.
  *
@@ -241,7 +296,10 @@ private fun KtStringTemplateExpression.findAssignedRoutePathProperty(): RoutePat
  */
 context(_: KaSession)
 fun KtStringTemplateExpression.findRoutePathTarget(): RoutePathTarget? {
-    return findRoutePathParameter() ?: findComparedRoutePathProperty() ?: findAssignedRoutePathProperty()
+    return findRoutePathParameter()
+        ?: findComparedRoutePathProperty()
+        ?: findAssignedRoutePathProperty()
+        ?: findInitializedRoutePathDeclaration()
 }
 
 /**

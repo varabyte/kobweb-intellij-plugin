@@ -34,9 +34,8 @@ private val KtStringTemplateExpression.isFullUrl: Boolean
  * to its `@RoutePath(type = ...)` annotation, e.g. a full URL passed to `Router.tryRoutingTo`, which only takes a path
  * (plus optional query parameters and fragment).
  *
- * This applies to strings passed to annotated function parameters, as well as to strings compared against or assigned
- * to annotated properties, e.g. `ctx.route.path == "/blog?sort=new"`, which can never be true, as `path` only holds a
- * path.
+ * This applies to any string used with an annotated parameter or property (see [findRoutePathTarget]), e.g.
+ * `ctx.route.path == "/blog?sort=new"`, which can never be true, as `path` only holds a path.
  */
 class InvalidRouteFormatInspection : LocalInspectionTool() {
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {

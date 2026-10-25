@@ -351,6 +351,47 @@ class RouteReferenceTest : KobwebApplicationTestCase() {
         ).isEqualTo("BlogPostPage")
     }
 
+    fun testInitialValuesOfRoutePathDeclarationsLeadToPages() {
+        assertThat(
+            resolveRouteAtCaret(
+                """
+                package $TEST_GROUP.components
+
+                import com.varabyte.kobweb.core.RoutePath
+
+                @RoutePath
+                val blogPath = "/blog/po<caret>st"
+                """.trimIndent()
+            )
+        ).isEqualTo("BlogPostPage")
+
+        assertThat(
+            resolveRouteAtCaret(
+                """
+                package $TEST_GROUP.components
+
+                import androidx.compose.runtime.Composable
+                import com.varabyte.kobweb.core.RoutePath
+
+                @Composable
+                fun NavItem(@RoutePath target: String = "/blog/po<caret>st") {
+                }
+                """.trimIndent()
+            )
+        ).isEqualTo("BlogPostPage")
+
+        // Not annotated
+        assertThat(
+            resolveRouteAtCaret(
+                """
+                package $TEST_GROUP.components
+
+                val blogPath = "/blog/po<caret>st"
+                """.trimIndent()
+            )
+        ).isNull()
+    }
+
     fun testWhenBranchesOnRoutePathPropertiesLeadToPages() {
         assertThat(
             resolveRouteAtCaret(

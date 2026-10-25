@@ -243,7 +243,7 @@ class UnknownRouteInspectionTest : KobwebInspectionTestBase() {
                 // The getter describes the value being compared, and the setter the value being assigned
                 @get:RoutePath(mustExist = false)
                 @set:RoutePath(mustExist = true)
-                var currentPath = "/"
+                var currentPath = "/blog/post"
             }
 
             fun check(routes: Routes) {
@@ -277,6 +277,44 @@ class UnknownRouteInspectionTest : KobwebInspectionTestBase() {
                     }
                 }
             }
+            """.trimIndent(),
+        )
+    }
+
+    fun testInitialValuesOfRoutePathDeclarationsAreChecked() {
+        doTest(
+            """
+            package $TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.RoutePath
+
+            @RoutePath
+            val blogPath = "/blog/post"
+
+            @RoutePath
+            val missingPath = "<warning>/missing</warning>"
+
+            class Routes {
+                // The setter describes values written into the property, which includes its initial value
+                @get:RoutePath(mustExist = false)
+                @set:RoutePath(mustExist = true)
+                var currentPath = "<warning>/missing</warning>"
+            }
+
+            @Composable
+            fun NavItem(@RoutePath target: String = "<warning>/missing</warning>") {
+            }
+
+            @Composable
+            fun PlannedNavItem(@RoutePath(mustExist = false) target: String = "/missing") {
+            }
+
+            class NavEntry(
+                @property:RoutePath val target: String = "<warning>/missing</warning>",
+                @set:RoutePath var redirect: String = "<warning>/missing</warning>",
+                val label: String = "/missing",
+            )
             """.trimIndent(),
         )
     }
