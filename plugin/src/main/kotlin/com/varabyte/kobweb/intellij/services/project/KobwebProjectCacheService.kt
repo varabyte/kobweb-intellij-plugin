@@ -2,6 +2,7 @@ package com.varabyte.kobweb.intellij.services.project
 
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.psi.PsiDirectory
 import com.intellij.psi.PsiElement
 import com.varabyte.kobweb.intellij.project.KobwebProject
 import com.varabyte.kobweb.intellij.util.module.toGradleModule
@@ -54,11 +55,14 @@ internal class KobwebProjectCacheServiceImpl : KobwebProjectCacheService {
     }
 
     // There are easily thousands of elements in a project, so it would be wasteful to store each one individually.
-    // Instead, we return a container as broad as possible and store that.
-    private fun PsiElement.toElementContainer(): Any = module?.toGradleModule() ?: containingKlib ?: containingFile
+    // Instead, we return a container as broad as possible and store that. Directories don't have a containing file, so
+    // they're their own container. If we can't determine a container for this element, we will skip trying to cache it.
+    private fun PsiElement.toElementContainer(): Any? =
+        module?.toGradleModule() ?: containingKlib ?: containingFile ?: (this as? PsiDirectory)
 
     override fun isMarkedNotKobweb(element: PsiElement): Boolean {
-        return notKobwebProjects.contains(element.toElementContainer())
+        val container = element.toElementContainer() ?: return false
+        return notKobwebProjects.contains(container)
     }
 
     override fun addAll(collection: Collection<KobwebProject>) {
@@ -66,7 +70,8 @@ internal class KobwebProjectCacheServiceImpl : KobwebProjectCacheService {
     }
 
     override fun markNotKobweb(element: PsiElement) {
-        notKobwebProjects.add(element.toElementContainer())
+        val container = element.toElementContainer() ?: return
+        notKobwebProjects.add(container)
     }
 
     override fun clear() {
