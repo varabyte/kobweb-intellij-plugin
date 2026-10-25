@@ -3,8 +3,10 @@
 package com.varabyte.kobweb.intellij.references.route
 
 import com.intellij.openapi.util.Disposer
-import com.intellij.psi.PsiFile
+import com.intellij.openapi.vfs.VfsUtilCore
+import com.intellij.psi.PsiFileSystemItem
 import com.intellij.psi.util.parentOfType
+import com.intellij.refactoring.move.moveFilesOrDirectories.MoveFilesOrDirectoriesProcessor
 import com.intellij.testFramework.PsiTestUtil
 import com.varabyte.kobweb.intellij.test.fixtures.KobwebApplicationTestCase
 import com.varabyte.truthish.assertThat
@@ -222,12 +224,81 @@ class RouteReferenceTest : KobwebApplicationTestCase() {
         ).isNull()
     }
 
-    @OptIn(KaAllowAnalysisOnEdt::class)
-    fun testRoutesToPublicFilesLeadToThem() {
-        val resourcesRoot = myFixture.addFileToProject("resources/public/favicon.ico", "").virtualFile.parent.parent
+    /** Marks `resources/` as a resources root, so that the files in `resources/public/` are served by Kobweb. */
+    private fun addResourcesRoot() {
+        val resourcesRoot = myFixture.tempDirFixture.findOrCreateDir("resources")
         PsiTestUtil.addSourceRoot(module, resourcesRoot, JavaResourceRootType.RESOURCE)
         Disposer.register(testRootDisposable) { PsiTestUtil.removeSourceRoot(module, resourcesRoot) }
+    }
 
+    /**
+     * Returns the path (within `resources/public/`) of the public file or folder that the route segment at the caret
+     * leads to, if any.
+     */
+    @OptIn(KaAllowAnalysisOnEdt::class)
+    private fun resolvePublicFileAtCaret(@Language("kotlin") code: String): String? {
+        myFixture.configureByText("Links.kt", code)
+        val stringExpr = myFixture.file.findElementAt(myFixture.caretOffset)!!
+            .parentOfType<KtStringTemplateExpression>(withSelf = true)!!
+        val offsetInString = myFixture.caretOffset - stringExpr.textRange.startOffset
+        val reference = stringExpr.references.filterIsInstance<PublicFileReference>()
+            .singleOrNull { reference -> reference.rangeInElement.containsOffset(offsetInString) }
+            ?: return null
+        val publicFolder = myFixture.findFileInTempDir("resources/public")
+        val file = allowAnalysisOnEdt { (reference.resolve() as? PsiFileSystemItem)?.virtualFile } ?: return null
+        return VfsUtilCore.getRelativePath(file, publicFolder)
+    }
+
+    fun testRoutesToPublicFilesLeadToThem() {
+        addResourcesRoot()
+        myFixture.addFileToProject("resources/public/images/logo.png", "")
+
+        fun produceNav(path: String) = """
+            package $TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.navigation.Link
+
+            @Composable
+            fun Nav() {
+                Link("$path")
+            }
+        """.trimIndent()
+
+        assertThat(resolvePublicFileAtCaret(produceNav("/images/lo<caret>go.png"))).isEqualTo("images/logo.png")
+        // Each segment leads to its own folder
+        assertThat(resolvePublicFileAtCaret(produceNav("/ima<caret>ges/logo.png"))).isEqualTo("images")
+        assertThat(resolvePublicFileAtCaret(produceNav("/ima<caret>ges/"))).isEqualTo("images")
+        assertThat(resolvePublicFileAtCaret(produceNav("/images/lo<caret>go.png?v=2"))).isEqualTo("images/logo.png")
+        // Only paths that lead to a file lead to the folders along the way
+        assertThat(resolvePublicFileAtCaret(produceNav("/ima<caret>ges/missing.png"))).isNull()
+    }
+
+    fun testRoutesToPagesDontLeadToPublicFiles() {
+        addResourcesRoot()
+        // Kobweb serves the page at "/blog/post" instead
+        myFixture.addFileToProject("resources/public/blog/post", "")
+
+        assertThat(
+            resolvePublicFileAtCaret(
+                """
+                package $TEST_GROUP.components
+
+                import androidx.compose.runtime.Composable
+                import com.varabyte.kobweb.silk.components.navigation.Link
+
+                @Composable
+                fun Nav() {
+                    Link("/blog/po<caret>st")
+                }
+                """.trimIndent()
+            )
+        ).isNull()
+    }
+
+    fun testRenamingPublicFileUpdatesRoutes() {
+        addResourcesRoot()
+        val logoFile = myFixture.addFileToProject("resources/public/images/logo.png", "")
         myFixture.configureByText(
             "Links.kt",
             """
@@ -238,16 +309,134 @@ class RouteReferenceTest : KobwebApplicationTestCase() {
 
             @Composable
             fun Nav() {
-                Link("/favi<caret>con.ico")
+                Link("/images/logo.png")
+                Link("/images/logo.png?v=2")
+                // Not a route, so left alone
+                println("/images/logo.png")
             }
             """.trimIndent()
         )
-        val stringExpr = myFixture.file.findElementAt(myFixture.caretOffset)!!
-            .parentOfType<KtStringTemplateExpression>(withSelf = true)!!
-        val reference = stringExpr.references.filterIsInstance<RouteReference>().single()
 
-        assertThat(allowAnalysisOnEdt { (reference.resolve() as? PsiFile)?.virtualFile?.path })
-            .isEqualTo(resourcesRoot.path + "/public/favicon.ico")
+        myFixture.renameElement(logoFile, "brand.png")
+
+        myFixture.checkResult(
+            """
+            package $TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.navigation.Link
+
+            @Composable
+            fun Nav() {
+                Link("/images/brand.png")
+                Link("/images/brand.png?v=2")
+                // Not a route, so left alone
+                println("/images/logo.png")
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testRenamingPublicFolderUpdatesRoutes() {
+        addResourcesRoot()
+        val imagesFolder = myFixture.addFileToProject("resources/public/images/logo.png", "").containingDirectory
+        myFixture.configureByText(
+            "Links.kt",
+            """
+            package $TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.navigation.Link
+
+            @Composable
+            fun Nav() {
+                Link("/images/logo.png")
+                Link("/images/")
+            }
+            """.trimIndent()
+        )
+
+        myFixture.renameElement(imagesFolder, "img")
+
+        myFixture.checkResult(
+            """
+            package $TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.navigation.Link
+
+            @Composable
+            fun Nav() {
+                Link("/img/logo.png")
+                Link("/img/")
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testMovingPublicFileUpdatesRoutes() {
+        addResourcesRoot()
+        val logoFile = myFixture.addFileToProject("resources/public/images/logo.png", "")
+        val iconsFolder = myFixture.psiManager.findDirectory(
+            myFixture.tempDirFixture.findOrCreateDir("resources/public/brand/icons")
+        )!!
+        myFixture.configureByText(
+            "Links.kt",
+            """
+            package $TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.navigation.Link
+
+            @Composable
+            fun Nav() {
+                Link("/images/logo.png?v=2")
+            }
+            """.trimIndent()
+        )
+
+        // Moved directly, as `myFixture.moveFile` would try to open the image in an editor
+        MoveFilesOrDirectoriesProcessor(project, arrayOf(logoFile), iconsFolder, false, false, null, null).run()
+
+        myFixture.checkResult(
+            """
+            package $TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.navigation.Link
+
+            @Composable
+            fun Nav() {
+                Link("/brand/icons/logo.png?v=2")
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testMovingPublicFileOutOfPublicFolderDoesNotChangeRoutes() {
+        addResourcesRoot()
+        val logoFile = myFixture.addFileToProject("resources/public/images/logo.png", "")
+        val archiveFolder = myFixture.psiManager.findDirectory(
+            myFixture.tempDirFixture.findOrCreateDir("resources/archive")
+        )!!
+        @Language("kotlin")
+        val code = """
+            package $TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.navigation.Link
+
+            @Composable
+            fun Nav() {
+                Link("/images/logo.png")
+            }
+        """.trimIndent()
+        myFixture.configureByText("Links.kt", code)
+
+        MoveFilesOrDirectoriesProcessor(project, arrayOf(logoFile), archiveFolder, false, false, null, null).run()
+
+        // Kobweb doesn't serve it anymore, so there's no route to update to
+        myFixture.checkResult(code)
     }
 
     fun testParametersAnnotatedWithRoutePathTakeRoutes() {

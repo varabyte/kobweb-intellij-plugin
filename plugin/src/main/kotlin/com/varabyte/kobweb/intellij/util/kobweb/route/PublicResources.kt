@@ -52,7 +52,13 @@ fun PsiElement.findPublicFolders(): List<VirtualFile> {
  *
  * Returns null if there's no such file, or if the path has segments that aren't known until runtime.
  */
-fun PsiElement.findPublicResource(path: LinkPath): VirtualFile? {
-    val relativePath = path.segments.map { segment -> segment.text ?: return null }.joinToString("/")
+fun PsiElement.findPublicResource(path: LinkPath): VirtualFile? = findPublicResource(path.segments)
+
+/**
+ * Like `findPublicResource(LinkPath)`, but for the path made of just these [segments], e.g. the first segment of
+ * "/images/logo.png" leads to the folder `src/jsMain/resources/public/images`.
+ */
+fun PsiElement.findPublicResource(segments: List<LinkPath.Segment>): VirtualFile? {
+    val relativePath = segments.map { segment -> segment.text ?: return null }.joinToString("/")
     return findPublicFolders().firstNotNullOfOrNull { folder -> folder.findFileByRelativePath(relativePath) }
 }
