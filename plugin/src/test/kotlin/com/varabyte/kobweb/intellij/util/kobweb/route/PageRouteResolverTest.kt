@@ -31,6 +31,13 @@ class PageRouteResolverTest {
         assertThat(resolve("com.example.pages._2021._12", "Recap")).isEqualTo("/2021/12/recap")
         assertThat(resolve("com.example.pages.fun_", "Games")).isEqualTo("/fun/games")
         assertThat(resolve("com.example.pages", "Hello__World")).isEqualTo("/hello-world")
+
+        assertThat(resolve("com.example.pages", "___forced__--example_--_")).isEqualTo("/forced-example")
+        assertThat(resolve("com.example.pages", "_draft")).isEqualTo("/draft")
+        assertThat(resolve("com.example.pages", "-draft-")).isEqualTo("/draft")
+
+        // Splitting camel case turns "_About" into "_-about". We used to trim only the underscore, leaving "/-about"
+        assertThat(resolve("com.example.pages", "_About")).isEqualTo("/about")
     }
 
     @Test

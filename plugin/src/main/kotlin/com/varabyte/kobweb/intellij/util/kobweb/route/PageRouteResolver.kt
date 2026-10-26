@@ -104,14 +104,11 @@ class PageRouteResolver(val pagesPackage: FqName, private val packageMappings: M
          */
         fun segmentFor(pkg: FqName): String = segmentFor(pkg.shortName().asString())
 
-        // Converts a name to kebab-case, also collapsing underscores (which are usually there to work around
-        // reserved words or names that start with a digit), e.g. "_2021" -> "2021" and "fun_" -> "fun"
+        // Converts a name to kebab-case, collapsing runs of underscores and hyphens (underscores are usually there to
+        // work around reserved words or names that start with a digit) and trimming them from the ends, e.g.
+        // "_2021" -> "2021" and "fun_" -> "fun". (See `toRouteSegment` in Kobweb.)
         private fun segmentFor(name: String): String {
-            return name
-                .camelCaseToKebabCase()
-                .trim('_')
-                .replace(Regex("_+"), "-")
-                .replace(Regex("-+"), "-")
+            return name.camelCaseToKebabCase().replace(Regex("[_-]+"), "-").trim('-')
         }
     }
 }
