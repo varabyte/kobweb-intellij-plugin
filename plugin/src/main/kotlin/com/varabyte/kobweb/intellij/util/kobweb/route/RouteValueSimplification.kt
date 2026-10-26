@@ -30,7 +30,7 @@ sealed interface RouteValueSimplification {
             // Kobweb treats blank overrides the same as no override
             if (routeOverride.isBlank()) return Redundant
 
-            // If Kobweb skips the page, there's no route to compare against
+            // If Kobweb rejects the page, there's no route to compare against
             val route = resolver.resolve(pagePackage, fileName, routeOverride) ?: return null
             if (resolver.resolve(pagePackage, fileName, null) == route) return Redundant
 

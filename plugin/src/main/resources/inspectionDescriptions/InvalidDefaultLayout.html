@@ -1,0 +1,19 @@
+<html lang="en">
+<body>
+Reports default layouts (i.e. <code>@file:Layout</code>) that Kobweb rejects when building your site, i.e. ones outside
+the pages package.
+<p>
+A default layout applies to the pages in its package (and subpackages), so it must live somewhere under the pages
+package.
+<pre><code>
+// pages/blog/BlogLayout.kt (OK)
+@file:Layout(".components.layouts.BlogLayout")
+package com.example.pages.blog
+
+// components/Layouts.kt (Not OK)
+@file:Layout(".components.layouts.PageLayout")
+package com.example.components
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>

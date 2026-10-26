@@ -1,3 +1,5 @@
+@file:Suppress("FunctionName", "LocalVariableName")
+
 package com.varabyte.kobweb.intellij.inlay
 
 import org.intellij.lang.annotations.Language
@@ -84,6 +86,35 @@ class KobwebPageRouteInlayHintsProviderTest : KobwebInlayHintsTestBase() {
             @Page/*<# /{users}/posts #>*/
             @Composable
             fun UserPostsPage() {
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testInvalidPackageMappingsAreIgnored() {
+        myFixture.addFileToProject(
+            "pages/team/PackageMapping.kt",
+            // language=kotlin
+            """
+            @file:PackageMapping("our team")
+
+            package $TEST_GROUP.pages.team
+
+            import com.varabyte.kobweb.core.PackageMapping
+            """.trimIndent()
+        )
+
+        doTest(
+            "Members.kt",
+            """
+            package $TEST_GROUP.pages.team
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+
+            @Page/*<# /team/members #>*/
+            @Composable
+            fun MembersPage() {
             }
             """.trimIndent()
         )

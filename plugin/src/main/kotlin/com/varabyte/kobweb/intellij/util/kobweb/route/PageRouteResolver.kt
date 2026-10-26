@@ -16,7 +16,7 @@ import org.jetbrains.kotlin.name.isSubpackageOf
  * @param pagesPackage The fully qualified root package of all pages, e.g. "com.example.pages".
  * @param packageMappings Route segments that replace the names of packages under [pagesPackage], set by
  *   `@file:PackageMapping` annotations, e.g. "com.example.pages.blog" to "articles". These are the raw values as
- *   written in the annotation, so an inferred dynamic segment ("{}") will be named after its package.
+ *   written in the annotation, so an inferred dynamic segment ("{}") at the end of one will be named after its package.
  */
 class PageRouteResolver(val pagesPackage: FqName, private val packageMappings: Map<FqName, String>) {
     /**
@@ -26,9 +26,7 @@ class PageRouteResolver(val pagesPackage: FqName, private val packageMappings: M
      * @param fileName The name of the file the page lives in, without its extension, e.g. "Post".
      * @param routeOverride The value passed into the page's `@Page` annotation, if any.
      *
-     * @return null if Kobweb skips this page, e.g. because it isn't under [pagesPackage] (unless its route override
-     *   is absolute), or its route override has an inferred, catch-all or optional dynamic segment anywhere but at
-     *   the end.
+     * @return null if Kobweb rejects this page.
      */
     fun resolve(pagePackage: FqName, fileName: String, routeOverride: String?): PageRoute? {
         @Suppress("NAME_SHADOWING") // Kobweb treats a blank override the same as no override
@@ -78,10 +76,14 @@ class PageRouteResolver(val pagesPackage: FqName, private val packageMappings: M
         var curr = pkg
         while (curr != pagesPackage && !curr.isRoot) {
             val mapping = packageMappings[curr]?.let { mapping ->
-                // e.g. "{}" under "pages.users" is "{users}"
-                DynamicRouteSegment.tryCreate(mapping)?.takeIf { it.isInferred }
+                // e.g. "{}" under "pages.users" is "{users}", or "a/{}" is "a/{users}". (Only the last segment of a
+                // mapping can be inferred.)
+                val mappingSegments = mapping.split('/')
+                val lastSegment = mappingSegments.last()
+                val inferredLastSegment = DynamicRouteSegment.tryCreate(lastSegment)?.takeIf { it.isInferred }
                     ?.withReplacedName(segmentFor(curr))?.rawValue
-                    ?: mapping
+                    ?: lastSegment
+                (mappingSegments.dropLast(1) + inferredLastSegment).joinToString("/")
             }
             segments.add(0, mapping ?: segmentFor(curr))
             curr = curr.parent()

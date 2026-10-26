@@ -113,6 +113,13 @@
         <localInspection
                 language="kotlin"
                 groupKey="kobweb.name"
+                key="inspection.invalid.default.layout.display.name"
+                enabledByDefault="true"
+                level="ERROR"
+                implementationClass="com.varabyte.kobweb.intellij.inspections.layout.InvalidDefaultLayoutInspection"/>
+        <localInspection
+                language="kotlin"
+                groupKey="kobweb.name"
                 key="inspection.redundant.layout.display.name"
                 enabledByDefault="true"
                 level="WEAK WARNING"
@@ -129,7 +136,7 @@
                 groupKey="kobweb.name"
                 key="inspection.invalid.route.display.name"
                 enabledByDefault="true"
-                level="WARNING"
+                level="ERROR"
                 implementationClass="com.varabyte.kobweb.intellij.inspections.route.InvalidRouteInspection"/>
         <localInspection
                 language="kotlin"

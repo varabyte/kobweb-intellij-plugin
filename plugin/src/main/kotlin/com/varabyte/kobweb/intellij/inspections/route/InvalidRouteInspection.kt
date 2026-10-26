@@ -1,5 +1,6 @@
 package com.varabyte.kobweb.intellij.inspections.route
 
+import com.intellij.codeInsight.intention.PriorityAction
 import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.codeInspection.ProblemHighlightType
@@ -11,6 +12,7 @@ import com.varabyte.kobweb.intellij.quickfixes.route.ReplaceRouteValueQuickFix
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.layout.PAGE_FQN
 import com.varabyte.kobweb.intellij.util.kobweb.layout.kobwebDisplayPath
+import com.varabyte.kobweb.intellij.util.kobweb.route.DynamicRouteSegment
 import com.varabyte.kobweb.intellij.util.kobweb.route.PACKAGE_MAPPING_FQN
 import com.varabyte.kobweb.intellij.util.kobweb.route.RouteValueProblem
 import com.varabyte.kobweb.intellij.util.kobweb.route.findDuplicatePackageMappings
@@ -29,8 +31,8 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.KtVisitorVoid
 
 /**
- * Reports `@Page` route overrides and `@file:PackageMapping` values that Kobweb rejects (by skipping the page, or
- * failing the build), or that it accepts but are almost certainly mistakes (e.g. "a//b" or "{post").
+ * Reports `@Page` route overrides and `@file:PackageMapping` values that Kobweb rejects (e.g. "a//b" or "{post"), or that
+ * it accepts but are probably mistakes (e.g. a package mapping with a slash in it).
  */
 class InvalidRouteInspection : LocalInspectionTool() {
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
@@ -80,8 +82,24 @@ class InvalidRouteInspection : LocalInspectionTool() {
                     holder.registerProblem(
                         routeOverrideExpr ?: pageAnnotation,
                         UxGlobals.textBundle.message("inspection.invalid.route.reserved.api.display.text", route.value),
-                        // Kobweb fails the build over this, unlike the other problems here
-                        ProblemHighlightType.GENERIC_ERROR,
+                    )
+                }
+
+                // Dynamic values are read by name, so only one of each repeated name's values can be read. This is
+                // easiest to hit by inferring the same name twice, e.g. `@Page("{}")` in "User.kt" under a package
+                // "user" that's mapped to "{}"
+                val repeatedNames = route.segments
+                    .mapNotNull { segment -> DynamicRouteSegment.tryCreate(segment)?.name }
+                    .groupingBy { it }.eachCount()
+                    .filterValues { count -> count > 1 }.keys
+                if (repeatedNames.isNotEmpty()) {
+                    holder.registerProblem(
+                        routeOverrideExpr ?: pageAnnotation,
+                        UxGlobals.textBundle.message(
+                            "inspection.invalid.route.repeated.dynamic.names.display.text",
+                            route.value,
+                            repeatedNames.joinToString { "\"$it\"" },
+                        ),
                     )
                 }
             }
@@ -95,7 +113,6 @@ class InvalidRouteInspection : LocalInspectionTool() {
                     holder.registerProblem(
                         packageMappingExpr,
                         UxGlobals.textBundle.message("inspection.invalid.route.package.mapping.blank.display.text"),
-                        ProblemHighlightType.GENERIC_ERROR,
                         RemovePackageMappingQuickFix(),
                     )
                     return
@@ -110,7 +127,6 @@ class InvalidRouteInspection : LocalInspectionTool() {
                             annotationEntry.containingKtFile.packageFqName.asString(),
                             duplicates.joinToString { "\"${it.containingKtFile.kobwebDisplayPath}\"" },
                         ),
-                        ProblemHighlightType.GENERIC_ERROR,
                         RemovePackageMappingQuickFix(),
                     )
                 }
@@ -148,34 +164,106 @@ class InvalidRouteInspection : LocalInspectionTool() {
 
                 for (problem in problems) {
                     val segment = problem.range.substring(value)
-                    val (message, fix) = when (problem.kind) {
-                        RouteValueProblem.Kind.MISPLACED_DYNAMIC_SEGMENT -> {
-                            if (isPackageMapping) {
-                                UxGlobals.textBundle.message("inspection.invalid.route.package.mapping.misplaced.display.text")
+                    val (message, fixes) = when (problem.kind) {
+                        RouteValueProblem.Kind.MISPLACED_DYNAMIC_SEGMENT -> if (isPackageMapping) {
+                            val dynamicSegment = DynamicRouteSegment.tryCreate(segment)
+                            if (dynamicSegment != null && !dynamicSegment.isCatchAll && !dynamicSegment.isOptional) {
+                                UxGlobals.textBundle.message("inspection.invalid.route.package.mapping.misplaced.inferred.display.text")
                             } else {
-                                UxGlobals.textBundle.message("inspection.invalid.route.misplaced.display.text")
-                            } to null
-                        }
+                                UxGlobals.textBundle.message("inspection.invalid.route.package.mapping.misplaced.display.text")
+                            }
+                        } else {
+                            UxGlobals.textBundle.message("inspection.invalid.route.misplaced.display.text")
+                        } to emptyList()
 
                         RouteValueProblem.Kind.MALFORMED_DYNAMIC_SEGMENT ->
-                            UxGlobals.textBundle.message("inspection.invalid.route.malformed.display.text", segment) to null
+                            UxGlobals.textBundle.message("inspection.invalid.route.malformed.display.text", segment) to
+                                listOfNotNull(problem.guessFix(value))
+
+                        RouteValueProblem.Kind.STRAY_CURLY_BRACES ->
+                            UxGlobals.textBundle.message("inspection.invalid.route.stray.curly.braces.display.text", segment) to
+                                listOfNotNull(
+                                    problem.guessFix(value),
+                                    // Less likely than a typo in a dynamic segment, which is what the braces suggest
+                                    ReplaceRouteValueQuickFix(
+                                        value.percentEncodeInvalidCharacters(),
+                                        PriorityAction.Priority.LOW,
+                                    ),
+                                )
+
+                        RouteValueProblem.Kind.DOT_SEGMENT ->
+                            UxGlobals.textBundle.message("inspection.invalid.route.dot.segment.display.text", segment) to
+                                emptyList()
 
                         RouteValueProblem.Kind.EMPTY_SEGMENT ->
                             UxGlobals.textBundle.message("inspection.invalid.route.empty.segment.display.text") to
-                                ReplaceRouteValueQuickFix(value.replace(Regex("/{2,}"), "/"))
+                                listOf(ReplaceRouteValueQuickFix(value.replace(Regex("/{2,}"), "/")))
 
-                        RouteValueProblem.Kind.INVALID_CHARACTER ->
-                            UxGlobals.textBundle.message("inspection.invalid.route.invalid.character.display.text") to null
+                        RouteValueProblem.Kind.INVALID_CHARACTER -> {
+                            val chars = RouteValueProblem.findInvalidCharacters(segment)
+                            UxGlobals.textBundle.message(
+                                "inspection.invalid.route.invalid.character.display.text",
+                                segment,
+                                chars.joinToString { char -> "${char.describe()} (`${char.percentEncode()}`)" },
+                            ) to listOf(ReplaceRouteValueQuickFix(value.percentEncodeInvalidCharacters()))
+                        }
+
+                        RouteValueProblem.Kind.MULTIPLE_SEGMENTS ->
+                            UxGlobals.textBundle.message("inspection.invalid.route.package.mapping.slash.display.text") to emptyList()
                     }
 
                     holder.registerProblem(
                         valueExpr,
-                        if (hasEscapes) valueRange else problem.range.shiftRight(valueRange.startOffset),
                         message,
-                        *listOfNotNull<LocalQuickFix>(fix).toTypedArray(),
+                        if (problem.isError) ProblemHighlightType.GENERIC_ERROR_OR_WARNING else ProblemHighlightType.WARNING,
+                        if (hasEscapes) valueRange else problem.range.shiftRight(valueRange.startOffset),
+                        *fixes.toTypedArray<LocalQuickFix>(),
                     )
                 }
             }
         }
+    }
+
+    private fun String.describe() = when {
+        this == " " -> "a space"
+        length == 1 && single().let { it.isWhitespace() || it.isISOControl() } -> "U+%04X".format(single().code)
+        else -> "`$this`"
+    }
+
+    private fun String.percentEncode() = toByteArray(Charsets.UTF_8).joinToString("") { "%%%02X".format(it) }
+
+    /**
+     * Returns this value with every character that can't be part of a URL path replaced by its percent-encoding,
+     * including curly braces outside of dynamic segments.
+     */
+    private fun String.percentEncodeInvalidCharacters(): String {
+        return split('/').joinToString("/") { segment ->
+            // Dynamic segment names never appear in the URL, so they can contain anything
+            if (DynamicRouteSegment.tryCreate(segment) != null) return@joinToString segment
+            (RouteValueProblem.findInvalidCharacters(segment) + listOf("{", "}"))
+                .fold(segment) { encoded, char -> encoded.replace(char, char.percentEncode()) }
+        }
+    }
+
+    /**
+     * Returns a fix that replaces this problem's segment with the dynamic segment it was probably meant to be, e.g.
+     * "{post}" for "{post" or "{...rest}" for "{rest...}", or null if there's no clear guess.
+     */
+    private fun RouteValueProblem.guessFix(value: String): ReplaceRouteValueQuickFix? {
+        val segment = range.substring(value)
+        val guess = when {
+            segment.startsWith('{') && '}' !in segment -> "$segment}"
+            segment.endsWith('}') && '{' !in segment -> "{$segment"
+            else -> DynamicRouteSegment.tryCreate(segment)
+                // A catch-all's "..." goes at the start of its name, not the end
+                ?.takeIf { dynamicSegment -> !dynamicSegment.isCatchAll && dynamicSegment.name.endsWith("...") }
+                ?.let { dynamicSegment ->
+                    "{..." + dynamicSegment.name.removeSuffix("...") + (if (dynamicSegment.isOptional) "?" else "") + "}"
+                }
+        }
+        // On its own, a segment is the last one in the route, so only problems with the segment itself are reported
+        return guess
+            ?.takeIf { RouteValueProblem.findInRouteOverride(it).isEmpty() }
+            ?.let { ReplaceRouteValueQuickFix(range.replace(value, it)) }
     }
 }

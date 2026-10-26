@@ -145,10 +145,10 @@ class InvalidLayoutPathInspectionTest : KobwebInspectionTestBase() {
         )
     }
 
-    fun testDefaultLayoutWithoutPathIsWarned() {
+    fun testDefaultLayoutWithoutPathIsFlagged() {
         doTest(
             """
-            <warning descr="A `@file:Layout` annotation should specify the path of a layout. Otherwise, Kobweb will ignore it.">@file:Layout</warning>
+            <error descr="A `@file:Layout` annotation must specify the path of a layout.">@file:Layout</error>
 
             package $TEST_GROUP.pages
 
@@ -158,7 +158,7 @@ class InvalidLayoutPathInspectionTest : KobwebInspectionTestBase() {
 
         doTest(
             """
-            <warning>@file:Layout("")</warning>
+            <error>@file:Layout("")</error>
 
             package $TEST_GROUP.pages
 
@@ -354,7 +354,7 @@ class InvalidLayoutPathInspectionTest : KobwebInspectionTestBase() {
     fun testDefaultLayoutWithoutPathCanBeFixedByChoosingLayout() {
         doTest(
             """
-            <warning>@file:Layout</warning>
+            <error>@file:Layout</error>
 
             package $TEST_GROUP.pages
 

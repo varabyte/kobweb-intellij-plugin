@@ -108,4 +108,19 @@ class PageRouteResolverTest {
         // Absolute overrides replace the package's route entirely
         assertThat(resolve("com.example.pages.users", "Posts", "/all/")).isEqualTo("/all/posts")
     }
+
+    @Test
+    fun theLastSegmentOfAPackageMappingCanBeInferred() {
+        // From Kobweb's `PackageMappingProcessingTest`
+        val packageMappings = mapOf(
+            "com.example.pages.users.user" to "a/{}",
+            "com.example.pages.teams.team" to "{a}/{}",
+            "com.example.pages.orgs.org" to "{a}/{b}",
+        )
+        fun resolve(pagePackage: String) = resolve(pagePackage, "Index", null, packageMappings)
+
+        assertThat(resolve("com.example.pages.users.user")).isEqualTo("/users/a/{user}/")
+        assertThat(resolve("com.example.pages.teams.team")).isEqualTo("/teams/{a}/{team}/")
+        assertThat(resolve("com.example.pages.orgs.org")).isEqualTo("/orgs/{a}/{b}/")
+    }
 }

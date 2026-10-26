@@ -1,22 +1,37 @@
 <html lang="en">
 <body>
-Reports <code>@Page</code> route overrides and <code>@file:PackageMapping</code> values that Kobweb rejects, or that it
-accepts but are almost certainly mistakes.
+Reports <code>@Page</code> route overrides and <code>@file:PackageMapping</code> values that Kobweb rejects when building
+your site, or that it accepts but are probably mistakes.
 <p>
-Kobweb would skip generating pages for:
+Kobweb would fail the build for:
 <ul>
     <li>route overrides which put an inferred (<code>{}</code>), catch-all (<code>{...}</code>), or optional (<code>{?}</code>) dynamic segment anywhere but at the end</li>
     <li>pages that live outside the pages package (unless they specify an absolute path)</li>
+    <li>routes that start with <code>api</code>, which it reserves to avoid conflicts with backend API routes</li>
+    <li>malformed dynamic segments, empty segments, and <code>.</code> or <code>..</code> segments (which browsers remove
+        from URLs)</li>
+    <li>routes that use the same dynamic segment name more than once, as only one of the values can be read</li>
+    <li>characters that can't be part of a URL path as written, such as spaces and non-ASCII characters (which should
+        be percent-encoded instead, e.g. <code>about%20us</code>)</li>
+    <li>package mappings with a catch-all or optional dynamic segment, as a package is never at the end of a route (or
+        with an inferred one anywhere but at the end)</li>
 </ul>
-And it would fail the build for routes that start with <code>api</code>, which it reserves to avoid conflicts with
-backend API routes.
-<p>
-This also reports malformed dynamic segments, empty segments, and characters that can't be part of a route.
+It accepts these but still shows a warning for them, as they're probably mistakes:
+<ul>
+    <li>package mappings that contain more than one segment</li>
+</ul>
 <pre><code>
 // pages/users/Posts.kt
-@Page("{}/posts")  // Inferred segment isn't at the end, so Kobweb skips this page
-@Page("{post")     // Malformed dynamic segment
-@Page("a//b")      // Empty segment
+@Page("{}/posts")   // Inferred segment isn't at the end
+@Page("{post")      // Malformed dynamic segment
+@Page("{rest...}")  // Malformed too, as a catch-all's "..." goes at the start
+@Page("a//b")       // Empty segment
+@Page("../posts")   // Browsers remove ".." from URLs
+@Page("{id}/{id}")  // Only one of the "id" values can be read
+@Page("about us")   // Space (use "about-us" or "about%20us" instead)
+
+// pages/team/PackageMapping.kt
+@file:PackageMapping("our/team")  // More than one segment
 </code></pre>
 <!-- tooltip end -->
 </body>

@@ -1,7 +1,6 @@
 package com.varabyte.kobweb.intellij.inspections.layout
 
 import com.intellij.codeInspection.LocalInspectionTool
-import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElementVisitor
 import com.varabyte.kobweb.intellij.quickfixes.layout.ChooseLayoutQuickFix
@@ -24,9 +23,7 @@ import org.jetbrains.kotlin.psi.KtVisitorVoid
 
 /**
  * Reports `@Layout` annotations that Kobweb will reject at build time, i.e. ones whose path doesn't point at a layout,
- * or ones on a page that don't specify a path at all.
- *
- * Also warns about default layouts (i.e. `@file:Layout`) without a path, which Kobweb skips over.
+ * or ones on a page or file (i.e. a default layout) that don't specify a path at all.
  */
 class InvalidLayoutPathInspection : LocalInspectionTool() {
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
@@ -41,11 +38,9 @@ class InvalidLayoutPathInspection : LocalInspectionTool() {
                 // specify one
                 fun reportMissingPath() {
                     if (annotationEntry.useSiteTarget?.getAnnotationUseSiteTarget() == AnnotationUseSiteTarget.FILE) {
-                        // Kobweb only warns here, as it skips over the default layout instead of failing the build
                         holder.registerProblem(
                             annotationEntry,
                             UxGlobals.textBundle.message("inspection.invalid.layout.path.missing.on.file.display.text"),
-                            ProblemHighlightType.WARNING,
                             ChooseLayoutQuickFix(),
                         )
                         return

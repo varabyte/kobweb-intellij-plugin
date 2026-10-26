@@ -75,7 +75,11 @@ private fun Module.collectPackageMappings(pagesPackage: FqName): Map<FqName, Str
             val pkg = entry.containingKtFile.packageFqName
             if (!pkg.isSubpackageOf(pagesPackage)) return@mapNotNull null
 
-            val mapping = entry.routeValue ?: return@mapNotNull null
+            // Kobweb ignores invalid package mappings (which are reported as errors)
+            val mapping = entry.routeValue
+                ?.takeIf { mapping -> mapping.isNotBlank() }
+                ?.takeIf { mapping -> RouteValueProblem.findInPackageMapping(mapping).none { it.isError } }
+                ?: return@mapNotNull null
             pkg to mapping
         }
         .toMap()
@@ -121,8 +125,7 @@ fun PageRouteResolver.resolve(page: KtNamedFunction, routeOverride: String?): Pa
  *
  * See [PageRouteResolver] for details.
  *
- * @return null if this function isn't a page, if Kobweb skips it (e.g. it lives outside the pages package), or if we
- *   can't tell its route (e.g. its route override is a constant).
+ * @return null if this function isn't a page, if Kobweb rejects it.
  */
 fun KtNamedFunction.findRoute(): PageRoute? {
     if (!isTopLevel) return null
