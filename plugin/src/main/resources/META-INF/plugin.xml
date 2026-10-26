@@ -227,6 +227,10 @@
         <annotator
                 language="kotlin"
                 implementationClass="com.varabyte.kobweb.intellij.highlighting.route.DynamicRouteSegmentAnnotator"/>
+        <lang.foldingBuilder
+                language="kotlin"
+                implementationClass="com.varabyte.kobweb.intellij.folding.PercentEncodedStringFoldingBuilder"/>
+        <codeFoldingOptionsProvider instance="com.varabyte.kobweb.intellij.settings.KobwebCodeFoldingOptionsProvider"/>
         <colorSettingsPage implementation="com.varabyte.kobweb.intellij.highlighting.KobwebColorSettingsPage"/>
         <colorProvider implementation="com.varabyte.kobweb.intellij.colors.KobwebColorProvider" />
         <codeInsight.declarativeInlayProvider

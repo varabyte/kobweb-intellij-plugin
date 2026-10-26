@@ -24,8 +24,15 @@ class KobwebAppSettingsService : PersistentStateComponent<KobwebAppSettingsServi
             var showAttributeWarning = true
         }
 
+        class Folding {
+            var collapsePercentEncodedStrings = true
+        }
+
         @Property
         val extractCssStyle = CssStyle()
+
+        @Property
+        val folding = Folding()
     }
 
     private var myState = State()
