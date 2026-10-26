@@ -393,7 +393,7 @@ class InvalidRouteInspectionTest : KobwebInspectionTestBase() {
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.core.Page
 
-            <error descr="Pages must be under the pages package (`$TEST_GROUP.pages`), unless their route override is absolute (i.e. starts with a slash).">@Page</error>
+            <error descr="Pages must be declared under the pages package (`$TEST_GROUP.pages`), unless their route override is absolute (i.e. starts with a slash).">@Page</error>
             @Composable
             fun WidgetPage() {
             }

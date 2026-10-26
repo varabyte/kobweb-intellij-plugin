@@ -3,6 +3,7 @@
 package com.varabyte.kobweb.intellij.inspections.layout
 
 import com.varabyte.kobweb.intellij.inspections.KobwebInspectionTestBase
+import com.varabyte.kobweb.intellij.quickfixes.layout.RemoveDefaultLayoutQuickFix
 
 class InvalidDefaultLayoutInspectionTest : KobwebInspectionTestBase() {
     override fun produceInspection() = InvalidDefaultLayoutInspection()
@@ -43,7 +44,7 @@ class InvalidDefaultLayoutInspectionTest : KobwebInspectionTestBase() {
     fun testDefaultLayoutsOutsidePagesPackageAreFlagged() {
         doTest(
             """
-            <error descr="Default layouts must be under the pages package (`$TEST_GROUP.pages`).">@file:Layout(".components.layouts.PageLayout")</error>
+            <error descr="Default layouts must be declared under the pages package (`$TEST_GROUP.pages`).">@file:Layout(".components.layouts.PageLayout")</error>
 
             package $TEST_GROUP.components
 
@@ -57,6 +58,82 @@ class InvalidDefaultLayoutInspectionTest : KobwebInspectionTestBase() {
             <error>@file:Layout(".components.layouts.PageLayout")</error>
 
             package $TEST_GROUP.pages_old
+
+            import com.varabyte.kobweb.core.layout.Layout
+            """.trimIndent()
+        )
+    }
+
+    fun testPackagesGivenMoreThanOneDefaultLayoutAreFlagged() {
+        myFixture.addFileToProject(
+            "pages/blog/BlogLayout.kt",
+            // language=kotlin
+            """
+            @file:Layout(".components.layouts.PageLayout")
+
+            package $TEST_GROUP.pages.blog
+
+            import com.varabyte.kobweb.core.layout.Layout
+            """.trimIndent()
+        )
+        // A default layout for another package doesn't count
+        myFixture.addFileToProject(
+            "pages/blog/drafts/DraftsLayout.kt",
+            // language=kotlin
+            """
+            @file:Layout(".components.layouts.PageLayout")
+
+            package $TEST_GROUP.pages.blog.drafts
+
+            import com.varabyte.kobweb.core.layout.Layout
+            """.trimIndent()
+        )
+
+        // Even pointing at the same layout counts, as the annotation is redundant and could drift into a real conflict
+        doTest(
+            """
+            <error descr="A package can only be given one default layout, but `$TEST_GROUP.pages.blog` is also given one in \"pages/blog/BlogLayout.kt\".">@file:Layout(".components.layouts.PageLayout")</error>
+
+            package $TEST_GROUP.pages.blog
+
+            import com.varabyte.kobweb.core.layout.Layout
+            """.trimIndent(),
+            thenFixWith<RemoveDefaultLayoutQuickFix>(
+                """
+                package $TEST_GROUP.pages.blog
+                """.trimIndent()
+            ),
+        )
+    }
+
+    fun testDefaultLayoutsWithoutPathsAreNotDuplicates() {
+        // These are reported by `InvalidLayoutPathInspection` instead, and Kobweb ignores them
+        myFixture.addFileToProject(
+            "pages/blog/BlogLayout.kt",
+            // language=kotlin
+            """
+            @file:Layout
+
+            package $TEST_GROUP.pages.blog
+
+            import com.varabyte.kobweb.core.layout.Layout
+            """.trimIndent()
+        )
+
+        doTest(
+            """
+            @file:Layout(".components.layouts.PageLayout")
+
+            package $TEST_GROUP.pages.blog
+
+            import com.varabyte.kobweb.core.layout.Layout
+            """.trimIndent()
+        )
+        doTest(
+            """
+            @file:Layout("")
+
+            package $TEST_GROUP.pages.blog
 
             import com.varabyte.kobweb.core.layout.Layout
             """.trimIndent()

@@ -1,16 +1,24 @@
 <html lang="en">
 <body>
-Reports default layouts (i.e. <code>@file:Layout</code>) that Kobweb rejects when building your site, i.e. ones outside
-the pages package.
+Reports default layouts (i.e. <code>@file:Layout</code>) that Kobweb rejects when building your site.
 <p>
-A default layout applies to the pages in its package (and subpackages), so it must live somewhere under the pages
-package.
+A default layout applies to the pages in its package (and subpackages), so it must be declared under the pages
+package. Furthermore, it is an error if your codebase associates more than one default layout with any given package
+(even if they all point at the same layout).
 <pre><code>
 // pages/blog/BlogLayout.kt (OK)
 @file:Layout(".components.layouts.BlogLayout")
 package com.example.pages.blog
 
-// components/Layouts.kt (Not OK)
+// pages/docs/DocsLayout.kt (Not OK, as "pages/docs/OtherLayout.kt" also gives this package a default layout)
+@file:Layout(".components.layouts.DocsLayout")
+package com.example.pages.docs
+
+// pages/docs/OtherLayout.kt (Not OK, as "pages/docs/DocsLayout.kt" also gives this package a default layout)
+@file:Layout(".components.layouts.OtherLayout")
+package com.example.pages.docs
+
+// components/Layouts.kt (Not OK, as it's outside the pages package)
 @file:Layout(".components.layouts.PageLayout")
 package com.example.components
 </code></pre>

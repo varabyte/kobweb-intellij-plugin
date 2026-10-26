@@ -41,17 +41,49 @@ class DefaultLayout(
     val pagesPackage: FqName,
 )
 
+/**
+ * Returns all `@file:Layout` annotations in this module.
+ */
+private fun Module.findDefaultLayoutAnnotations(): Sequence<KtAnnotationEntry> {
+    // Default layouts only apply to pages in the same module, so we don't need to search dependencies
+    return KotlinAnnotationsIndex[LAYOUT_FQN.shortName().asString(), project, GlobalSearchScope.moduleScope(this)]
+        .asSequence()
+        .filter { entry -> entry.useSiteTarget?.getAnnotationUseSiteTarget() == AnnotationUseSiteTarget.FILE }
+        .filter { entry -> entry.isAnnotationOfType(LAYOUT_FQN) }
+}
+
+/**
+ * True if this `@Layout` annotation specifies a layout path, e.g. `@file:Layout(".components.layouts.PageLayout")`.
+ *
+ * Paths that aren't string literals (e.g. constants) can't be read, so they're assumed to be specified.
+ */
+val KtAnnotationEntry.hasLayoutPath: Boolean
+    get() {
+        if (valueArguments.isEmpty()) return false
+        val pathExpr = layoutPathExpression ?: return true
+        return ElementManipulators.getValueText(pathExpr).isNotEmpty()
+    }
+
+/**
+ * Returns the other `@file:Layout` annotations that give the same package as this one a default layout.
+ *
+ * A package can only be given one default layout, so if this returns anything, it's a mistake, even if they all point
+ * at the same layout. Like Kobweb, this ignores annotations without a path, which are reported as errors anyway.
+ */
+fun KtAnnotationEntry.findDuplicateDefaultLayouts(): List<KtAnnotationEntry> {
+    val pkg = containingKtFile.packageFqName
+    return module?.findDefaultLayoutAnnotations().orEmpty()
+        .filter { entry -> entry != this && entry.containingKtFile.packageFqName == pkg && entry.hasLayoutPath }
+        .toList()
+}
+
 private fun Module.collectDefaultLayouts(): List<DefaultLayout> {
     val kobwebProject = findKobwebProject() ?: return emptyList()
     // See `PsiElement.kobwebGroup` for why we treat an empty group as unknown
     val shortcuts = PackageShortcuts(kobwebProject.group?.takeIf { it.isNotEmpty() }?.let(::FqName))
     val rootPagesPackage = kobwebProject.qualifiedPagesPackage ?: return emptyList()
 
-    // Default layouts only apply to pages in the same module, so we don't need to search dependencies
-    return KotlinAnnotationsIndex[LAYOUT_FQN.shortName().asString(), project, GlobalSearchScope.moduleScope(this)]
-        .asSequence()
-        .filter { entry -> entry.useSiteTarget?.getAnnotationUseSiteTarget() == AnnotationUseSiteTarget.FILE }
-        .filter { entry -> entry.isAnnotationOfType(LAYOUT_FQN) }
+    return findDefaultLayoutAnnotations()
         .mapNotNull { entry ->
             // Kobweb ignores default layouts outside the pages package
             val pagesPackage = entry.containingKtFile.packageFqName
@@ -98,8 +130,9 @@ fun KtNamedFunction.findPackageDefaultLayout(): DefaultLayout? {
         // Note: Kobweb itself checks this with a plain string prefix match, so a default layout set in "pages.blog"
         // would also apply to "pages.blogging". We match whole package segments instead, which is surely the intent.
         .filter { defaultLayout -> pagePackage.isSubpackageOf(defaultLayout.pagesPackage) }
-        // If more than one package matches, the closest one wins. (If one package sets more than one default layout,
-        // Kobweb picks one arbitrarily, so we break the tie by file path just so our choice doesn't change randomly.)
+        // If more than one package matches, the closest one wins. (A package given more than one default layout is
+        // reported as an error. Until the user fixes it, we break the tie by file path, so our choice doesn't change
+        // randomly.)
         .sortedWith(
             compareBy(
                 { -it.pagesPackage.pathSegments().size },
