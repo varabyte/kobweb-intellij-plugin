@@ -9,17 +9,31 @@ class KobwebMetadataTest {
     fun readModuleMetadata() {
         val metadata = Json.readKobwebModuleMetadata(
             """
-            { "kobwebVersion": "0.25.2", "group": "com.example" }
+            { "kobwebVersion": "0.25.2", "group": "com.example", "publicPath": "static" }
             """.trimIndent()
         )!!
 
         assertThat(metadata.kobwebVersion).isEqualTo("0.25.2")
         assertThat(metadata.group).isEqualTo("com.example")
+        assertThat(metadata.publicPath).isEqualTo("static")
+    }
+
+    @Test
+    fun readModuleMetadataWithUnknownKeys() {
+        // Newer versions of Kobweb may record more than we know about
+        val metadata = Json.readKobwebModuleMetadata(
+            """
+            { "kobwebVersion": "0.30.0", "group": "com.example", "publicPath": "public", "somethingNew": { "a": 1 } }
+            """.trimIndent()
+        )!!
+
+        assertThat(metadata.kobwebVersion).isEqualTo("0.30.0")
+        assertThat(metadata.publicPath).isEqualTo("public")
     }
 
     @Test
     fun readModuleMetadataWithoutGroup() {
-        // Kobweb only started recording the group in 0.25.2
+        // Kobweb only started recording the group and publicPath in 0.25.2
         val metadata = Json.readKobwebModuleMetadata(
             """
             { "kobwebVersion": "0.25.1" }
@@ -28,6 +42,7 @@ class KobwebMetadataTest {
 
         assertThat(metadata.kobwebVersion).isEqualTo("0.25.1")
         assertThat(metadata.group).isNull()
+        assertThat(metadata.publicPath).isNull()
     }
 
     @Test

@@ -221,7 +221,9 @@ class UnknownRouteInspectionTest : KobwebInspectionTestBase() {
     fun testPublicResourcesFromKobwebLibrariesAreNotFlagged() {
         val libsDir = FileUtil.createTempDirectory("kobweb-libs", null)
         Disposer.register(testRootDisposable) { FileUtil.delete(libsDir) }
-        libsDir.resolve("kobweb-lib/$KOBWEB_METADATA_MODULE").apply { parentFile.mkdirs() }.writeText("{}")
+        // Built with a version of Kobweb that doesn't record the public path, so it's Kobweb's default
+        libsDir.resolve("kobweb-lib/$KOBWEB_METADATA_MODULE").apply { parentFile.mkdirs() }
+            .writeText("""{"kobwebVersion":"0.25.1"}""")
         libsDir.resolve("kobweb-lib/public/fonts/logo.woff2").apply { parentFile.mkdirs() }.writeText("")
         // Kobweb ignores public files in libraries that aren't Kobweb libraries
         libsDir.resolve("other-lib/public/other.woff2").apply { parentFile.mkdirs() }.writeText("")
@@ -239,6 +241,32 @@ class UnknownRouteInspectionTest : KobwebInspectionTestBase() {
             fun Nav() {
                 Link("/fonts/logo.woff2")
                 Link("<warning>/other.woff2</warning>")
+            }
+            """.trimIndent(),
+        )
+    }
+
+    fun testPublicResourcesFromKobwebLibrariesUseTheirOwnPublicPath() {
+        val libsDir = FileUtil.createTempDirectory("kobweb-libs", null)
+        Disposer.register(testRootDisposable) { FileUtil.delete(libsDir) }
+        libsDir.resolve("kobweb-lib/$KOBWEB_METADATA_MODULE").apply { parentFile.mkdirs() }
+            .writeText("""{"kobwebVersion":"0.25.2","group":"com.example.lib","publicPath":"static"}""")
+        libsDir.resolve("kobweb-lib/static/fonts/logo.woff2").apply { parentFile.mkdirs() }.writeText("")
+        // Not the library's public path, so Kobweb doesn't copy it into the site
+        libsDir.resolve("kobweb-lib/public/fonts/other.woff2").apply { parentFile.mkdirs() }.writeText("")
+        PsiTestUtil.addLibrary(testRootDisposable, module, "kobweb-lib", libsDir.path, "kobweb-lib")
+
+        doTest(
+            """
+            package $TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.navigation.Link
+
+            @Composable
+            fun Nav() {
+                Link("/fonts/logo.woff2")
+                Link("<warning>/fonts/other.woff2</warning>")
             }
             """.trimIndent(),
         )

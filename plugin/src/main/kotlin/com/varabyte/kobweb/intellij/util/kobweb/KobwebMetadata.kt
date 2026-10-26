@@ -30,8 +30,11 @@ const val KOBWEB_METADATA_WORKER = "$KOBWEB_METADATA_SUBFOLDER/worker.json"
  * @property kobwebVersion The version of Kobweb this module was built with, e.g. "0.25.2".
  * @property group The Gradle group of the project that produced this module. Kobweb only started recording this in
  *   0.25.2, so it will be null for artifacts built with older versions.
+ * @property publicPath The folder inside the module's resources that its public files live in (e.g. "public"). Only
+ *   recorded by newer versions of Kobweb, so it will be null for artifacts built with older ones (which always used
+ *   Kobweb's default).
  */
-class KobwebModuleMetadata(val kobwebVersion: String, val group: String?)
+class KobwebModuleMetadata(val kobwebVersion: String, val group: String?, val publicPath: String?)
 
 /**
  * Parses the contents of a [KOBWEB_METADATA_MODULE] file, returning null if it's malformed.
@@ -43,11 +46,22 @@ fun Json.readKobwebModuleMetadata(text: String): KobwebModuleMetadata? {
             // Always recorded, so if it's missing, the file is malformed
             kobwebVersion = root["kobwebVersion"]?.jsonPrimitive?.contentOrNull ?: return null,
             group = root["group"]?.jsonPrimitive?.contentOrNull,
+            publicPath = root["publicPath"]?.jsonPrimitive?.contentOrNull,
         )
     } catch (_: Exception) {
         // Malformed metadata. Shouldn't happen, but there's nothing useful we can do about it here.
         null
     }
+}
+
+/**
+ * Reads this artifact's [KOBWEB_METADATA_MODULE] file, where the receiver is the root of the artifact (e.g. a klib).
+ *
+ * Returns null if the artifact doesn't have the file (e.g. it isn't a Kobweb artifact), or it's malformed.
+ */
+fun VirtualFile.readKobwebModuleMetadata(): KobwebModuleMetadata? {
+    val moduleFile = findFileByRelativePath(KOBWEB_METADATA_MODULE) ?: return null
+    return Json.readKobwebModuleMetadata(moduleFile.contentsToByteArray().decodeToString())
 }
 
 /**

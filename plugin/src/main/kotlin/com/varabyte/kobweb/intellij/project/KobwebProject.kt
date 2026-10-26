@@ -21,8 +21,8 @@ import com.varabyte.kobweb.intellij.model.WorkerBlock
  *   other Kobweb packages, it is relative to [group] if it starts with a leading period. Only read for local projects,
  *   so external projects (whose pages are already compiled) always have Kobweb's default.
  * @property publicPath The folder inside the project's resources that Kobweb serves files from as is (e.g. "public"),
- *   from `kobweb { publicPath.set(...) }`. Only read for local projects, so external projects (whose metadata doesn't
- *   include it) always have Kobweb's default.
+ *   from `kobweb { publicPath.set(...) }`. External projects get this from their Kobweb metadata, which only includes
+ *   it as of newer Kobweb versions, so ones built with older versions have Kobweb's default (which they always used).
  * @property worker Values from the `kobweb { worker { ... } }` block. Only ever set for local worker projects.
  */
 data class KobwebProject(

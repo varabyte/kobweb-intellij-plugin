@@ -1,11 +1,17 @@
 package com.varabyte.kobweb.intellij.util.kobweb.route
 
+import com.intellij.openapi.module.Module
 import com.intellij.openapi.roots.ModuleRootManager
 import com.intellij.openapi.roots.OrderEnumerator
+import com.intellij.openapi.roots.ProjectRootModificationTracker
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.psi.PsiElement
+import com.intellij.psi.util.CachedValueProvider
+import com.intellij.psi.util.CachedValuesManager
 import com.varabyte.kobweb.intellij.model.KobwebModel
 import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_MODULE
+import com.varabyte.kobweb.intellij.util.kobweb.readKobwebModuleMetadata
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
 import org.jetbrains.jps.model.java.JavaResourceRootType
 import org.jetbrains.kotlin.config.ResourceKotlinRootType
@@ -21,8 +27,6 @@ import org.jetbrains.kotlin.idea.base.util.module
  */
 fun PsiElement.findPublicFolders(): List<VirtualFile> {
     val module = module ?: return emptyList()
-    fun VirtualFile.findFolder(relativePath: String) =
-        findFileByRelativePath(relativePath.trim('/'))?.takeIf { it.isDirectory }
 
     val modules = buildList {
         OrderEnumerator.orderEntries(module).recursively().withoutSdk().withoutLibraries().productionOnly()
@@ -37,13 +41,34 @@ fun PsiElement.findPublicFolders(): List<VirtualFile> {
             .mapNotNull { root -> root.findFolder(kobwebProject.publicPath) }
     }
 
-    // Kobweb only copies public files from libraries that are Kobweb libraries. Their metadata doesn't say which public
-    // path they were built with, so assume Kobweb's default
-    val libraryFolders = OrderEnumerator.orderEntries(module).recursively().librariesOnly().classes().roots
-        .filter { root -> root.findFileByRelativePath(KOBWEB_METADATA_MODULE) != null }
-        .mapNotNull { root -> root.findFolder(KobwebModel.DEFAULT_PUBLIC_PATH) }
+    return moduleFolders + module.findLibraryPublicFolders()
+}
 
-    return moduleFolders + libraryFolders
+private fun VirtualFile.findFolder(relativePath: String) =
+    findFileByRelativePath(relativePath.trim('/'))?.takeIf { it.isDirectory }
+
+/**
+ * Returns the public folders of the Kobweb libraries (and workers) this module depends on, whose public files Kobweb
+ * copies into the site.
+ */
+private fun Module.findLibraryPublicFolders(): List<VirtualFile> {
+    // Reading each library's metadata isn't free, and this is called for every route string, so cache it until the
+    // module's dependencies (or the files in them, e.g. a rebuilt snapshot) change
+    return CachedValuesManager.getManager(project).getCachedValue(this) {
+        val folders = OrderEnumerator.orderEntries(this).recursively().librariesOnly().classes().roots
+            // Kobweb only copies public files from Kobweb artifacts, i.e. ones with module metadata
+            .filter { root -> root.findFileByRelativePath(KOBWEB_METADATA_MODULE) != null }
+            .mapNotNull { root ->
+                // Artifacts built with older versions of Kobweb don't record their public path, but they always used
+                // the default. Note this can differ from the site's own public path.
+                root.findFolder(root.readKobwebModuleMetadata()?.publicPath ?: KobwebModel.DEFAULT_PUBLIC_PATH)
+            }
+        CachedValueProvider.Result.create(
+            folders,
+            ProjectRootModificationTracker.getInstance(project),
+            VirtualFileManager.VFS_STRUCTURE_MODIFICATIONS,
+        )
+    }
 }
 
 /**

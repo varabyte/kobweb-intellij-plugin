@@ -12,14 +12,12 @@ import com.varabyte.kobweb.intellij.services.project.KobwebProjectCacheService
 import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_BACKEND
 import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_FRONTEND
 import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_LIBRARY
-import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_MODULE
 import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_WORKER
 import com.varabyte.kobweb.intellij.util.kobweb.PackageShortcuts
 import com.varabyte.kobweb.intellij.util.kobweb.isKobwebPluginEnabled
 import com.varabyte.kobweb.intellij.util.kobweb.readKobwebModuleMetadata
 import com.varabyte.kobweb.intellij.util.module.toGradleModule
 import com.varabyte.kobweb.intellij.util.psi.containingKlib
-import kotlinx.serialization.json.Json
 import org.jetbrains.kotlin.idea.base.util.module
 import org.jetbrains.kotlin.name.FqName
 
@@ -76,13 +74,13 @@ private fun VirtualFile.findKobwebProject(kobwebProjectsCache: KobwebProjectCach
         else -> return null
     }
 
+    val moduleMetadata = klib.readKobwebModuleMetadata()
     return KobwebProject(
         klib.name,
         kobwebProjectType,
         KobwebProject.Source.External(klib),
-        group = klib.findFileByRelativePath(KOBWEB_METADATA_MODULE)
-            ?.let { moduleFile -> Json.readKobwebModuleMetadata(moduleFile.contentsToByteArray().decodeToString()) }
-            ?.group,
+        group = moduleMetadata?.group,
+        publicPath = moduleMetadata?.publicPath ?: KobwebModel.DEFAULT_PUBLIC_PATH,
     ).also { kobwebProjectsCache.add(it) }
 }
 
