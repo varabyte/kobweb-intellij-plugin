@@ -73,6 +73,7 @@ dependencies {
         bundledPlugins(
             "org.jetbrains.kotlin",
             "org.jetbrains.plugins.gradle",
+            "org.jetbrains.plugins.yaml",
         )
 
         pluginVerifier()

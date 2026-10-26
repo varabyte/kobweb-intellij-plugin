@@ -1,0 +1,8 @@
+<!-- Features that are only available when IntelliJ's YAML plugin is enabled (see the optional dependency in plugin.xml) -->
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService
+                serviceInterface="com.varabyte.kobweb.intellij.services.conf.KobwebConfReader"
+                serviceImplementation="com.varabyte.kobweb.intellij.services.conf.yaml.YamlKobwebConfReader"/>
+    </extensions>
+</idea-plugin>

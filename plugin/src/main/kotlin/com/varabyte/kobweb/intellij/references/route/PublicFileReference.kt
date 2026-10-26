@@ -13,8 +13,10 @@ import com.varabyte.kobweb.intellij.util.kobweb.route.findLedToBy
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPages
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPublicFolders
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPublicResource
+import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteRedirects
 import com.varabyte.kobweb.intellij.util.kobweb.route.hasRoutePathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPath
+import com.varabyte.kobweb.intellij.util.kobweb.route.redirectedBy
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
@@ -26,7 +28,8 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
  * Each segment gets its own reference so that renaming or moving any file or folder along the path updates the string.
  *
  * These only resolve if the whole path leads to a public file and not to a page (which [RouteReference] leads to
- * instead), so that "/docs/intro" doesn't lead to a `public/docs` folder that just happens to exist.
+ * instead), so that "/docs/intro" doesn't lead to a `public/docs` folder that just happens to exist. They also don't
+ * resolve if one of the site's redirects applies to the path, as Kobweb sends it elsewhere before looking for files.
  *
  * @param segmentIndex The index of this reference's segment in the string's path (see [LinkPath.segments]).
  */
@@ -54,7 +57,10 @@ class PublicFileReference(
         // Checked first, as it's the cheapest check and rules out most strings
         if (element.findPublicResource(path) == null) return null
         if (!analyze(element) { element.hasRoutePathTarget() }) return null
-        if (element.findPages().findLedToBy(path) != null) return null
+        val redirects = element.findRouteRedirects()
+        // Kobweb applies redirects before serving public files, so a redirected path doesn't lead to its file
+        if (path.redirectedBy(redirects) !== path) return null
+        if (element.findPages().findLedToBy(path, redirects) != null) return null
 
         val file = element.findPublicResource(path.segments.take(segmentIndex + 1)) ?: return null
         val psiManager = PsiManager.getInstance(element.project)

@@ -5,12 +5,16 @@ import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElementVisitor
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.route.LinkPath.UnknownSegmentsStrategy
+import com.varabyte.kobweb.intellij.util.kobweb.route.findLedToBy
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPages
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPublicResource
 import com.varabyte.kobweb.intellij.util.kobweb.route.findRoutePathTarget
+import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteRedirects
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPath
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPathRange
 import com.varabyte.kobweb.intellij.util.kobweb.route.mayHaveRoutePathTarget
+import com.varabyte.kobweb.intellij.util.kobweb.route.mightBeRedirectedBy
+import com.varabyte.kobweb.intellij.util.kobweb.route.redirectedBy
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
@@ -23,6 +27,9 @@ import org.jetbrains.kotlin.psi.KtVisitorVoid
  * Only routes used with something that holds one are checked (e.g. `Link`'s `path`), and only if they could be
  * checked at all: routes with values that aren't known until runtime (e.g. `"/posts/$id"`) are only reported if none of
  * their possible values could lead anywhere.
+ *
+ * Routes are checked after any redirects in the site's `.kobweb/conf.yaml` (see [redirectedBy]), so a link to an old
+ * page that's redirected to a new one is fine (though see [RedirectedRouteInspection]).
  */
 class UnknownRouteInspection : LocalInspectionTool() {
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
@@ -36,10 +43,17 @@ class UnknownRouteInspection : LocalInspectionTool() {
                 // API routes are served by the backend, not by pages
                 if (path.segments.first().text == "api") return
 
-                // Unknown segments could hold anything at runtime, so only report paths that can't lead to any page
                 val pages = expression.findPages()
-                if (pages.any { page -> path.leadsTo(page.route, UnknownSegmentsStrategy.MATCH_ANYTHING) }) return
-                if (expression.findPublicResource(path) != null) return
+                val redirects = expression.findRouteRedirects()
+                if (path.hasUnknownSegments) {
+                    // Unknown segments could hold anything at runtime, so only report paths that can't lead to any
+                    // page, even after a redirect
+                    if (pages.any { page -> path.leadsTo(page.route, UnknownSegmentsStrategy.MATCH_ANYTHING) }) return
+                    if (path.mightBeRedirectedBy(redirects)) return
+                } else {
+                    if (pages.findLedToBy(path, redirects) != null) return
+                    if (expression.findPublicResource(path.redirectedBy(redirects)) != null) return
+                }
 
                 // Checked last, as it's the most expensive check
                 val target = analyze(expression) { expression.findRoutePathTarget() } ?: return

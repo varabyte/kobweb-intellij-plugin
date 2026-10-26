@@ -86,6 +86,46 @@ class UnknownRouteInspectionTest : KobwebInspectionTestBase() {
         )
     }
 
+    fun testRoutesAreCheckedWhereTheirRedirectsLead() {
+        myFixture.addFileToProject(
+            ".kobweb/conf.yaml",
+            // language=yaml
+            """
+            site:
+              title: "Test"
+            server:
+              redirects:
+                - from: "/old-post"
+                  to: "/blog/post"
+                - from: "/legacy/(.+)"
+                  to: "/blog/$1"
+                - from: "/gone"
+                  to: "/missing"
+            """.trimIndent()
+        )
+
+        doTest(
+            $$"""
+            package $$TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.navigation.Link
+
+            @Composable
+            fun Nav(id: String) {
+                Link("/old-post")
+                // Like Kobweb, a trailing slash is removed if that makes the path lead somewhere
+                Link("/old-post/")
+                Link("/legacy/post")
+                Link("<warning>/legacy/pots</warning>")
+                Link("<warning>/gone</warning>")
+                // "id" could be anything, and the redirect might send it somewhere that exists
+                Link("/legacy/$id")
+            }
+            """.trimIndent(),
+        )
+    }
+
     fun testRoutesThatArentCheckedAreNotFlagged() {
         doTest(
             """

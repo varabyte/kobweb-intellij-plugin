@@ -4,6 +4,8 @@
     <depends>com.intellij.modules.platform</depends>
     <depends>org.jetbrains.kotlin</depends>
     <depends>org.jetbrains.plugins.gradle</depends>
+    <!-- Used to read .kobweb/conf.yaml files. Features that need it are skipped if it's disabled -->
+    <depends optional="true" config-file="kobweb-withYaml.xml">org.jetbrains.plugins.yaml</depends>
 
     <resource-bundle>bundles.KobwebBundle</resource-bundle>
 
@@ -136,6 +138,20 @@
                 enabledByDefault="true"
                 level="ERROR"
                 implementationClass="com.varabyte.kobweb.intellij.inspections.route.InvalidRouteFormatInspection"/>
+        <localInspection
+                language="kotlin"
+                groupKey="kobweb.name"
+                key="inspection.redirected.page.display.name"
+                enabledByDefault="true"
+                level="WARNING"
+                implementationClass="com.varabyte.kobweb.intellij.inspections.route.RedirectedPageInspection"/>
+        <localInspection
+                language="kotlin"
+                groupKey="kobweb.name"
+                key="inspection.redirected.route.display.name"
+                enabledByDefault="true"
+                level="WEAK WARNING"
+                implementationClass="com.varabyte.kobweb.intellij.inspections.route.RedirectedRouteInspection"/>
         <localInspection
                 language="kotlin"
                 groupKey="kobweb.name"

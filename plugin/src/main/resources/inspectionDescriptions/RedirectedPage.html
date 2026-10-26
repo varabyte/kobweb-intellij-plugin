@@ -1,0 +1,28 @@
+<html lang="en">
+<body>
+Reports pages that are never shown, because a redirect in the site's <code>.kobweb/conf.yaml</code> sends their route
+somewhere else. This usually means that the page was replaced, and either the page or the redirect was left behind.
+<pre><code>
+# .kobweb/conf.yaml
+server:
+  redirects:
+    - from: "/old-page"
+      to: "/new-page"
+
+// pages/OldPage.kt is served at "/old-page", but visitors are always sent to "/new-page" instead
+@Page
+@Composable
+fun OldPage() { ... }
+</code></pre>
+<p>
+To fix this, decide which one was left behind:
+<ul>
+  <li>If the page was replaced by the one the redirect leads to, delete it (or move anything still needed into the new
+    page). Keep the redirect, as links from outside the site, such as bookmarks and search results, may still use the
+    old route.</li>
+  <li>If the page is meant to be shown, remove or narrow the redirect in <code>.kobweb/conf.yaml</code>. The "Go to
+    redirect" quick fix opens it.</li>
+</ul>
+<!-- tooltip end -->
+</body>
+</html>

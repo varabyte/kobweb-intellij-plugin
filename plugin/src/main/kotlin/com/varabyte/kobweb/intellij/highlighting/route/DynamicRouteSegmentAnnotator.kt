@@ -10,9 +10,11 @@ import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.route.DynamicRouteSegment
 import com.varabyte.kobweb.intellij.util.kobweb.route.findLedToBy
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPages
+import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteRedirects
 import com.varabyte.kobweb.intellij.util.kobweb.route.hasRoutePathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPath
 import com.varabyte.kobweb.intellij.util.kobweb.route.mayHaveRoutePathTarget
+import com.varabyte.kobweb.intellij.util.kobweb.route.redirectedBy
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
@@ -30,7 +32,11 @@ class DynamicRouteSegmentAnnotator : Annotator {
         val path = stringExpr.linkPath ?: return
         if (!stringExpr.isInReadableKobwebProject()) return
 
-        val page = stringExpr.findPages().findLedToBy(path) ?: return
+        val redirects = stringExpr.findRouteRedirects()
+        // A redirected path is matched against the page's route as the redirect rewrote it, so the segments written
+        // here aren't necessarily the ones that fill the route's dynamic segments
+        if (path.redirectedBy(redirects) !== path) return
+        val page = stringExpr.findPages().findLedToBy(path, redirects) ?: return
         val dynamicSegments = page.route.segments.map(DynamicRouteSegment::tryCreate)
         if (dynamicSegments.all { it == null }) return
         if (!analyze(stringExpr) { stringExpr.hasRoutePathTarget() }) return

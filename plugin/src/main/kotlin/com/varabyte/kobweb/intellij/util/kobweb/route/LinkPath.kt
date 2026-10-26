@@ -9,6 +9,9 @@ package com.varabyte.kobweb.intellij.util.kobweb.route
 class LinkPath private constructor(val segments: List<Segment>) {
     private val segmentTexts: List<String?> = segments.map { it.text }
 
+    /** True if any of this path's segments can't be known until runtime, e.g. "/posts/$id". */
+    val hasUnknownSegments: Boolean get() = null in segmentTexts
+
     /**
      * A piece of the path between slashes, e.g. "bob" in "/users/bob/posts".
      *
@@ -107,9 +110,23 @@ class LinkPath private constructor(val segments: List<Segment>) {
         }
 
         if (matches(route)) return true
+        return withToggledTrailingSlash()?.matches(route) == true
+    }
 
-        val toggledSlash = if (segmentTexts.lastOrNull() == "") segmentTexts.dropLast(1) else segmentTexts + ""
-        return toggledSlash.isNotEmpty() && matches(route.segments, toggledSlash)
+    /**
+     * Returns this path with a trailing slash added, or removed if it has one, e.g. "/blog/" for "/blog" (and vice
+     * versa), or null for "/", which has no other form.
+     *
+     * The added slash's empty segment is placed at the end of this path's source.
+     */
+    fun withToggledTrailingSlash(): LinkPath? {
+        val toggled = if (segmentTexts.last() == "") {
+            segments.dropLast(1)
+        } else {
+            val end = segments.last().sourceRange.last + 1
+            segments + Segment("", end until end)
+        }
+        return LinkPath(toggled).takeIf { toggled.isNotEmpty() }
     }
 
     // True if the route could start with these (known) path segments, e.g. "/posts/{post}/edit" could start with
@@ -182,6 +199,13 @@ class LinkPath private constructor(val segments: List<Segment>) {
             // The path starts with a slash, which leaves an empty first segment behind
             return LinkPath(segments.drop(1))
         }
+
+        /**
+         * Returns the path of a URL that isn't written in code, e.g. one produced by a redirect (see [parse]).
+         *
+         * Its segments' source ranges are positions in [url].
+         */
+        fun parse(url: String): LinkPath? = parse(listOf(Part(url, url.indices)))
 
         // True if the path matches the route definition, e.g. route "/about" is matched by path "/about",
         // "/users/{user}/profile" is matched by "/users/me/profile", and "/users/{user}/profile" is also matched by

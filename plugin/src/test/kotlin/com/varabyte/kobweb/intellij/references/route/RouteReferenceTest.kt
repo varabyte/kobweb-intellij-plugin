@@ -603,6 +603,38 @@ class RouteReferenceTest : KobwebApplicationTestCase() {
         ).isEqualTo("BlogPostPage")
     }
 
+    fun testRedirectedRoutesLeadToWhereTheRedirectSendsThem() {
+        myFixture.addFileToProject(
+            ".kobweb/conf.yaml",
+            // language=yaml
+            """
+            server:
+              redirects:
+                - from: "/old-post"
+                  to: "/blog/post"
+                # Wins over the page served at "/posts/new"
+                - from: "/posts/new"
+                  to: "/blog/post"
+            """.trimIndent()
+        )
+
+        fun produceNav(path: String) = """
+            package $TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.navigation.Link
+
+            @Composable
+            fun Nav() {
+                Link("$path")
+            }
+        """.trimIndent()
+
+        assertThat(resolveRouteAtCaret(produceNav("/old-po<caret>st"))).isEqualTo("BlogPostPage")
+        assertThat(resolveRouteAtCaret(produceNav("/posts/n<caret>ew"))).isEqualTo("BlogPostPage")
+        assertThat(resolveRouteAtCaret(produceNav("/blog/po<caret>st"))).isEqualTo("BlogPostPage")
+    }
+
     fun testRenamingPageDoesNotChangeRoutes() {
         @Language("kotlin")
         val code = """

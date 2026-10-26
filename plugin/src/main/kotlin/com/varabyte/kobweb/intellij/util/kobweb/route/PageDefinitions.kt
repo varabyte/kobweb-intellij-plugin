@@ -72,12 +72,18 @@ fun PsiElement.findPages(): List<PageDefinition> {
 /**
  * Returns the page that [path] leads to, or null if it doesn't lead to any of them.
  *
+ * This follows Kobweb's router: the path is sent through the site's [redirects] first (see [redirectedBy]), and only if
+ * that doesn't match any page, it's tried again with a trailing slash added or removed (see
+ * [LinkPath.withToggledTrailingSlash]), which is also sent through the redirects.
+ *
  * If more than one page's route matches a path, this picks the same one Kobweb's router would: the one with static
- * segments in the earliest positions, e.g. "/posts/new" leads to "/posts/new" rather than "/posts/{post}". (The router
- * also only adds or removes a trailing slash if the path as written doesn't match any page.)
+ * segments in the earliest positions, e.g. "/posts/new" leads to "/posts/new" rather than "/posts/{post}".
  */
-fun List<PageDefinition>.findLedToBy(path: LinkPath): PageDefinition? {
-    val matches = filter { page -> path.matches(page.route) }.ifEmpty { filter { page -> path.leadsTo(page.route) } }
+fun List<PageDefinition>.findLedToBy(path: LinkPath, redirects: List<RouteRedirect> = emptyList()): PageDefinition? {
+    val matches = listOfNotNull(path, path.withToggledTrailingSlash())
+        .map { candidate -> candidate.redirectedBy(redirects) }
+        .firstNotNullOfOrNull { candidate -> filter { page -> candidate.matches(page.route) }.ifEmpty { null } }
+        .orEmpty()
 
     // Rank each route segment, where lower ranks win: static segments, then dynamic ones
     fun PageDefinition.segmentRanks() =

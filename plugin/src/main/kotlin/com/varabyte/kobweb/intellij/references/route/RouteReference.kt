@@ -6,6 +6,7 @@ import com.intellij.psi.impl.source.resolve.ResolveCache
 import com.varabyte.kobweb.intellij.util.kobweb.route.LinkPath
 import com.varabyte.kobweb.intellij.util.kobweb.route.findLedToBy
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPages
+import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteRedirects
 import com.varabyte.kobweb.intellij.util.kobweb.route.hasRoutePathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPath
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPathRange
@@ -15,7 +16,7 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
 /**
  * A reference from a string that holds a route, e.g. the `"/blog/post"` in `Link("/blog/post")`, to the page it leads
- * to.
+ * to, after any redirects in the site's `.kobweb/conf.yaml` (see [findLedToBy]).
  *
  * Routes that lead to public files (e.g. `"/favicon.ico"`) get a [PublicFileReference] per segment instead.
  *
@@ -47,7 +48,7 @@ class RouteReference(element: KtStringTemplateExpression) : PsiReferenceBase<KtS
         val path = element.linkPath ?: return null
         if (!analyze(element) { element.hasRoutePathTarget() }) return null
 
-        return element.findPages().findLedToBy(path)?.function
+        return element.findPages().findLedToBy(path, element.findRouteRedirects())?.function
     }
 
     // Renaming a page function doesn't change its route -- it is derived from the file name! So leave the string alone
