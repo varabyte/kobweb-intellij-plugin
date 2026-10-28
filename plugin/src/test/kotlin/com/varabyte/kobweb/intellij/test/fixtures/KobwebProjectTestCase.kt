@@ -45,63 +45,75 @@ abstract class KobwebProjectTestCase(private val projectType: KobwebProjectType)
         /**
          * Returns the files listed in a path-separated system property, which the Gradle test task sets.
          *
-         * See `kobwebTestLibs` in plugin/build.gradle.kts.
+         * See `kobwebTestJsLibs` and `kobwebTestJvmLibs` in plugin/build.gradle.kts.
          */
         fun filesFromProperty(name: String): List<File> {
             val value = System.getProperty(name) ?: error("System property \"$name\" not set. Should have been configured by Gradle.")
             return value.split(File.pathSeparator).filter { it.isNotBlank() }.map(::File)
         }
 
-        // Provides the real Kobweb framework (with its dependencies, including the Kotlin/JS stdlib)
-        private val KOBWEB_WITH_JDK_11 = object : DefaultLightProjectDescriptor() {
-            override fun getSdk(): Sdk = IdeaTestUtil.getMockJdk11()
+        private val KOBWEB_WITH_JDK_11 = object : KobwebJsProjectDescriptor() {}
+    }
 
-            /**
-             * Configure the module like a real Kobweb JS module: JS stdlib with the Compose compiler plugin enabled.
-             */
-            private fun configureKotlinJsFacet(module: Module) {
-                val composePluginJar = PathUtil.getJarPathForClass(
-                    Class.forName("androidx.compose.compiler.plugins.kotlin.ComposePluginRegistrar")
-                )
+    /**
+     * Provides the real Kobweb framework (with its dependencies, including the Kotlin/JS stdlib).
+     *
+     * Extensible so other descriptors can add more modules to the project (see [KobwebFullStackTestCase]).
+     *
+     * This should only be used to create singleton instances, as light tests only reuse a project between tests with
+     * the same descriptor instance.
+     */
+    protected abstract class KobwebJsProjectDescriptor : DefaultLightProjectDescriptor() {
+        override fun getSdk(): Sdk = IdeaTestUtil.getMockJdk11()
 
-                val facetManager = FacetManager.getInstance(module)
-                val facet = facetManager.createFacet(KotlinFacetType.INSTANCE, KotlinFacetType.NAME, null)
-                facet.configuration.settings.targetPlatform = JsPlatforms.defaultJsPlatform
-                facet.configuration.settings.compilerArguments = K2JSCompilerArguments().apply {
-                    pluginClasspaths = arrayOf(composePluginJar)
+        /**
+         * Configure the module like a real Kobweb JS module: JS stdlib with the Compose compiler plugin enabled.
+         */
+        private fun configureKotlinJsFacet(module: Module) {
+            val composePluginJar = PathUtil.getJarPathForClass(
+                Class.forName("androidx.compose.compiler.plugins.kotlin.ComposePluginRegistrar")
+            )
+
+            val facetManager = FacetManager.getInstance(module)
+            val facet = facetManager.createFacet(KotlinFacetType.INSTANCE, KotlinFacetType.NAME, null)
+            facet.configuration.settings.targetPlatform = JsPlatforms.defaultJsPlatform
+            facet.configuration.settings.compilerArguments = K2JSCompilerArguments().apply {
+                pluginClasspaths = arrayOf(composePluginJar)
+            }
+            facetManager.createModifiableModel().apply {
+                addFacet(facet)
+                commit()
+            }
+        }
+
+        override fun configureModule(module: Module, model: ModifiableRootModel, contentEntry: ContentEntry) {
+            super.configureModule(module, model, contentEntry)
+            model.getModuleExtension(LanguageLevelModuleExtension::class.java).languageLevel = LanguageLevel.JDK_11
+
+            // Our module is Kotlin/JS (see `configureKotlinJsFacet`), which ignores libraries not marked as JS
+            val libraryTableModel = model.moduleLibraryTable.modifiableModel
+            val library = libraryTableModel.createLibrary("kobweb", KotlinJavaScriptLibraryKind)
+            libraryTableModel.commit()
+            library.modifiableModel.apply {
+                filesFromProperty("kobweb.test.js.klibs").forEach {
+                    addRoot(VfsUtil.getUrlForLibraryRoot(it.toPath()), OrderRootType.CLASSES)
                 }
-                facetManager.createModifiableModel().apply {
-                    addFacet(facet)
-                    commit()
+                filesFromProperty("kobweb.test.js.sources").forEach {
+                    addRoot(VfsUtil.getUrlForLibraryRoot(it.toPath()), OrderRootType.SOURCES)
                 }
+                commit()
             }
 
-            override fun configureModule(module: Module, model: ModifiableRootModel, contentEntry: ContentEntry) {
-                super.configureModule(module, model, contentEntry)
-                model.getModuleExtension(LanguageLevelModuleExtension::class.java).languageLevel = LanguageLevel.JDK_11
-
-                // Our module is Kotlin/JS (see `configureKotlinJsFacet`), which ignores libraries not marked as JS
-                val libraryTableModel = model.moduleLibraryTable.modifiableModel
-                val library = libraryTableModel.createLibrary("kobweb", KotlinJavaScriptLibraryKind)
-                libraryTableModel.commit()
-                library.modifiableModel.apply {
-                    filesFromProperty("kobweb.test.klibs").forEach {
-                        addRoot(VfsUtil.getUrlForLibraryRoot(it.toPath()), OrderRootType.CLASSES)
-                    }
-                    filesFromProperty("kobweb.test.sources").forEach {
-                        addRoot(VfsUtil.getUrlForLibraryRoot(it.toPath()), OrderRootType.SOURCES)
-                    }
-                    commit()
-                }
-
-                configureKotlinJsFacet(module)
-            }
+            configureKotlinJsFacet(module)
         }
     }
 
     override fun getProjectDescriptor(): LightProjectDescriptor {
         return KOBWEB_WITH_JDK_11
     }
+
+    /** The modules of the Kobweb project this test runs in, which [registerKobwebProject] registers. */
+    protected open val kobwebModules: List<Module> get() = listOf(module)
 
     /**
      * Register the Kobweb project that this test's module represents, replacing any previous registration.
@@ -116,8 +128,9 @@ abstract class KobwebProjectTestCase(private val projectType: KobwebProjectType)
             error("Cannot set worker values for a non-worker project")
         }
 
-        project.service<KobwebProjectCacheService>()
-            .add(KobwebProject("test-shell", projectType, Local(this.module), group, pagesPackage, publicPath, worker))
+        val kobwebProject = KobwebProject("test-shell", projectType, Local(this.module), group, pagesPackage, publicPath, worker)
+        val kobwebProjectsCache = project.service<KobwebProjectCacheService>()
+        kobwebModules.forEach { module -> kobwebProjectsCache.add(module, kobwebProject) }
 
         // Kotlin analysis may have cached results based on the previous registration (e.g. from an earlier test)
         // (Wrapped in `runInEdtAndWait` for as some tests run off the UI thread)

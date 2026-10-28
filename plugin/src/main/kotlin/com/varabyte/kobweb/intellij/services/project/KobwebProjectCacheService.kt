@@ -7,6 +7,7 @@ import com.intellij.psi.PsiElement
 import com.varabyte.kobweb.intellij.project.KobwebProject
 import com.varabyte.kobweb.intellij.util.module.toGradleModule
 import com.varabyte.kobweb.intellij.util.psi.containingKlib
+import org.jetbrains.annotations.TestOnly
 import org.jetbrains.kotlin.idea.base.util.module
 import java.util.*
 
@@ -34,6 +35,15 @@ interface KobwebProjectCacheService : Iterable<KobwebProject> {
     fun isMarkedNotKobweb(element: PsiElement): Boolean
 
     fun add(project: KobwebProject)
+
+    /**
+     * Register [project] as the Kobweb project that [module] belongs to, e.g. one of its source set modules.
+     *
+     * Only needed by lightweight tests (which have no Gradle), as production code finds a module's project via its
+     * Gradle module.
+     */
+    @TestOnly
+    fun add(module: Module, project: KobwebProject)
     fun addAll(collection: Collection<KobwebProject>)
     fun markNotKobweb(element: PsiElement)
 
@@ -47,6 +57,10 @@ internal class KobwebProjectCacheServiceImpl : KobwebProjectCacheService {
 
     override operator fun get(module: Module) = localProjects[module]
     override operator fun get(klib: VirtualFile) = externalProjects[klib]
+    override fun add(module: Module, project: KobwebProject) {
+        localProjects[module] = project
+    }
+
     override fun add(project: KobwebProject) {
         when (project.source) {
             is KobwebProject.Source.External -> externalProjects[project.source.klib] = project

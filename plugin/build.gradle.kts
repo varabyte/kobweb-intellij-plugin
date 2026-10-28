@@ -38,13 +38,23 @@ intellijPlatform {
 
 // Real Kobweb (JS) libraries which tests run against. `KobwebApplicationTestCase` attaches them to the test project,
 // finding them via system properties set on the test task (see the bottom of this file).
-val kobwebTestLibs = configurations.create("kobwebTestLibs") {
+val kobwebTestJsLibs = configurations.create("kobwebTestJsLibs") {
     isCanBeConsumed = false
     attributes {
         attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, "kotlin-runtime"))
         attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.LIBRARY))
         attribute(Attribute.of("org.jetbrains.kotlin.platform.type", String::class.java), "js")
         attribute(Attribute.of("org.jetbrains.kotlin.js.compiler", String::class.java), "ir")
+    }
+}
+
+// Real Kobweb JVM libraries for tests that also need a backend module (see `KobwebFullStackTestCase`)
+val kobwebTestJvmLibs = configurations.create("kobwebTestJvmLibs") {
+    isCanBeConsumed = false
+    attributes {
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category::class.java, Category.LIBRARY))
+        attribute(Attribute.of("org.jetbrains.kotlin.platform.type", String::class.java), "jvm")
     }
 }
 
@@ -55,9 +65,10 @@ dependencies {
     implementation(project(":shared:icon-previews-format"))
     testImplementation(libs.truthish)
     testImplementation(kotlin("test"))
-    kobwebTestLibs(libs.kobweb.silk)
-    kobwebTestLibs(libs.kobweb.silk.icons.fa)
-    kobwebTestLibs(libs.kobweb.worker)
+    kobwebTestJsLibs(libs.kobweb.silk)
+    kobwebTestJsLibs(libs.kobweb.silk.icons.fa)
+    kobwebTestJsLibs(libs.kobweb.worker)
+    kobwebTestJvmLibs(libs.kobweb.api)
 
     intellijPlatform {
         // The version of IntelliJ IDEA we build against.
@@ -199,10 +210,9 @@ changelog {
 fun Project.isSnapshot() = version.toString().endsWith("-SNAPSHOT")
 
 tasks.withType<Test>().configureEach {
-    val klibs = kobwebTestLibs.incoming.files
     // Sources are needed as the plugin inspects library function bodies
-    val sources = kobwebTestLibs.incoming.artifactView {
-        // Lets this view select the sources variant of each resolved dependency (not just its klib)
+    fun ResolvableDependencies.sources() = artifactView {
+        // Lets this view select the sources variant of each resolved dependency (not just its klib / jar)
         @Suppress("UnstableApiUsage")
         withVariantReselection()
         lenient(true)
@@ -211,14 +221,22 @@ tasks.withType<Test>().configureEach {
             attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType::class.java, DocsType.SOURCES))
         }
     }.files
+
+    val jsKlibs = kobwebTestJsLibs.incoming.files
+    val jsSources = kobwebTestJsLibs.incoming.sources()
+    val jvmJars = kobwebTestJvmLibs.incoming.files
+    val jvmSources = kobwebTestJvmLibs.incoming.sources()
+
     // Golden files for `WorkerClassSynthesizerParityTest` (see the README next to them)
     val workerCases = layout.projectDirectory.dir("src/test/testData/worker/cases")
-    inputs.files(klibs, sources)
+    inputs.files(jsKlibs, jsSources, jvmJars, jvmSources)
     inputs.dir(workerCases).withPathSensitivity(PathSensitivity.RELATIVE)
     jvmArgumentProviders.add(CommandLineArgumentProvider {
         listOf(
-            "-Dkobweb.test.klibs=${klibs.files.joinToString(File.pathSeparator)}",
-            "-Dkobweb.test.sources=${sources.files.joinToString(File.pathSeparator)}",
+            "-Dkobweb.test.js.klibs=${jsKlibs.files.joinToString(File.pathSeparator)}",
+            "-Dkobweb.test.js.sources=${jsSources.files.joinToString(File.pathSeparator)}",
+            "-Dkobweb.test.jvm.jars=${jvmJars.files.joinToString(File.pathSeparator)}",
+            "-Dkobweb.test.jvm.sources=${jvmSources.files.joinToString(File.pathSeparator)}",
             "-Dkobweb.test.worker.cases=${workerCases.asFile}",
         )
     })
