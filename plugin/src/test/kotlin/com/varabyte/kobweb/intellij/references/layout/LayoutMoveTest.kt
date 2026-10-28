@@ -1,5 +1,6 @@
 package com.varabyte.kobweb.intellij.references.layout
 
+import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiDirectory
 import com.intellij.psi.util.PsiTreeUtil
 import com.varabyte.kobweb.intellij.test.fixtures.KobwebApplicationTestCase
@@ -212,5 +213,31 @@ class LayoutMoveTest : KobwebApplicationTestCase() {
         descriptor.refactoringProcessor().run()
 
         myFixture.checkResult(producePageUsingLayout(".site.layouts.PageLayout"))
+    }
+
+    fun testRenamingLayoutPackageUpdatesPath() {
+        val page = myFixture.addFileToProject(
+            "${TEST_GROUP.replace('.', '/')}/pages/HomePage.kt",
+            producePageUsingLayout(".components.layouts.PageLayout"),
+        )
+        myFixture.configureFromExistingVirtualFile(page.virtualFile)
+        addLayoutFile()
+
+        myFixture.renameElement(JavaPsiFacade.getInstance(project).findPackage("$TEST_GROUP.components.layouts")!!, "site")
+
+        myFixture.checkResult(producePageUsingLayout(".components.site.PageLayout"))
+    }
+
+    fun testRenamingParentPackageUpdatesPath() {
+        val page = myFixture.addFileToProject(
+            "${TEST_GROUP.replace('.', '/')}/pages/HomePage.kt",
+            producePageUsingLayout(".components.layouts.PageLayout"),
+        )
+        myFixture.configureFromExistingVirtualFile(page.virtualFile)
+        addLayoutFile()
+
+        myFixture.renameElement(JavaPsiFacade.getInstance(project).findPackage("$TEST_GROUP.components")!!, "widgets")
+
+        myFixture.checkResult(producePageUsingLayout(".widgets.layouts.PageLayout"))
     }
 }
