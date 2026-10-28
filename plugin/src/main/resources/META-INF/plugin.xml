@@ -6,6 +6,8 @@
     <depends>org.jetbrains.plugins.gradle</depends>
     <!-- Used to read .kobweb/conf.yaml files. Features that need it are skipped if it's disabled -->
     <depends optional="true" config-file="kobweb-withYaml.xml">org.jetbrains.plugins.yaml</depends>
+    <!-- Used to apply Kobweb's schema to .kobweb/conf.yaml files (which also needs the YAML plugin, which depends on it) -->
+    <depends optional="true" config-file="kobweb-withJson.xml">com.intellij.modules.json</depends>
 
     <resource-bundle>bundles.KobwebBundle</resource-bundle>
 

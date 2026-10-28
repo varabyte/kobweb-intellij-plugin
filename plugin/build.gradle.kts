@@ -73,6 +73,7 @@ dependencies {
         bundledPlugins(
             "org.jetbrains.kotlin",
             "org.jetbrains.plugins.gradle",
+            "com.intellij.modules.json",
             "org.jetbrains.plugins.yaml",
         )
 

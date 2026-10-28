@@ -3,6 +3,7 @@ package com.varabyte.kobweb.intellij.util.kobweb.conf
 import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil
 import com.intellij.openapi.roots.ModuleRootManager
 import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
@@ -28,3 +29,6 @@ fun PsiElement.findKobwebConf(): PsiFile? {
     val file = folders.firstNotNullOfOrNull { folder -> folder.findFileByRelativePath(KOBWEB_CONF_PATH) } ?: return null
     return PsiManager.getInstance(project).findFile(file)
 }
+
+/** Whether this is a Kobweb site's `.kobweb/conf.yaml` file. */
+fun VirtualFile.isKobwebConf(): Boolean = path.endsWith("/$KOBWEB_CONF_PATH")

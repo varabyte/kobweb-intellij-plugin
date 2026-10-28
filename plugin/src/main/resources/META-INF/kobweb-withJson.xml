@@ -1,0 +1,6 @@
+<!-- Features that are only available when IntelliJ's JSON plugin is enabled (see the optional dependency in plugin.xml) -->
+<idea-plugin>
+    <extensions defaultExtensionNs="JavaScript.JsonSchema">
+        <ProviderFactory implementation="com.varabyte.kobweb.intellij.schema.conf.KobwebConfSchemaProviderFactory"/>
+    </extensions>
+</idea-plugin>
