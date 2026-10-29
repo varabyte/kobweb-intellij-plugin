@@ -25,7 +25,7 @@ private val ROUTE_PATH_CLASS_ID = ClassId(KOBWEB_CORE_PACKAGE, Name.identifier("
  * @property mustExist Whether the route should lead to a page (or another resource the site serves). False for targets
  *   marked `@RoutePath(mustExist = false)`, e.g. parameters that build links to pages that may not exist yet.
  */
-class RoutePathTarget(val type: Type, val mustExist: Boolean) {
+class RoutePathTarget(val type: Type, override val mustExist: Boolean) : PathTarget {
     /**
      * What sort of route format is accepted.
      *
@@ -103,7 +103,7 @@ private val LEGACY_ROUTE_SETTERS = mapOf(
  */
 private val ROUTE_PATH_ANNOTATION = PathAnnotation(
     ROUTE_PATH_CLASS_ID,
-    read = { routePath ->
+    toPathTarget = { routePath ->
         val type = (routePath.findArgument("type") as? KaAnnotationValue.EnumEntryValue)
             ?.callableId?.callableName?.asString()
             ?.let { typeName -> RoutePathTarget.Type.entries.firstOrNull { it.name == typeName } }

@@ -35,6 +35,19 @@ import org.jetbrains.kotlin.psi.KtWhenExpression
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 
 /**
+ * A parameter or property that holds some kind of path, e.g. one marked with `@RoutePath` or `@ApiPath`, and what that
+ * tells us about strings used with it.
+ *
+ * Implementations add whatever else their annotation says, e.g. [RoutePathTarget.type].
+ *
+ * @property mustExist Whether the path should lead to something that exists, from the annotation's `mustExist`
+ *   argument.
+ */
+interface PathTarget {
+    val mustExist: Boolean
+}
+
+/**
  * A Kobweb annotation for parameters and properties that hold some kind of path, e.g. `@RoutePath` on `Link`'s `path`,
  * which tells us what strings used with them should look like.
  *
@@ -42,7 +55,7 @@ import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
  *
  * @param T What a string's target tells us about it, e.g. [RoutePathTarget].
  * @property classId The annotation class.
- * @property read Returns what an instance of the annotation says, e.g. from its arguments.
+ * @property toPathTarget Returns what an instance of the annotation says, e.g. from its arguments.
  * @property legacyParameters Parameters that hold a path, by the function they belong to, as (parameter name, target)
  *   pairs.
  * @property legacyConstructorParameters Like [legacyParameters], but for constructors, by the class they belong to.
@@ -50,9 +63,9 @@ import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
  *   like.
  * @property legacySetters Property setters that take a path, i.e. what strings assigned to them should look like.
  */
-class PathAnnotation<T : Any>(
+class PathAnnotation<T : PathTarget>(
     val classId: ClassId,
-    val read: (KaAnnotation) -> T,
+    val toPathTarget: (KaAnnotation) -> T,
     val legacyParameters: Map<CallableId, Pair<String, T>> = emptyMap(),
     val legacyConstructorParameters: Map<ClassId, Pair<String, T>> = emptyMap(),
     val legacyGetters: Map<CallableId, T> = emptyMap(),
@@ -189,13 +202,13 @@ fun Project.findTargetNames(annotation: PathAnnotation<*>): Set<String> = buildS
 }
 
 /**
- * Reads this declaration's [annotation], if it has one.
+ * Returns the path target that this declaration's [annotation] describes, if it has one.
  */
 // The session isn't used, but a `KaAnnotated` is only valid inside one anyway, so this documents that
 @Suppress("UNUSED_PARAMETER")
 context(_: KaSession)
-private fun <T : Any> KaAnnotated.readPathAnnotation(annotation: PathAnnotation<T>): T? {
-    return annotations[annotation.classId].firstOrNull()?.let(annotation.read)
+private fun <T : PathTarget> KaAnnotated.findPathTarget(annotation: PathAnnotation<T>): T? {
+    return annotations[annotation.classId].firstOrNull()?.let(annotation.toPathTarget)
 }
 
 /**
@@ -203,13 +216,13 @@ private fun <T : Any> KaAnnotated.readPathAnnotation(annotation: PathAnnotation<
  * [annotation] (or is one of its legacy parameters).
  */
 context(kaSession: KaSession)
-private fun <T : Any> KtStringTemplateExpression.findParameterPathTarget(annotation: PathAnnotation<T>): T? =
+private fun <T : PathTarget> KtStringTemplateExpression.findParameterPathTarget(annotation: PathAnnotation<T>): T? =
     with(kaSession) {
         val argument = parent as? KtValueArgument ?: return null
         val callElement = argument.getStrictParentOfType<KtCallElement>() ?: return null
         val call = callElement.resolveToCall()?.singleFunctionCallOrNull() ?: return null
         val parameter = call.argumentMapping[this@findParameterPathTarget]?.symbol ?: return null
-        parameter.readPathAnnotation(annotation)?.let { return it }
+        parameter.findPathTarget(annotation)?.let { return it }
 
         val (legacyName, legacyTarget) = when (val function = call.symbol) {
             // Constructors don't have a callable ID of their own
@@ -233,10 +246,10 @@ private fun KtExpression.resolveToProperty(): KaPropertySymbol? = with(kaSession
  * [annotation] (or its getter is, which takes priority, as that's what describes the value being compared).
  */
 context(_: KaSession)
-private fun <T : Any> KtStringTemplateExpression.findComparedPathTarget(annotation: PathAnnotation<T>): T? {
+private fun <T : PathTarget> KtStringTemplateExpression.findComparedPathTarget(annotation: PathAnnotation<T>): T? {
     val property = findComparedExpression()?.resolveToProperty() ?: return null
-    return property.getter?.readPathAnnotation(annotation)
-        ?: property.readPathAnnotation(annotation)
+    return property.getter?.findPathTarget(annotation)
+        ?: property.findPathTarget(annotation)
         ?: annotation.legacyGetters[property.callableId]
 }
 
@@ -245,24 +258,24 @@ private fun <T : Any> KtStringTemplateExpression.findComparedPathTarget(annotati
  * (or its setter is, which takes priority, as that's what describes the value being assigned).
  */
 context(_: KaSession)
-private fun <T : Any> KtStringTemplateExpression.findAssignedPathTarget(annotation: PathAnnotation<T>): T? {
+private fun <T : PathTarget> KtStringTemplateExpression.findAssignedPathTarget(annotation: PathAnnotation<T>): T? {
     val property = findAssignedExpression()?.resolveToProperty() ?: return null
-    return property.setter?.readPathAnnotation(annotation)
-        ?: property.readPathAnnotation(annotation)
+    return property.setter?.findPathTarget(annotation)
+        ?: property.findPathTarget(annotation)
         ?: annotation.legacySetters[property.callableId]
 }
 
 /**
- * Reads the [annotation] that describes this property's initial value, if any.
+ * Returns the path target that describes this property's initial value, from its [annotation], if any.
  *
  * The setter's annotation takes priority, as it describes values written into the property (even though Kotlin
  * doesn't actually call the setter for an initial value), then the property's, then the getter's.
  */
 context(_: KaSession)
-private fun <T : Any> KaPropertySymbol.readInitialValuePathAnnotation(annotation: PathAnnotation<T>): T? {
-    return setter?.readPathAnnotation(annotation)
-        ?: readPathAnnotation(annotation)
-        ?: getter?.readPathAnnotation(annotation)
+private fun <T : PathTarget> KaPropertySymbol.findInitialValuePathTarget(annotation: PathAnnotation<T>): T? {
+    return setter?.findPathTarget(annotation)
+        ?: findPathTarget(annotation)
+        ?: getter?.findPathTarget(annotation)
 }
 
 /**
@@ -273,17 +286,17 @@ private fun <T : Any> KaPropertySymbol.readInitialValuePathAnnotation(annotation
  * also the property's initial value, so its annotations count too.
  */
 context(kaSession: KaSession)
-private fun <T : Any> KtStringTemplateExpression.findInitializedPathTarget(annotation: PathAnnotation<T>): T? =
+private fun <T : PathTarget> KtStringTemplateExpression.findInitializedPathTarget(annotation: PathAnnotation<T>): T? =
     with(kaSession) {
         return when (val declaration = findInitializedDeclaration()) {
             is KtParameter -> {
                 val parameter = declaration.symbol
-                parameter.readPathAnnotation(annotation)
+                parameter.findPathTarget(annotation)
                     ?: (parameter as? KaValueParameterSymbol)?.generatedPrimaryConstructorProperty
-                        ?.readInitialValuePathAnnotation(annotation)
+                        ?.findInitialValuePathTarget(annotation)
             }
 
-            is KtProperty -> (declaration.symbol as? KaPropertySymbol)?.readInitialValuePathAnnotation(annotation)
+            is KtProperty -> (declaration.symbol as? KaPropertySymbol)?.findInitialValuePathTarget(annotation)
             else -> null
         }
     }
@@ -297,7 +310,7 @@ private fun <T : Any> KtStringTemplateExpression.findInitializedPathTarget(annot
  * This method must be called inside an `analyze` block.
  */
 context(_: KaSession)
-fun <T : Any> KtStringTemplateExpression.findPathTarget(annotation: PathAnnotation<T>): T? {
+fun <T : PathTarget> KtStringTemplateExpression.findPathTarget(annotation: PathAnnotation<T>): T? {
     return findParameterPathTarget(annotation)
         ?: findComparedPathTarget(annotation)
         ?: findAssignedPathTarget(annotation)

@@ -6,6 +6,7 @@ import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiModificationTracker
 import com.varabyte.kobweb.intellij.util.kobweb.route.PathAnnotation
+import com.varabyte.kobweb.intellij.util.kobweb.route.PathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.route.findTargetName
 import com.varabyte.kobweb.intellij.util.kobweb.route.findTargetNames
@@ -31,7 +32,7 @@ private val KOBWEB_STREAMS_PACKAGE = FqName("com.varabyte.kobweb.streams")
  * @property mustExist Whether the path should lead to an endpoint that exists. False for targets marked
  *   `@ApiPath(mustExist = false)` (or `@ApiStreamPath(mustExist = false)`).
  */
-class ApiPathTarget(val kind: Kind, val mustExist: Boolean) {
+class ApiPathTarget(val kind: Kind, override val mustExist: Boolean) : PathTarget {
     enum class Kind {
         /**
          * An `@Api` function, from `@ApiPath`, e.g. "hello" for `/api/hello`. These paths are relative to "/api/" and
@@ -107,7 +108,7 @@ private val LEGACY_API_STREAM_GETTERS = buildMap {
  */
 private val API_PATH_ANNOTATION = PathAnnotation(
     ClassId(KOBWEB_API_PACKAGE, Name.identifier("ApiPath")),
-    read = { apiPath ->
+    toPathTarget = { apiPath ->
         ApiPathTarget(ApiPathTarget.Kind.API, apiPath.readBooleanArgument("mustExist", default = true))
     },
     legacyParameters = LEGACY_API_PARAMETERS,
@@ -118,7 +119,7 @@ private val API_PATH_ANNOTATION = PathAnnotation(
  */
 private val API_STREAM_PATH_ANNOTATION = PathAnnotation(
     ClassId(KOBWEB_API_PACKAGE, Name.identifier("ApiStreamPath")),
-    read = { apiStreamPath ->
+    toPathTarget = { apiStreamPath ->
         ApiPathTarget(ApiPathTarget.Kind.STREAM, apiStreamPath.readBooleanArgument("mustExist", default = true))
     },
     legacyParameters = LEGACY_API_STREAM_PARAMETERS,
