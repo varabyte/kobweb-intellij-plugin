@@ -10,7 +10,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteRedirects
 import com.varabyte.kobweb.intellij.util.kobweb.route.hasRoutePathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPath
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPathRange
-import com.varabyte.kobweb.intellij.util.kobweb.route.mayHaveRoutePathTarget
+import com.varabyte.kobweb.intellij.util.kobweb.route.mayHavePathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.route.redirectedBy
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -34,7 +34,7 @@ class RedirectedRouteInspection : LocalInspectionTool() {
         return object : KtVisitorVoid() {
             override fun visitStringTemplateExpression(expression: KtStringTemplateExpression) {
                 super.visitStringTemplateExpression(expression)
-                if (!expression.mayHaveRoutePathTarget()) return
+                if (!expression.mayHavePathTarget()) return
                 val path = expression.linkPath ?: return
                 val redirectedPath = path.redirectedBy(redirects).takeIf { it !== path } ?: return
                 // Checked last, as it's the most expensive check

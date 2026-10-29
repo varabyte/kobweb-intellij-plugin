@@ -1,31 +1,12 @@
 package com.varabyte.kobweb.intellij.util.kobweb.route
 
 import org.jetbrains.kotlin.analysis.api.KaSession
-import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotated
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationValue
-import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
-import org.jetbrains.kotlin.analysis.api.resolution.symbol
-import org.jetbrains.kotlin.analysis.api.symbols.KaPropertySymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
-import org.jetbrains.kotlin.idea.references.mainReference
-import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.psi.KtBinaryExpression
-import org.jetbrains.kotlin.psi.KtCallElement
-import org.jetbrains.kotlin.psi.KtCallableDeclaration
-import org.jetbrains.kotlin.psi.KtExpression
-import org.jetbrains.kotlin.psi.KtNameReferenceExpression
-import org.jetbrains.kotlin.psi.KtParameter
-import org.jetbrains.kotlin.psi.KtProperty
-import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
-import org.jetbrains.kotlin.psi.KtValueArgument
-import org.jetbrains.kotlin.psi.KtWhenConditionWithExpression
-import org.jetbrains.kotlin.psi.KtWhenExpression
-import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 
 private val KOBWEB_CORE_PACKAGE = FqName("com.varabyte.kobweb.core")
 private val KOBWEB_NAVIGATION_PACKAGE = FqName("com.varabyte.kobweb.navigation")
@@ -68,14 +49,14 @@ class RoutePathTarget(val type: Type, val mustExist: Boolean) {
  */
 private val LEGACY_ROUTE_PARAMETERS = mapOf(
     CallableId(FqName("com.varabyte.kobweb.silk.components.navigation"), Name.identifier("Link"))
-        to ("path" to RoutePathTarget.Type.URL),
+        to ("path" to RoutePathTarget(RoutePathTarget.Type.URL, mustExist = true)),
     CallableId(KOBWEB_NAVIGATION_PACKAGE, Name.identifier("Anchor"))
-        to ("href" to RoutePathTarget.Type.URL),
+        to ("href" to RoutePathTarget(RoutePathTarget.Type.URL, mustExist = true)),
     // Can also navigate to other sites
     CallableId(KOBWEB_NAVIGATION_PACKAGE, FqName("Router"), Name.identifier("navigateTo"))
-        to ("pathQueryAndFragment" to RoutePathTarget.Type.URL),
+        to ("pathQueryAndFragment" to RoutePathTarget(RoutePathTarget.Type.URL, mustExist = true)),
     CallableId(KOBWEB_NAVIGATION_PACKAGE, FqName("Router"), Name.identifier("tryRoutingTo"))
-        to ("pathQueryAndFragment" to RoutePathTarget.Type.PATH_QUERY_AND_FRAGMENT),
+        to ("pathQueryAndFragment" to RoutePathTarget(RoutePathTarget.Type.PATH_QUERY_AND_FRAGMENT, mustExist = true)),
 )
 
 /**
@@ -118,189 +99,36 @@ private val LEGACY_ROUTE_SETTERS = mapOf(
 )
 
 /**
- * Returns the expression this string is compared against, if any, e.g. `ctx.route.path` for the `"/blog"` in
- * `ctx.route.path == "/blog"` or in `when (ctx.route.path) { "/blog" -> ... }`.
+ * Kobweb's `@RoutePath` annotation, along with the declarations older versions of Kobweb didn't annotate yet.
  */
-private fun KtStringTemplateExpression.findComparedExpression(): KtExpression? {
-    return when (val parent = parent) {
-        is KtBinaryExpression -> {
-            if (parent.operationToken != KtTokens.EQEQ && parent.operationToken != KtTokens.EXCLEQ) return null
-            if (parent.left == this) parent.right else parent.left
-        }
-
-        is KtWhenConditionWithExpression -> {
-            val whenExpr = parent.getStrictParentOfType<KtWhenExpression>() ?: return null
-            whenExpr.subjectVariable?.initializer ?: whenExpr.subjectExpression
-        }
-
-        else -> null
-    }
-}
-
-/**
- * Returns the expression this string is assigned to, if any, e.g. `path` for the `"/blog"` in `path = "/blog"`.
- */
-private fun KtStringTemplateExpression.findAssignedExpression(): KtExpression? {
-    val assignment = parent as? KtBinaryExpression ?: return null
-    if (assignment.operationToken != KtTokens.EQ || assignment.right != this) return null
-    return assignment.left
-}
-
-/**
- * Returns the declaration this string is the initial value of, if any, e.g. the `home` property for the `"/blog"` in
- * `val home = "/blog"`, or the default `path` parameter for the `"/blog"` in `fun NavItem(path: String = "/blog")`.
- */
-private fun KtStringTemplateExpression.findInitializedDeclaration(): KtCallableDeclaration? {
-    return when (val parent = parent) {
-        is KtProperty -> parent.takeIf { it.initializer == this }
-        is KtParameter -> parent.takeIf { it.defaultValue == this }
-        else -> null
-    }
-}
-
-/**
- * Returns true if this string is used in a way that could have a [RoutePathTarget], i.e. it's passed into a function,
- * compared against something, assigned to something, or the initial value of something.
- *
- * This is a quick syntax check to do before [findRoutePathTarget], which requires Kotlin analysis.
- *
- * See also: [hasRoutePathTarget], the complete (but more expensive) check.
- */
-fun KtStringTemplateExpression.mayHaveRoutePathTarget(): Boolean {
-    return parent is KtValueArgument
-        || findComparedExpression() != null
-        || findAssignedExpression() != null
-        || findInitializedDeclaration() != null
-}
-
-/**
- * Reads this declaration's `@RoutePath` annotation, if it has one.
- */
-// The session isn't used, but a `KaAnnotated` is only valid inside one anyway, so this documents that
-@Suppress("UNUSED_PARAMETER")
-context(_: KaSession)
-private fun KaAnnotated.readRoutePathAnnotation(): RoutePathTarget? {
-    val routePath = annotations[ROUTE_PATH_CLASS_ID].firstOrNull() ?: return null
-    // Arguments left at their default value aren't listed
-    fun findArgument(name: String) = routePath.arguments.firstOrNull { it.name.asString() == name }?.expression
-    val type = (findArgument("type") as? KaAnnotationValue.EnumEntryValue)?.callableId?.callableName?.asString()
-        ?.let { typeName -> RoutePathTarget.Type.entries.firstOrNull { it.name == typeName } }
-        ?: RoutePathTarget.Type.URL
-    val mustExist = (findArgument("mustExist") as? KaAnnotationValue.ConstantValue)?.value?.value as? Boolean
-        ?: true
-    return RoutePathTarget(type, mustExist)
-}
-
-/**
- * Returns the parameter that this string is passed into if that parameter takes a route.
- *
- * Such parameters are annotated with Kobweb's `@RoutePath` (which also lets users mark their own), although older
- * versions of Kobweb didn't have it, so we also recognize the parameters it was later added to.
- */
-context(kaSession: KaSession)
-private fun KtStringTemplateExpression.findRoutePathParameter(): RoutePathTarget? = with(kaSession) {
-    val argument = parent as? KtValueArgument ?: return null
-    val callElement = argument.getStrictParentOfType<KtCallElement>() ?: return null
-    val call = callElement.resolveToCall()?.singleFunctionCallOrNull() ?: return null
-    val parameter = call.argumentMapping[this@findRoutePathParameter]?.symbol ?: return null
-    parameter.readRoutePathAnnotation()?.let { return it }
-
-    val callableId = call.symbol.callableId ?: return null
-    val (legacyName, legacyType) = LEGACY_ROUTE_PARAMETERS[callableId] ?: return null
-    if (legacyName != parameter.name.asString()) return null
-    return RoutePathTarget(legacyType, mustExist = true)
-}
-
-/**
- * Returns the property this expression refers to, if any, e.g. `path` for `ctx.route.path`.
- */
-context(kaSession: KaSession)
-private fun KtExpression.resolveToProperty(): KaPropertySymbol? = with(kaSession) {
-    val reference = (this@resolveToProperty as? KtQualifiedExpression)?.selectorExpression ?: this@resolveToProperty
-    return (reference as? KtNameReferenceExpression)?.mainReference?.resolveToSymbol() as? KaPropertySymbol
-}
-
-/**
- * Returns the property that this string is compared against if that property holds a route, i.e. it's annotated with
- * Kobweb's `@RoutePath` (or its getter is, which takes priority, as that's what describes the value being compared).
- *
- * Older versions of Kobweb didn't have the annotation, so we also recognize the properties it was later added to, e.g.
- * `ctx.route.path`.
- */
-context(_: KaSession)
-private fun KtStringTemplateExpression.findComparedRoutePathProperty(): RoutePathTarget? {
-    val property = findComparedExpression()?.resolveToProperty() ?: return null
-    return property.getter?.readRoutePathAnnotation()
-        ?: property.readRoutePathAnnotation()
-        ?: LEGACY_ROUTE_GETTERS[property.callableId]
-}
-
-/**
- * Returns the property that this string is assigned to if that property takes a route, i.e. it's annotated with
- * Kobweb's `@RoutePath` (or its setter is, which takes priority, as that's what describes the value being assigned).
- *
- * Older versions of Kobweb didn't have the annotation, so we also recognize the properties it was later added to, e.g.
- * `RouteInterceptorScope.path`.
- */
-context(_: KaSession)
-private fun KtStringTemplateExpression.findAssignedRoutePathProperty(): RoutePathTarget? {
-    val property = findAssignedExpression()?.resolveToProperty() ?: return null
-    return property.setter?.readRoutePathAnnotation()
-        ?: property.readRoutePathAnnotation()
-        ?: LEGACY_ROUTE_SETTERS[property.callableId]
-}
-
-/**
- * Reads the `@RoutePath` annotation that describes this property's initial value, if any.
- *
- * The setter's annotation takes priority, as it describes values written into the property (even though Kotlin
- * doesn't actually call the setter for an initial value), then the property's, then the getter's.
- */
-context(_: KaSession)
-private fun KaPropertySymbol.readInitialValueRoutePathAnnotation(): RoutePathTarget? {
-    return setter?.readRoutePathAnnotation()
-        ?: readRoutePathAnnotation()
-        ?: getter?.readRoutePathAnnotation()
-}
-
-/**
- * Returns the declaration that this string is the initial value of if that declaration holds a route, i.e. it's
- * annotated with Kobweb's `@RoutePath`, e.g. `@RoutePath val home = "/blog"` or
- * `fun NavItem(@RoutePath path: String = "/blog")`.
- *
- * The default value of a constructor property (e.g. `class Nav(@property:RoutePath val path: String = "/blog")`) is
- * also the property's initial value, so its annotations count too.
- */
-context(kaSession: KaSession)
-private fun KtStringTemplateExpression.findInitializedRoutePathDeclaration(): RoutePathTarget? = with(kaSession) {
-    return when (val declaration = findInitializedDeclaration()) {
-        is KtParameter -> {
-            val parameter = declaration.symbol
-            parameter.readRoutePathAnnotation()
-                ?: (parameter as? KaValueParameterSymbol)?.generatedPrimaryConstructorProperty
-                    ?.readInitialValueRoutePathAnnotation()
-        }
-
-        is KtProperty -> (declaration.symbol as? KaPropertySymbol)?.readInitialValueRoutePathAnnotation()
-        else -> null
-    }
-}
+private val ROUTE_PATH_ANNOTATION = PathAnnotation(
+    ROUTE_PATH_CLASS_ID,
+    read = { routePath ->
+        val type = (routePath.findArgument("type") as? KaAnnotationValue.EnumEntryValue)
+            ?.callableId?.callableName?.asString()
+            ?.let { typeName -> RoutePathTarget.Type.entries.firstOrNull { it.name == typeName } }
+            ?: RoutePathTarget.Type.URL
+        RoutePathTarget(type, routePath.readBooleanArgument("mustExist", default = true))
+    },
+    legacyParameters = LEGACY_ROUTE_PARAMETERS,
+    legacyGetters = LEGACY_ROUTE_GETTERS,
+    legacySetters = LEGACY_ROUTE_SETTERS,
+)
 
 /**
  * Returns what this string is used with if that holds a route (see [RoutePathTarget]), e.g. `Link`'s `path` parameter
  * for the `"/blog"` in `Link("/blog")`.
  *
- * Call [mayHaveRoutePathTarget] first to skip strings that can't have one without running analysis.
+ * Such parameters and properties are annotated with Kobweb's `@RoutePath` (which also lets users mark their own),
+ * although older versions of Kobweb didn't have it, so we also recognize the declarations it was later added to, e.g.
+ * `ctx.route.path`.
+ *
+ * Call [mayHavePathTarget] first to skip strings that can't have one without running analysis.
  *
  * This method must be called inside an `analyze` block.
  */
 context(_: KaSession)
-fun KtStringTemplateExpression.findRoutePathTarget(): RoutePathTarget? {
-    return findRoutePathParameter()
-        ?: findComparedRoutePathProperty()
-        ?: findAssignedRoutePathProperty()
-        ?: findInitializedRoutePathDeclaration()
-}
+fun KtStringTemplateExpression.findRoutePathTarget(): RoutePathTarget? = findPathTarget(ROUTE_PATH_ANNOTATION)
 
 /**
  * Returns true if this string is used with something that holds a route (see [findRoutePathTarget]).

@@ -36,7 +36,7 @@ sealed interface RouteValueSimplification {
 
             // A dynamic segment named after the file can be inferred, e.g. "{post}" in "Post.kt" can be "{}"
             val lastSegment = DynamicRouteSegment.tryCreate(routeOverride.substringAfterLast('/'))
-                ?.takeIf { !it.isInferred && it.name == PageRouteResolver.slugFor(fileName) }
+                ?.takeIf { !it.isInferred && it.name == RouteResolver.slugFor(fileName) }
                 ?: return null
             val inferredSegment = lastSegment.withReplacedName("").rawValue
             return listOfNotNull(
@@ -56,7 +56,7 @@ sealed interface RouteValueSimplification {
          * final route. That's why it's reported as an error (see `InvalidRouteInspection`) instead of as redundant.
          */
         fun forPackageMapping(pkg: FqName, packageMapping: String): RouteValueSimplification? {
-            val packageSegment = PageRouteResolver.segmentFor(pkg)
+            val packageSegment = RouteResolver.segmentFor(pkg)
             if (packageMapping == packageSegment) return Redundant
 
             // A dynamic segment named after the package can be inferred, e.g. "{user}" for "pages.user" can be "{}"

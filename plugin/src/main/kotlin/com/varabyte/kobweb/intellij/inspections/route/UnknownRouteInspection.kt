@@ -12,7 +12,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.route.findRoutePathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteRedirects
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPath
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPathRange
-import com.varabyte.kobweb.intellij.util.kobweb.route.mayHaveRoutePathTarget
+import com.varabyte.kobweb.intellij.util.kobweb.route.mayHavePathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.route.mightBeRedirectedBy
 import com.varabyte.kobweb.intellij.util.kobweb.route.redirectedBy
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
@@ -38,7 +38,7 @@ class UnknownRouteInspection : LocalInspectionTool() {
         return object : KtVisitorVoid() {
             override fun visitStringTemplateExpression(expression: KtStringTemplateExpression) {
                 super.visitStringTemplateExpression(expression)
-                if (!expression.mayHaveRoutePathTarget()) return
+                if (!expression.mayHavePathTarget()) return
                 val path = expression.linkPath ?: return
                 // API routes are served by the backend, not by pages
                 if (path.segments.first().text == "api") return

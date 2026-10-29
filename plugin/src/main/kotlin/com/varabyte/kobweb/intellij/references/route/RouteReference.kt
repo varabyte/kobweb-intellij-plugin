@@ -10,7 +10,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteRedirects
 import com.varabyte.kobweb.intellij.util.kobweb.route.hasRoutePathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPath
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPathRange
-import com.varabyte.kobweb.intellij.util.kobweb.route.mayHaveRoutePathTarget
+import com.varabyte.kobweb.intellij.util.kobweb.route.mayHavePathTarget
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
@@ -23,7 +23,7 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
  * Segments that aren't known until runtime (e.g. the `$id` in `"/posts/$id"`) only match dynamic segments (see
  * [LinkPath.matches]).
  *
- * This reference is created for any absolute path used in a way that could hold a route (see [mayHaveRoutePathTarget]),
+ * This reference is created for any absolute path used in a way that could hold a route (see [mayHavePathTarget]),
  * but it only resolves if it actually does (see [hasRoutePathTarget]), which requires Kotlin analysis to check.
  *
  * Note that a page's route comes from its file and package, not its function's name, so renaming a page function

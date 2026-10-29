@@ -9,7 +9,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.route.RoutePathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.route.findRoutePathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPathRange
-import com.varabyte.kobweb.intellij.util.kobweb.route.mayHaveRoutePathTarget
+import com.varabyte.kobweb.intellij.util.kobweb.route.mayHavePathTarget
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
@@ -44,7 +44,7 @@ class InvalidRouteFormatInspection : LocalInspectionTool() {
         return object : KtVisitorVoid() {
             override fun visitStringTemplateExpression(expression: KtStringTemplateExpression) {
                 super.visitStringTemplateExpression(expression)
-                if (!expression.mayHaveRoutePathTarget()) return
+                if (!expression.mayHavePathTarget()) return
 
                 val isFullUrl = expression.isFullUrl
                 val valueRange = ElementManipulators.getValueTextRange(expression)
