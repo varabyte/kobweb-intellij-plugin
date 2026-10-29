@@ -66,6 +66,7 @@ class LinkPathTest {
     fun segmentRangesSayWhereEachSegmentWasWritten() {
         assertThat(path("/users/bob/posts")?.segmentRanges).isEqualTo(listOf(1..5, 7..9, 11..15))
         // Ranges stop where the query or fragment begins, and an empty segment has an empty range
+        @Suppress("EmptyRange")
         assertThat(path("/blog/?page=2")?.segmentRanges).isEqualTo(listOf(1..4, 6 until 6))
         // A template expression is part of the segment it's in
         assertThat(path("/posts/post-$/edit")?.segmentRanges).isEqualTo(listOf(1..5, 7..12, 14..17))
