@@ -9,8 +9,9 @@ import org.jetbrains.kotlin.idea.base.util.module
 /** Sanity checks that the fixture sets up modules like a real Kobweb site's `jsMain` and `jvmMain`. */
 class KobwebFullStackTestCaseTest : KobwebFullStackTestCase() {
     fun testJvmModuleUsesKobwebBackendLibraries() {
-        val file = addJvmFileToProject(
-            "com/example/api/Hello.kt",
+        val file = configureByText(
+            Platform.Jvm,
+            "Hello.kt",
             // language=kotlin
             """
             package com.example.api
@@ -24,12 +25,13 @@ class KobwebFullStackTestCaseTest : KobwebFullStackTestCase() {
             }
             """.trimIndent()
         )
-        myFixture.configureFromExistingVirtualFile(file.virtualFile)
+        assertThat(file.module).isEqualTo(jvmModule)
         myFixture.checkHighlighting()
     }
 
     fun testJsModuleCantSeeJvmCode() {
-        addJvmFileToProject(
+        addFileToProject(
+            Platform.Jvm,
             "com/example/Backend.kt",
             // language=kotlin
             """
@@ -38,7 +40,8 @@ class KobwebFullStackTestCaseTest : KobwebFullStackTestCase() {
             fun backendOnly() = Unit
             """.trimIndent()
         )
-        myFixture.configureByText(
+        configureByText(
+            Platform.Js,
             "Frontend.kt",
             // language=kotlin
             """
@@ -53,8 +56,8 @@ class KobwebFullStackTestCaseTest : KobwebFullStackTestCase() {
     }
 
     fun testBothModulesBelongToSameKobwebProject() {
-        val jvmFile = addJvmFileToProject("com/example/Backend.kt", "package com.example")
-        val jsFile = addJsFileToProject("com/example/Frontend.kt", "package com.example")
+        val jvmFile = addFileToProject(Platform.Jvm, "com/example/Backend.kt", "package com.example")
+        val jsFile = addFileToProject(Platform.Js, "com/example/Frontend.kt", "package com.example")
 
         assertThat(jsFile.module).isEqualTo(jsModule)
         assertThat(jvmFile.module).isEqualTo(jvmModule)

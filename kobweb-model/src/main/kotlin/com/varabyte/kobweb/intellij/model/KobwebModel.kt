@@ -26,6 +26,7 @@ interface KobwebModel : Serializable {
         // Kobweb's defaults for its settings (see the conventions set in `KobwebBlock` in the Kobweb Gradle plugin),
         // for when we can't read the actual values
         const val DEFAULT_PAGES_PACKAGE = ".pages"
+        const val DEFAULT_API_PACKAGE = ".api"
         const val DEFAULT_PUBLIC_PATH = "public"
     }
 
@@ -50,6 +51,16 @@ interface KobwebModel : Serializable {
      * This is null if this model was saved by an older version of the plugin, until the next Gradle sync.
      */
     val pagesPackage: String?
+
+    /**
+     * The root package of all API endpoints, from the `kobweb { apiPackage.set(...) }` value in the build script (e.g.
+     * ".api").
+     *
+     * Like other Kobweb packages, this may start with a leading period, in which case it is relative to [group].
+     *
+     * This is null if this model was saved by an older version of the plugin, until the next Gradle sync.
+     */
+    val apiPackage: String?
 
     /**
      * The folder inside the project's resources that Kobweb serves files from as is, from the

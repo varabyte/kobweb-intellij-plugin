@@ -48,6 +48,7 @@ private fun Module.findKobwebProject(kobwebProjectsCache: KobwebProjectCacheServ
             // These are only missing if IntelliJ restored a model saved by an older version of this plugin, so assume
             // Kobweb's defaults until the next Gradle sync
             kobwebModel.pagesPackage ?: KobwebModel.DEFAULT_PAGES_PACKAGE,
+            kobwebModel.apiPackage ?: KobwebModel.DEFAULT_API_PACKAGE,
             kobwebModel.publicPath ?: KobwebModel.DEFAULT_PUBLIC_PATH,
             kobwebModel.worker,
         ).also {
@@ -122,9 +123,16 @@ fun Module.findKobwebProject(): KobwebProject? {
  * The fully qualified root package of this project's pages, e.g. "com.example.pages", or null if it can't be
  * determined (e.g. it's relative but the project's group is unknown).
  */
-val KobwebProject.qualifiedPagesPackage: FqName?
-    get() {
-        // See `PsiElement.kobwebGroup` for why we treat an empty group as unknown
-        val shortcuts = PackageShortcuts(group?.takeIf { it.isNotEmpty() }?.let(::FqName))
-        return shortcuts.resolve(pagesPackage)
-    }
+val KobwebProject.qualifiedPagesPackage: FqName? get() = qualify(pagesPackage)
+
+/**
+ * The fully qualified root package of this project's API endpoints, e.g. "com.example.api", or null if it can't be
+ * determined (e.g. it's relative but the project's group is unknown).
+ */
+val KobwebProject.qualifiedApiPackage: FqName? get() = qualify(apiPackage)
+
+private fun KobwebProject.qualify(pkg: String): FqName? {
+    // See `PsiElement.kobwebGroup` for why we treat an empty group as unknown
+    val shortcuts = PackageShortcuts(group?.takeIf { it.isNotEmpty() }?.let(::FqName))
+    return shortcuts.resolve(pkg)
+}

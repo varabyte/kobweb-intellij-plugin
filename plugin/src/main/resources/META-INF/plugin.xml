@@ -220,11 +220,22 @@
                 id="kobwebRouteCompletionConfidence"
                 order="before kotlinSkipAutopopupInStrings"
                 implementationClass="com.varabyte.kobweb.intellij.completion.route.RouteCompletionConfidence"/>
+        <!-- Must run before Kotlin's, which suppresses auto-popups in all strings -->
+        <completion.confidence
+                language="kotlin"
+                id="kobwebApiPathCompletionConfidence"
+                order="before kotlinSkipAutopopupInStrings"
+                implementationClass="com.varabyte.kobweb.intellij.completion.api.ApiPathCompletionConfidence"/>
         <!-- Runs first, so that it can stop IntelliJ from suggesting file paths in routes -->
         <completion.contributor
                 language="kotlin"
                 order="first"
                 implementationClass="com.varabyte.kobweb.intellij.completion.route.RouteCompletionContributor"/>
+        <!-- Runs first, so that it can stop IntelliJ from suggesting file paths in API paths -->
+        <completion.contributor
+                language="kotlin"
+                order="first"
+                implementationClass="com.varabyte.kobweb.intellij.completion.api.ApiPathCompletionContributor"/>
         <typedHandler implementation="com.varabyte.kobweb.intellij.completion.route.RouteTypedHandler"/>
         <annotator
                 language="kotlin"

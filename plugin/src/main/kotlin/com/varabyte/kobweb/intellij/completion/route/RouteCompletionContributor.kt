@@ -6,13 +6,9 @@ import com.intellij.codeInsight.completion.CompletionProvider
 import com.intellij.codeInsight.completion.CompletionResultSet
 import com.intellij.codeInsight.completion.CompletionType
 import com.intellij.codeInsight.completion.CompletionUtil
-import com.intellij.codeInsight.completion.InsertHandler
-import com.intellij.codeInsight.completion.InsertionContext
 import com.intellij.codeInsight.completion.PrioritizedLookupElement
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementBuilder
-import com.intellij.codeInsight.template.TemplateManager
-import com.intellij.codeInsight.template.impl.ConstantNode
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.patterns.PlatformPatterns
 import com.intellij.psi.util.parentOfType
@@ -20,7 +16,6 @@ import com.intellij.util.ProcessingContext
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.route.DynamicRouteSegment
 import com.varabyte.kobweb.intellij.util.kobweb.route.PageDefinition
-import com.varabyte.kobweb.intellij.util.kobweb.route.PageRoute
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPages
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPublicFolders
 import com.varabyte.kobweb.intellij.util.kobweb.route.hasRoutePathTarget
@@ -108,32 +103,5 @@ private object RouteCompletionProvider : CompletionProvider<CompletionParameters
             .withTypeText(fqn.substringAfterLast('.'))
             .withIcon(KotlinIcons.FUNCTION)
             .withInsertHandler(if (hasDynamicSegments) DynamicSegmentsInsertHandler else null)
-    }
-}
-
-/**
- * Replaces an inserted route with a template whose variables are its dynamic segments, e.g. "/users/{user}/posts"
- * becomes "/users/user/posts" with "user" selected, ready to be typed over.
- */
-private object DynamicSegmentsInsertHandler : InsertHandler<LookupElement> {
-    override fun handleInsert(context: InsertionContext, item: LookupElement) {
-        val route = PageRoute(item.lookupString)
-        context.document.deleteString(context.startOffset, context.tailOffset)
-        context.editor.caretModel.moveToOffset(context.startOffset)
-
-        val templateManager = TemplateManager.getInstance(context.project)
-        val template = templateManager.createTemplate("", "").apply {
-            isToReformat = false
-            route.segments.forEachIndexed { i, segment ->
-                addTextSegment("/")
-                val dynamicSegment = DynamicRouteSegment.tryCreate(segment)
-                if (dynamicSegment == null) {
-                    addTextSegment(segment)
-                } else {
-                    addVariable("segment$i", ConstantNode(dynamicSegment.name), true)
-                }
-            }
-        }
-        templateManager.startTemplate(context.editor, template)
     }
 }

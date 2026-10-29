@@ -26,7 +26,9 @@ import java.nio.file.Paths
  * second module ([jvmModule]) is a plain JVM module with Kobweb's backend libraries. Neither module depends on the
  * other, but both belong to the same Kobweb project.
  *
- * Add files to them with [addJsFileToProject] and [addJvmFileToProject]. (`myFixture` adds files to the JS module.)
+ * Add files to them with [addFileToProject], or open new ones in the editor with [configureByText], passing the
+ * [Platform] whose module the file goes in. Prefer these over `myFixture` (which adds files to the JS module) even for
+ * JS files, so that it's always clear which module each file belongs to.
  */
 abstract class KobwebFullStackTestCase : KobwebApplicationTestCase() {
     companion object {
@@ -71,19 +73,42 @@ abstract class KobwebFullStackTestCase : KobwebApplicationTestCase() {
 
     override val kobwebModules get() = listOf(jsModule, jvmModule)
 
-    /**
-     * Adds the target file to the [jsModule].
-     *
-     * Note: This is exactly the same as calling `myFixture.addFileToProject` but should be preferred for readability.
-     */
-    protected fun addJsFileToProject(relativePath: String, text: String): PsiFile {
-        return myFixture.addFileToProject(relativePath, text)
+    /** Which of the test's modules a file goes in. */
+    protected enum class Platform {
+        /** The [jsModule], i.e. the site's frontend. */
+        Js,
+
+        /** The [jvmModule], i.e. the site's backend. */
+        Jvm,
     }
 
-    /** Adds the target file to the [jvmModule]. */
-    protected fun addJvmFileToProject(relativePath: String, text: String): PsiFile {
-        val file = VfsTestUtil.createFile(jvmSourceRoot, relativePath, text)
-        return PsiManager.getInstance(project).findFile(file)!!
+    /**
+     * Adds a file at this path (relative to the module's source root) to the module for [platform].
+     *
+     * Note: Prefer this over `myFixture.addFileToProject` (which adds files to the [jsModule]), for readability.
+     */
+    protected fun addFileToProject(platform: Platform, relativePath: String, text: String): PsiFile {
+        return when (platform) {
+            Platform.Js -> myFixture.addFileToProject(relativePath, text)
+            Platform.Jvm -> {
+                val file = VfsTestUtil.createFile(jvmSourceRoot, relativePath, text)
+                PsiManager.getInstance(project).findFile(file)!!
+            }
+        }
+    }
+
+    /**
+     * Adds a file with this name and text to the module for [platform], and opens it in the editor.
+     *
+     * Note: Prefer this over `myFixture.configureByText` (which adds files to the [jsModule]), for readability.
+     */
+    protected fun configureByText(platform: Platform, fileName: String, text: String): PsiFile {
+        return when (platform) {
+            Platform.Js -> myFixture.configureByText(fileName, text)
+            Platform.Jvm -> addFileToProject(platform, fileName, text).also { file ->
+                myFixture.configureFromExistingVirtualFile(file.virtualFile)
+            }
+        }
     }
 
     override fun tearDown() {

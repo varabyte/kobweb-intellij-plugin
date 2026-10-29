@@ -44,13 +44,18 @@ val KtAnnotationEntry.routeValue: String? get() = routeValueExpression?.unescape
 
 /**
  * Returns all `@file:PackageMapping` annotations in this module.
+ *
+ * @param packageMappingFqn Which `PackageMapping` annotation to look for, as pages and API endpoints each have their own
+ *   (see [PACKAGE_MAPPING_FQN]).
  */
-private fun Module.findPackageMappingAnnotations(): Sequence<KtAnnotationEntry> {
-    // Package mappings only apply to pages in the same module, so we don't need to search dependencies
-    return KotlinAnnotationsIndex[PACKAGE_MAPPING_FQN.shortName().asString(), project, GlobalSearchScope.moduleScope(this)]
+private fun Module.findPackageMappingAnnotations(
+    packageMappingFqn: FqName = PACKAGE_MAPPING_FQN,
+): Sequence<KtAnnotationEntry> {
+    // Package mappings only apply to declarations in the same module, so we don't need to search dependencies
+    return KotlinAnnotationsIndex[packageMappingFqn.shortName().asString(), project, GlobalSearchScope.moduleScope(this)]
         .asSequence()
         .filter { entry -> entry.useSiteTarget?.getAnnotationUseSiteTarget() == AnnotationUseSiteTarget.FILE }
-        .filter { entry -> entry.isAnnotationOfType(PACKAGE_MAPPING_FQN) }
+        .filter { entry -> entry.isAnnotationOfType(packageMappingFqn) }
 }
 
 /**
@@ -65,15 +70,24 @@ fun KtAnnotationEntry.findDuplicatePackageMappings(): List<KtAnnotationEntry> {
         .toList()
 }
 
-private fun Module.collectPackageMappings(pagesPackage: FqName): Map<FqName, String> {
-    return findPackageMappingAnnotations()
+/**
+ * Returns the package mappings in this module that Kobweb uses, by the package they map.
+ *
+ * @param packageMappingFqn See [findPackageMappingAnnotations].
+ * @param rootPackage The package that routes are relative to, e.g. "com.example.pages".
+ */
+internal fun Module.collectPackageMappings(
+    rootPackage: FqName,
+    packageMappingFqn: FqName = PACKAGE_MAPPING_FQN,
+): Map<FqName, String> {
+    return findPackageMappingAnnotations(packageMappingFqn)
         // A package mapped more than once is reported as an error. Until the user fixes it, we sort by file path, so
         // which mapping we use doesn't change randomly
         .sortedBy { entry -> entry.containingFile.virtualFile?.path.orEmpty() }
         .mapNotNull { entry ->
-            // Kobweb ignores package mappings outside the pages package
+            // Kobweb ignores package mappings outside the root package
             val pkg = entry.containingKtFile.packageFqName
-            if (!pkg.isSubpackageOf(pagesPackage)) return@mapNotNull null
+            if (!pkg.isSubpackageOf(rootPackage)) return@mapNotNull null
 
             // Kobweb ignores invalid package mappings (which are reported as errors)
             val mapping = entry.routeValue

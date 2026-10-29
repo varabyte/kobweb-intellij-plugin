@@ -112,4 +112,62 @@ class KobwebMetadataTest {
         assertThat(Json.readKobwebFrontendMetadata("not json")).isNull()
         assertThat(Json.readKobwebFrontendMetadata("[]")).isNull()
     }
+
+    @Test
+    fun readBackendMetadata() {
+        val metadata = Json.readKobwebBackendMetadata(
+            """
+            {
+                "initMethods": [ { "fqn": "com.example.api.initApi" } ],
+                "apiMethods": [
+                    { "fqn": "com.example.api.hello", "route": "/hello" },
+                    { "fqn": "com.example.api.users.user", "route": "/users/{user}" }
+                ],
+                "apiStreamProperties": [
+                    { "fqn": "com.example.api.chat", "route": "/chat" }
+                ]
+            }
+            """.trimIndent()
+        )!!
+
+        assertThat(metadata.apiMethods.map { it.fqn to it.route }).containsExactly(
+            "com.example.api.hello" to "/hello",
+            "com.example.api.users.user" to "/users/{user}",
+        )
+        assertThat(metadata.apiStreams.map { it.fqn to it.route }).containsExactly("com.example.api.chat" to "/chat")
+    }
+
+    @Test
+    fun readBackendMetadataWithLegacyStreamListName() {
+        val metadata = Json.readKobwebBackendMetadata(
+            """
+            { "apiStreamMethods": [ { "fqn": "com.example.api.chat", "route": "/chat" } ] }
+            """.trimIndent()
+        )!!
+
+        assertThat(metadata.apiStreams.map { it.fqn }).containsExactly("com.example.api.chat")
+    }
+
+    @Test
+    fun readBackendMetadataSkipsMalformedEntries() {
+        val metadata = Json.readKobwebBackendMetadata(
+            """
+            {
+                "apiMethods": [
+                    { "fqn": "com.example.api.noRoute" },
+                    { "fqn": "com.example.api.hello", "route": "/hello" }
+                ]
+            }
+            """.trimIndent()
+        )!!
+
+        assertThat(metadata.apiMethods.map { it.fqn }).containsExactly("com.example.api.hello")
+        assertThat(metadata.apiStreams).isEmpty()
+    }
+
+    @Test
+    fun readMalformedBackendMetadata() {
+        assertThat(Json.readKobwebBackendMetadata("not json")).isNull()
+        assertThat(Json.readKobwebBackendMetadata("[]")).isNull()
+    }
 }

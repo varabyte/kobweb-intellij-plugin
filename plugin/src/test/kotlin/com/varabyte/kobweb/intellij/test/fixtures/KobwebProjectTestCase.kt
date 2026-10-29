@@ -121,6 +121,7 @@ abstract class KobwebProjectTestCase(private val projectType: KobwebProjectType)
     protected fun registerKobwebProject(
         group: String? = TEST_GROUP,
         pagesPackage: String = KobwebModel.DEFAULT_PAGES_PACKAGE,
+        apiPackage: String = KobwebModel.DEFAULT_API_PACKAGE,
         publicPath: String = KobwebModel.DEFAULT_PUBLIC_PATH,
         worker: WorkerBlock? = if (projectType == KobwebProjectType.Worker) WorkerBlock() else null,
     ) {
@@ -128,7 +129,7 @@ abstract class KobwebProjectTestCase(private val projectType: KobwebProjectType)
             error("Cannot set worker values for a non-worker project")
         }
 
-        val kobwebProject = KobwebProject("test-shell", projectType, Local(this.module), group, pagesPackage, publicPath, worker)
+        val kobwebProject = KobwebProject("test-shell", projectType, Local(this.module), group, pagesPackage, apiPackage, publicPath, worker)
         val kobwebProjectsCache = project.service<KobwebProjectCacheService>()
         kobwebModules.forEach { module -> kobwebProjectsCache.add(module, kobwebProject) }
 

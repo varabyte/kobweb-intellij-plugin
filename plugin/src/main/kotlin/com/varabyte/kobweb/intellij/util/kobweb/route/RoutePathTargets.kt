@@ -17,9 +17,9 @@ private val KOBWEB_NAVIGATION_PACKAGE = FqName("com.varabyte.kobweb.navigation")
 private val ROUTE_PATH_CLASS_ID = ClassId(KOBWEB_CORE_PACKAGE, Name.identifier("RoutePath"))
 
 /**
- * Something that a route string is used with, which holds a route, e.g. `Link`'s `path` parameter for the `"/blog"` in
- * `Link("/blog")`, or the `ctx.route.path` property for the `"/blog"` in `ctx.route.path == "/blog"`, or the `path`
- * property for the `"/blog"` in `path = "/blog"`.
+ * A parameter or property that holds a route, e.g. `Link`'s `path` parameter, or the `ctx.route.path` property. Strings
+ * used with it (e.g. passed into it, compared against it, or assigned to it) should be one, e.g. "/blog" in
+ * `Link("/blog")`, `ctx.route.path == "/blog"`, or `path = "/blog"`.
  *
  * @property type What the target accepts, from `@RoutePath(type = ...)`.
  * @property mustExist Whether the route should lead to a page (or another resource the site serves). False for targets

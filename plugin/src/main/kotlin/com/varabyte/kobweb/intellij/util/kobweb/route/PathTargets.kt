@@ -1,14 +1,18 @@
 package com.varabyte.kobweb.intellij.util.kobweb.route
 
+import com.intellij.openapi.project.Project
+import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotated
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotation
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationValue
 import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaConstructorSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPropertySymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
 import org.jetbrains.kotlin.idea.references.mainReference
+import org.jetbrains.kotlin.idea.stubindex.KotlinAnnotationsIndex
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
@@ -16,10 +20,14 @@ import org.jetbrains.kotlin.psi.KtBinaryExpression
 import org.jetbrains.kotlin.psi.KtCallElement
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtExpression
+import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtParameter
+import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.KtQualifiedExpression
+import org.jetbrains.kotlin.psi.KtSecondaryConstructor
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.psi.KtWhenConditionWithExpression
@@ -37,6 +45,7 @@ import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
  * @property read Returns what an instance of the annotation says, e.g. from its arguments.
  * @property legacyParameters Parameters that hold a path, by the function they belong to, as (parameter name, target)
  *   pairs.
+ * @property legacyConstructorParameters Like [legacyParameters], but for constructors, by the class they belong to.
  * @property legacyGetters Property getters that return a path, i.e. what strings compared against them should look
  *   like.
  * @property legacySetters Property setters that take a path, i.e. what strings assigned to them should look like.
@@ -45,6 +54,7 @@ class PathAnnotation<T : Any>(
     val classId: ClassId,
     val read: (KaAnnotation) -> T,
     val legacyParameters: Map<CallableId, Pair<String, T>> = emptyMap(),
+    val legacyConstructorParameters: Map<ClassId, Pair<String, T>> = emptyMap(),
     val legacyGetters: Map<CallableId, T> = emptyMap(),
     val legacySetters: Map<CallableId, T> = emptyMap(),
 )
@@ -120,6 +130,65 @@ fun KtStringTemplateExpression.mayHavePathTarget(): Boolean {
 }
 
 /**
+ * Returns the name of what this string is used with, e.g. "get" for the `"hello"` in `window.api.get("hello")`, "route"
+ * for the `"chat"` in `stream.route == "chat"`, or "home" for the `"/blog"` in `val home = "/blog"`.
+ *
+ * This only looks at syntax, so the name is just a hint at what the string's target (see [findPathTarget]) might be,
+ * e.g. for a cheap check against [findTargetNames] before running analysis.
+ */
+fun KtStringTemplateExpression.findTargetName(): String? {
+    fun KtExpression.referencedName(): String? {
+        val reference = (this as? KtQualifiedExpression)?.selectorExpression ?: this
+        return (reference as? KtNameReferenceExpression)?.getReferencedName()
+    }
+
+    if (parent is KtValueArgument) {
+        val callElement = parent.getStrictParentOfType<KtCallElement>() ?: return null
+        return callElement.calleeExpression?.referencedName()
+    }
+    return findComparedExpression()?.referencedName()
+        ?: findAssignedExpression()?.referencedName()
+        ?: findInitializedDeclaration()?.name
+}
+
+/**
+ * Returns the names of the declarations that are targets of [annotation] (see [findTargetName]), i.e. those marked
+ * with it in this project's indexed code, plus its legacy declarations.
+ *
+ * This is only as complete as the index, so it can miss annotated declarations that aren't in it (e.g. in a compiled
+ * library without sources). It can also include ones that aren't really targets, as annotations are matched by name
+ * only, and different declarations can share a name. So it's only good for quick checks that can afford to be wrong
+ * now and then, e.g. whether to show a completion popup.
+ */
+fun Project.findTargetNames(annotation: PathAnnotation<*>): Set<String> = buildSet {
+    annotation.legacyParameters.keys.forEach { callableId -> add(callableId.callableName.asString()) }
+    annotation.legacyConstructorParameters.keys.forEach { classId -> add(classId.shortClassName.asString()) }
+    (annotation.legacyGetters.keys + annotation.legacySetters.keys).forEach { callableId ->
+        add(callableId.callableName.asString())
+    }
+
+    val annotationName = annotation.classId.shortClassName.asString()
+    KotlinAnnotationsIndex[annotationName, this@findTargetNames, GlobalSearchScope.allScope(this@findTargetNames)]
+        .forEach { entry ->
+            when (val declaration = entry.getStrictParentOfType<KtModifierList>()?.parent) {
+                is KtParameter -> {
+                    // A parameter is a target for arguments passed to its function, and also for its own default value
+                    // (and, for a constructor property, for comparisons and assignments)
+                    declaration.name?.let(::add)
+                    when (val function = declaration.ownerFunction) {
+                        is KtPrimaryConstructor -> function.getContainingClassOrObject().name
+                        is KtSecondaryConstructor -> function.getContainingClassOrObject().name
+                        else -> function?.name
+                    }?.let(::add)
+                }
+
+                is KtProperty -> declaration.name?.let(::add)
+                is KtPropertyAccessor -> declaration.property.name?.let(::add)
+            }
+        }
+}
+
+/**
  * Reads this declaration's [annotation], if it has one.
  */
 // The session isn't used, but a `KaAnnotated` is only valid inside one anyway, so this documents that
@@ -142,8 +211,11 @@ private fun <T : Any> KtStringTemplateExpression.findParameterPathTarget(annotat
         val parameter = call.argumentMapping[this@findParameterPathTarget]?.symbol ?: return null
         parameter.readPathAnnotation(annotation)?.let { return it }
 
-        val callableId = call.symbol.callableId ?: return null
-        val (legacyName, legacyTarget) = annotation.legacyParameters[callableId] ?: return null
+        val (legacyName, legacyTarget) = when (val function = call.symbol) {
+            // Constructors don't have a callable ID of their own
+            is KaConstructorSymbol -> function.containingClassId?.let { annotation.legacyConstructorParameters[it] }
+            else -> function.callableId?.let { annotation.legacyParameters[it] }
+        } ?: return null
         return legacyTarget.takeIf { legacyName == parameter.name.asString() }
     }
 

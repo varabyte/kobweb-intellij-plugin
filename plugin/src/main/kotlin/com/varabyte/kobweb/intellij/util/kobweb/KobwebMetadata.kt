@@ -125,3 +125,59 @@ fun VirtualFile.readKobwebFrontendMetadata(): KobwebFrontendMetadata? {
     val frontendFile = findFileByRelativePath(KOBWEB_METADATA_FRONTEND) ?: return null
     return Json.readKobwebFrontendMetadata(frontendFile.contentsToByteArray().decodeToString())
 }
+
+/**
+ * The values we use from a [KOBWEB_METADATA_BACKEND] file (see `BackendData` in the Kobweb codebase), which Kobweb
+ * libraries use to list what their backend defines.
+ *
+ * @property apiMethods The library's `@Api` functions.
+ * @property apiStreams The library's `ApiStream` properties.
+ */
+class KobwebBackendMetadata(val apiMethods: List<Api>, val apiStreams: List<Api>) {
+    /**
+     * An API endpoint defined by a library (see `ApiEntry` and `ApiStreamEntry` in the Kobweb codebase).
+     *
+     * @property fqn The fully qualified name of the `@Api` function or `ApiStream` property, e.g.
+     *   "com.example.api.user.reserveId".
+     * @property route The route the endpoint is served at, relative to "/api", e.g. "/user/reserve-id".
+     */
+    class Api(val fqn: String, val route: String)
+}
+
+/**
+ * Parses the contents of a [KOBWEB_METADATA_BACKEND] file, returning null if it's malformed.
+ *
+ * Individual entries that are malformed (e.g. an API without a route) are skipped.
+ */
+fun Json.readKobwebBackendMetadata(text: String): KobwebBackendMetadata? {
+    return try {
+        val root = parseToJsonElement(text).jsonObject
+        fun entries(listName: String) = root[listName]?.jsonArray.orEmpty().filterIsInstance<JsonObject>()
+        fun JsonObject.string(key: String) = get(key)?.jsonPrimitive?.contentOrNull
+        fun List<JsonObject>.toApis() = mapNotNull { entry ->
+            KobwebBackendMetadata.Api(
+                fqn = entry.string("fqn") ?: return@mapNotNull null,
+                route = entry.string("route") ?: return@mapNotNull null,
+            )
+        }
+
+        KobwebBackendMetadata(
+            apiMethods = entries("apiMethods").toApis(),
+            // Older versions of Kobweb called this "apiStreamMethods"
+            apiStreams = (entries("apiStreamProperties") + entries("apiStreamMethods")).toApis(),
+        )
+    } catch (_: Exception) {
+        // Malformed metadata. Shouldn't happen, but there's nothing useful we can do about it here.
+        null
+    }
+}
+
+/**
+ * Reads this artifact's [KOBWEB_METADATA_BACKEND] file, where the receiver is the root of the artifact (e.g. a jar).
+ *
+ * Returns null if the artifact doesn't have the file (e.g. it isn't a Kobweb library), or it's malformed.
+ */
+fun VirtualFile.readKobwebBackendMetadata(): KobwebBackendMetadata? {
+    val backendFile = findFileByRelativePath(KOBWEB_METADATA_BACKEND) ?: return null
+    return Json.readKobwebBackendMetadata(backendFile.contentsToByteArray().decodeToString())
+}

@@ -20,6 +20,9 @@ import com.varabyte.kobweb.intellij.model.WorkerBlock
  * @property pagesPackage The root package of all pages (e.g. ".pages"), from `kobweb { pagesPackage.set(...) }`. Like
  *   other Kobweb packages, it is relative to [group] if it starts with a leading period. Only read for local projects,
  *   so external projects (whose pages are already compiled) always have Kobweb's default.
+ * @property apiPackage The root package of all API endpoints (e.g. ".api"), from `kobweb { apiPackage.set(...) }`.
+ *   Like [pagesPackage], it is relative to [group] if it starts with a leading period, and is only read for local
+ *   projects.
  * @property publicPath The folder inside the project's resources that Kobweb serves files from as is (e.g. "public"),
  *   from `kobweb { publicPath.set(...) }`. External projects get this from their Kobweb metadata, which only includes
  *   it as of newer Kobweb versions, so ones built with older versions have Kobweb's default (which they always used).
@@ -31,6 +34,7 @@ data class KobwebProject(
     val source: Source,
     val group: String? = null,
     val pagesPackage: String = KobwebModel.DEFAULT_PAGES_PACKAGE,
+    val apiPackage: String = KobwebModel.DEFAULT_API_PACKAGE,
     val publicPath: String = KobwebModel.DEFAULT_PUBLIC_PATH,
     val worker: WorkerBlock? = null,
 ) {
