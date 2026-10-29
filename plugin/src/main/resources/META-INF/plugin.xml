@@ -203,6 +203,8 @@
         <psi.referenceContributor
                 language="kotlin"
                 implementation="com.varabyte.kobweb.intellij.references.layout.LayoutPathReferenceContributor"/>
+        <gotoDeclarationHandler
+                implementation="com.varabyte.kobweb.intellij.references.layout.LayoutPathGotoDeclarationHandler"/>
         <psi.referenceContributor
                 language="kotlin"
                 implementation="com.varabyte.kobweb.intellij.references.route.RouteReferenceContributor"/>
