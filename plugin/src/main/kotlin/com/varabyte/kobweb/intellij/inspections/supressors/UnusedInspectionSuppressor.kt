@@ -4,6 +4,7 @@ import com.intellij.codeInspection.InspectionSuppressor
 import com.intellij.codeInspection.SuppressQuickFix
 import com.intellij.psi.PsiElement
 import com.varabyte.kobweb.intellij.util.kobweb.KobwebProjectTypes
+import com.varabyte.kobweb.intellij.util.kobweb.api.findApiStreamRoute
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.worker.asWorkerFactoryClass
@@ -13,6 +14,7 @@ import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.KtProperty
 
 private val SUPPRESS_UNUSED_WHEN_ANNOTATED_WITH = arrayOf(
     ClassId.fromString("com/varabyte/kobweb/api/Api"),
@@ -39,6 +41,17 @@ private fun PsiElement.isUsedByGeneratedFrameworkCode(): Boolean {
 }
 
 /**
+ * Whether this is an `ApiStream` property that Kobweb registers, which the generated code references.
+ */
+private fun PsiElement.isUsedByGeneratedApiStreamCode(): Boolean {
+    val property = parent as? KtProperty
+        ?: this as? KtProperty
+        ?: return false
+    if (!property.isInReadableKobwebProject()) return false
+    return analyze(property) { property.findApiStreamRoute() } != null
+}
+
+/**
  * Whether this is a worker module's `WorkerFactory` implementation, which the generated `Worker` class instantiates.
  */
 private fun PsiElement.isUsedByGeneratedWorkerCode(): Boolean {
@@ -60,7 +73,9 @@ private fun PsiElement.isUsedByGeneratedWorkerCode(): Boolean {
 class UnusedInspectionSuppressor : InspectionSuppressor {
     override fun isSuppressedFor(element: PsiElement, toolId: String): Boolean {
         if (toolId != "unused") return false
-        return element.isUsedByGeneratedFrameworkCode() || element.isUsedByGeneratedWorkerCode()
+        return element.isUsedByGeneratedFrameworkCode()
+            || element.isUsedByGeneratedApiStreamCode()
+            || element.isUsedByGeneratedWorkerCode()
     }
 
     override fun getSuppressActions(element: PsiElement?, toolId: String) = emptyArray<SuppressQuickFix>()

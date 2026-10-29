@@ -14,13 +14,21 @@ import com.varabyte.kobweb.intellij.util.kobweb.route.hasDynamicSegments
 import com.varabyte.kobweb.intellij.util.kobweb.route.routeValue
 import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
 import org.jetbrains.kotlin.idea.base.util.module
+import org.jetbrains.kotlin.analysis.api.KaSession
+import org.jetbrains.kotlin.analysis.api.types.KaClassType
+import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.psi.psiUtil.isPublic
 
 /** Kobweb's backend annotation for API endpoints, i.e. `@Api` functions and (optionally) `ApiStream` properties. */
 val API_FQN = FqName("com.varabyte.kobweb.api.Api")
+
+/** Kobweb's backend class for API streams, which public, top-level properties of exactly this type are registered as. */
+val API_STREAM_CLASS_ID = ClassId(FqName("com.varabyte.kobweb.api.stream"), Name.identifier("ApiStream"))
 
 /** Kobweb's backend `@file:PackageMapping` annotation, which works like the frontend one, but for API routes. */
 val API_PACKAGE_MAPPING_FQN = FqName("com.varabyte.kobweb.api.PackageMapping")
@@ -69,14 +77,18 @@ fun KtNamedFunction.findApiRoute(): ApiRoute? {
 /**
  * Returns the route that Kobweb serves this `ApiStream` property at, relative to "/api", e.g. "/chat".
  *
- * This doesn't check that the property actually is an `ApiStream`, which requires Kotlin analysis.
+ * This method must be called inside an `analyze` block.
  *
- * @return null if Kobweb rejects this stream.
+ * @return null if this property isn't an `ApiStream` that Kobweb registers (i.e. a public, top-level property whose
+ *   type is exactly `ApiStream`, e.g. `val chat = object : ApiStream() { ... }`), or if Kobweb rejects its route.
  */
-fun KtProperty.findApiStreamRoute(): ApiRoute? {
-    if (!isTopLevel) return null
+context(kaSession: KaSession)
+fun KtProperty.findApiStreamRoute(): ApiRoute? = with(kaSession) {
+    if (!isTopLevel || !isPublic) return null
     val route = resolveApiRoute() ?: return null
     // Kobweb doesn't currently allow dynamic segments in stream routes
     if (route.hasDynamicSegments) return null
+    // Checked last, as it's the only check that needs analysis
+    if ((returnType as? KaClassType)?.classId != API_STREAM_CLASS_ID) return null
     return route
 }

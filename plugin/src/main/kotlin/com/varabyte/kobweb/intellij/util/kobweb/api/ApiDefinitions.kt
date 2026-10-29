@@ -13,22 +13,15 @@ import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.readKobwebBackendMetadata
 import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
 import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.idea.base.util.module
 import org.jetbrains.kotlin.idea.stubindex.KotlinAnnotationsIndex
 import org.jetbrains.kotlin.idea.stubindex.KotlinTopLevelFunctionFqnNameIndex
 import org.jetbrains.kotlin.idea.stubindex.KotlinTopLevelPropertyFqnNameIndex
-import org.jetbrains.kotlin.name.ClassId
-import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtProperty
-import org.jetbrains.kotlin.psi.psiUtil.isPublic
-
-private val API_STREAM_CLASS_ID = ClassId(FqName("com.varabyte.kobweb.api.stream"), Name.identifier("ApiStream"))
 
 /**
  * An API endpoint, i.e. an `@Api` function or an `ApiStream` property, and the route Kobweb serves it at.
@@ -55,17 +48,6 @@ operator fun ApiDefinitions.get(kind: ApiPathTarget.Kind): List<ApiDefinition> =
 }
 
 /**
- * Returns true if this property is an `ApiStream` that Kobweb registers, i.e. a public, top-level property whose type
- * is exactly `ApiStream` (e.g. `val chat = object : ApiStream() { ... }`).
- *
- * This opens its own `analyze` block, as it's only called while collecting (and caching) a project's API endpoints.
- */
-private fun KtProperty.isApiStream(): Boolean {
-    if (!isTopLevel || !isPublic) return false
-    return analyze(this) { (returnType as? KaClassType)?.classId == API_STREAM_CLASS_ID }
-}
-
-/**
  * Returns the API endpoints defined in this module's sources, plus those of any modules and libraries it depends on.
  */
 private fun Module.collectApiDefinitions(): ApiDefinitions {
@@ -84,18 +66,18 @@ private fun Module.collectApiDefinitions(): ApiDefinitions {
 
     // Streams don't need an annotation, so look for properties in files that mention them instead
     val sourceStreams = mutableListOf<ApiDefinition>()
-    PsiSearchHelper.getInstance(project).processAllFilesWithWord(API_STREAM_CLASS_ID.shortClassName.asString(), sourceScope, { file ->
+    val streamClassName = API_STREAM_CLASS_ID.shortClassName.asString()
+    PsiSearchHelper.getInstance(project).processAllFilesWithWord(streamClassName, sourceScope, { file ->
         (file as? KtFile)?.declarations.orEmpty().filterIsInstance<KtProperty>().forEach { property ->
             val fqn = property.fqName?.asString() ?: return@forEach
-            if (!property.isApiStream()) return@forEach
-            val route = property.findApiStreamRoute() ?: return@forEach
+            val route = analyze(property) { property.findApiStreamRoute() } ?: return@forEach
             sourceStreams.add(ApiDefinition(fqn, route, property))
         }
         true
-    }, true)
+    }, /* caseSensitively = */ true)
 
     // Annotations in compiled dependencies aren't indexed, but Kobweb libraries tell us what endpoints they define
-    val libraryScope = getModuleWithDependenciesAndLibrariesScope(false)
+    val libraryScope = getModuleWithDependenciesAndLibrariesScope(/* includeTests = */ false)
     val libraryMetadata = OrderEnumerator.orderEntries(this).recursively().librariesOnly().classes().roots
         .mapNotNull { root -> root.readKobwebBackendMetadata() }
     val libraryApis = libraryMetadata.flatMap { metadata -> metadata.apiMethods }.map { api ->
@@ -124,6 +106,8 @@ private fun Module.collectApiDefinitions(): ApiDefinitions {
  *
  * API endpoints are defined in a project's backend (e.g. its `jvmMain` source set), which is a different module from
  * its frontend (e.g. `jsMain`), so this collects them from every module of the same Kobweb project.
+ *
+ * This may trigger Kotlin analysis (to find `ApiStream` properties), so it can't be called on the UI thread.
  */
 fun PsiElement.findApiDefinitions(): ApiDefinitions {
     val module = module ?: return ApiDefinitions(emptyList(), emptyList())
