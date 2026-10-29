@@ -89,6 +89,17 @@ class PageRouteResolverTest {
     }
 
     @Test
+    fun pagesWithAnyRouteOverrideProblemAreRejected() {
+        assertThat(resolve("com.example.pages", "Post", "a//b")).isNull()
+        assertThat(resolve("com.example.pages", "Post", "{a.b}")).isNull()
+        assertThat(resolve("com.example.pages", "Post", "{post")).isNull()
+        assertThat(resolve("com.example.pages", "Post", "a/../b")).isNull()
+        assertThat(resolve("com.example.pages", "Post", "about us")).isNull()
+        // Leading and trailing slashes don't count as empty segments
+        assertThat(resolve("com.example.pages", "Post", "/a/b/")).isEqualTo("/a/b/post")
+    }
+
+    @Test
     fun pagesOutsideThePagesPackageNeedAnAbsoluteRouteOverride() {
         assertThat(resolve("com.example.components", "Widget")).isNull()
         assertThat(resolve("com.example.components", "Widget", "widget")).isNull()

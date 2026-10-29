@@ -40,13 +40,8 @@ class RouteResolver(val rootPackage: FqName, private val packageMappings: Map<Fq
         // Only whole package names count, so "com.example.pages_old" isn't under "com.example.pages"
         if (!isAbsolute && !pkg.isSubpackageOf(rootPackage)) return null
 
-        // Only the last segment can be inferred, a catch-all, or optional, e.g. "/a/{b}/c/{}" is OK but "/a/{}/c/{b}"
-        // isn't. (Kobweb only checks the override here, so package mappings get no such check.)
-        if (routeOverride != null && routeOverride.substringBeforeLast('/', missingDelimiterValue = "")
-                .split('/')
-                .mapNotNull { DynamicRouteSegment.tryCreate(it) }
-                .any { it.isInferred || it.isCatchAll || it.isOptional }
-        ) return null
+        // Kobweb skips declarations whose override has any problem, e.g. "a//b" or "/a/{}/c/{b}"
+        if (routeOverride != null && RouteValueProblem.findInRouteOverride(routeOverride).isNotEmpty()) return null
 
         val fileSlug = slugFor(fileName)
         val routeWithoutSlug = if (routeOverride?.startsWith('/') == true) {

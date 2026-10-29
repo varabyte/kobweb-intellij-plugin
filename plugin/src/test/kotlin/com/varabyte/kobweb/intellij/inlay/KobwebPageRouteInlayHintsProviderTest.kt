@@ -140,16 +140,16 @@ class KobwebPageRouteInlayHintsProviderTest : KobwebInlayHintsTestBase() {
 
     fun testEscapeSequencesInRouteOverrideAreDecoded() {
         doTest(
-            "Menu.kt",
+            "Team.kt",
             """
             package $TEST_GROUP.pages
 
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.core.Page
 
-            @Page("caf\u00E9")/*<# /café #>*/
+            @Page("our\u002Dteam")/*<# /our-team #>*/
             @Composable
-            fun CafePage() {
+            fun TeamPage() {
             }
             """.trimIndent()
         )

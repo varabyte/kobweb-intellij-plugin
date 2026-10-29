@@ -96,6 +96,30 @@ class RouteCompletionTest : KobwebApplicationTestCase() {
         ).inOrder()
     }
 
+    fun testPagesKobwebRejectsAreNotSuggested() {
+        myFixture.addFileToProject(
+            "pages/About.kt",
+            // language=kotlin
+            """
+            package $TEST_GROUP.pages
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+
+            @Page("about//us")
+            @Composable
+            fun AboutPage() {
+            }
+            """.trimIndent()
+        )
+
+        assertThat(complete(produceNav("<caret>"))!!).containsExactly(
+            "/blog/",
+            "/blog/post",
+            "/users/{user}/posts",
+        ).inOrder()
+    }
+
     fun testRoutesMatchingWhatsTypedAreSuggested() {
         assertThat(complete(produceNav("/bl<caret>"))!!).containsExactly("/blog/", "/blog/post").inOrder()
     }
