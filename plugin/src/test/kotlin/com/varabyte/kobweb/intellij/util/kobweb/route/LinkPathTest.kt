@@ -11,15 +11,18 @@ class LinkPathTest {
     /**
      * @param path A path written as text, where "$" marks a template expression, e.g. "/posts/$" for "/posts/$id"
      */
-    private fun path(path: String): LinkPath? {
+    private fun path(path: String, allowRelativePath: Boolean = false): LinkPath? = LinkPath.parse(parts(path), allowRelativePath)
+
+    /** Like [path], but the path may be relative (see [LinkPath.parse] with `allowRelativePath`). */
+    private fun pathAllowingRelative(path: String): LinkPath? = path(path, allowRelativePath = true)
+
+    private fun parts(path: String): List<LinkPath.Part> {
         val parts = path.split('$').flatMapIndexed { i, part -> if (i == 0) listOf(part) else listOf(null, part) }
         var offset = 0
-        return LinkPath.parse(
-            parts.map { part ->
-                val length = part?.length ?: 1 // A template expression is written as a single "$"
-                LinkPath.Part(part, offset until offset + length).also { offset += length }
-            }
-        )
+        return parts.map { part ->
+            val length = part?.length ?: 1 // A template expression is written as a single "$"
+            LinkPath.Part(part, offset until offset + length).also { offset += length }
+        }
     }
 
     private fun leadsTo(
@@ -60,6 +63,31 @@ class LinkPathTest {
     fun segmentsWithTemplateExpressionsAreUnknown() {
         assertThat(path("/posts/$")?.segmentTexts).isEqualTo(listOf("posts", null))
         assertThat(path("/posts/post-$/edit")?.segmentTexts).isEqualTo(listOf("posts", null, "edit"))
+    }
+
+    @Test
+    fun relativePathsAreParsedAsIfFromTheRoot() {
+        assertThat(pathAllowingRelative("users/bob")?.segmentTexts).isEqualTo(listOf("users", "bob"))
+        // A leading slash makes no difference
+        assertThat(pathAllowingRelative("/users/bob")?.segmentTexts).isEqualTo(listOf("users", "bob"))
+        assertThat(pathAllowingRelative("users/bob?sort=new")?.segmentTexts).isEqualTo(listOf("users", "bob"))
+        // Unlike an absolute path, a template expression at the start is just another unknown segment
+        assertThat(pathAllowingRelative("$/posts")?.segmentTexts).isEqualTo(listOf(null, "posts"))
+
+        assertThat(pathAllowingRelative("//example.com/users")).isNull()
+    }
+
+    @Test
+    fun relativePathSegmentRangesSayWhereEachSegmentWasWritten() {
+        assertThat(pathAllowingRelative("users/bob")!!.segmentRanges).isEqualTo(listOf(0..4, 6..8))
+        assertThat(pathAllowingRelative("/users/bob")!!.segmentRanges).isEqualTo(listOf(1..5, 7..9))
+    }
+
+    @Test
+    fun relativePathsMatchRoutesFromTheRoot() {
+        assertThat(pathAllowingRelative("users/bob")!!.matches(PageRoute("/users/{user}"))).isTrue()
+        assertThat(pathAllowingRelative("users/$")!!.matches(PageRoute("/users/{user}"))).isTrue()
+        assertThat(pathAllowingRelative("users")!!.matches(PageRoute("/users/{user}"))).isFalse()
     }
 
     @Test

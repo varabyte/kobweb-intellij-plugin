@@ -38,7 +38,7 @@ private val API_STREAM_CLASS_ID = ClassId(FqName("com.varabyte.kobweb.api.stream
  * @property declaration The endpoint's declaration. This can be null if a library advertises an endpoint that we
  *   couldn't find a declaration for.
  */
-class ApiDefinition(val fqn: String, val route: String, val declaration: KtCallableDeclaration?)
+class ApiDefinition(val fqn: String, val route: ApiRoute, val declaration: KtCallableDeclaration?)
 
 /**
  * The API endpoints of a Kobweb project.
@@ -99,12 +99,16 @@ private fun Module.collectApiDefinitions(): ApiDefinitions {
     val libraryMetadata = OrderEnumerator.orderEntries(this).recursively().librariesOnly().classes().roots
         .mapNotNull { root -> root.readKobwebBackendMetadata() }
     val libraryApis = libraryMetadata.flatMap { metadata -> metadata.apiMethods }.map { api ->
-        ApiDefinition(api.fqn, api.route, KotlinTopLevelFunctionFqnNameIndex[api.fqn, project, libraryScope].firstOrNull())
+        ApiDefinition(
+            api.fqn,
+            ApiRoute(api.route),
+            KotlinTopLevelFunctionFqnNameIndex[api.fqn, project, libraryScope].firstOrNull(),
+        )
     }
     val libraryStreams = libraryMetadata.flatMap { metadata -> metadata.apiStreams }.map { stream ->
         ApiDefinition(
             stream.fqn,
-            stream.route,
+            ApiRoute(stream.route),
             KotlinTopLevelPropertyFqnNameIndex[stream.fqn, project, libraryScope].firstOrNull(),
         )
     }

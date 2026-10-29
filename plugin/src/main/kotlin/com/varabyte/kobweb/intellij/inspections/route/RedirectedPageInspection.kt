@@ -5,9 +5,9 @@ import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElementVisitor
 import com.varabyte.kobweb.intellij.quickfixes.route.GoToRedirectQuickFix
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
-import com.varabyte.kobweb.intellij.util.kobweb.route.DynamicRouteSegment
 import com.varabyte.kobweb.intellij.util.kobweb.route.LinkPath
 import com.varabyte.kobweb.intellij.util.kobweb.route.findRoute
+import com.varabyte.kobweb.intellij.util.kobweb.route.hasDynamicSegments
 import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteRedirects
 import com.varabyte.kobweb.intellij.util.kobweb.route.redirectedBy
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
@@ -33,7 +33,7 @@ class RedirectedPageInspection : LocalInspectionTool() {
             override fun visitNamedFunction(function: KtNamedFunction) {
                 super.visitNamedFunction(function)
                 val route = function.findRoute() ?: return
-                if (route.segments.any { segment -> DynamicRouteSegment.tryCreate(segment) != null }) return
+                if (route.hasDynamicSegments) return
 
                 val path = LinkPath.parse(route.value) ?: return
                 val redirectedPath = path.redirectedBy(redirects).takeIf { it !== path } ?: return

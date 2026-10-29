@@ -9,8 +9,8 @@ import com.intellij.psi.PsiReferenceProvider
 import com.intellij.psi.PsiReferenceRegistrar
 import com.intellij.util.ProcessingContext
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
-import com.varabyte.kobweb.intellij.util.kobweb.route.linkPath
 import com.varabyte.kobweb.intellij.util.kobweb.route.mayHavePathTarget
+import com.varabyte.kobweb.intellij.util.kobweb.route.parseLinkPath
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
 /**
@@ -35,7 +35,7 @@ class RouteReferenceContributor : PsiReferenceContributor() {
                     // Checking whether the argument actually takes a route requires Kotlin analysis, which is too
                     // expensive to do here, so the reference checks that when it resolves
                     if (!stringExpr.mayHavePathTarget()) return PsiReference.EMPTY_ARRAY
-                    val path = stringExpr.linkPath ?: return PsiReference.EMPTY_ARRAY
+                    val path = stringExpr.parseLinkPath() ?: return PsiReference.EMPTY_ARRAY
                     if (!stringExpr.isInReadableKobwebProject()) return PsiReference.EMPTY_ARRAY
 
                     // Paths with segments that aren't known until runtime can't lead to public files

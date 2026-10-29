@@ -14,10 +14,10 @@ import com.intellij.patterns.PlatformPatterns
 import com.intellij.psi.util.parentOfType
 import com.intellij.util.ProcessingContext
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
-import com.varabyte.kobweb.intellij.util.kobweb.route.DynamicRouteSegment
 import com.varabyte.kobweb.intellij.util.kobweb.route.PageDefinition
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPages
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPublicFolders
+import com.varabyte.kobweb.intellij.util.kobweb.route.hasDynamicSegments
 import com.varabyte.kobweb.intellij.util.kobweb.route.hasRoutePathTarget
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.idea.KotlinIcons
@@ -98,10 +98,9 @@ private object RouteCompletionProvider : CompletionProvider<CompletionParameters
     }
 
     private fun PageDefinition.toLookupElement(): LookupElement {
-        val hasDynamicSegments = route.segments.any { segment -> DynamicRouteSegment.tryCreate(segment) != null }
         return LookupElementBuilder.create(function ?: fqn, route.value)
             .withTypeText(fqn.substringAfterLast('.'))
             .withIcon(KotlinIcons.FUNCTION)
-            .withInsertHandler(if (hasDynamicSegments) DynamicSegmentsInsertHandler else null)
+            .withInsertHandler(if (route.hasDynamicSegments) DynamicSegmentsInsertHandler else null)
     }
 }

@@ -8,9 +8,9 @@ import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiModificationTracker
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.project.qualifiedApiPackage
-import com.varabyte.kobweb.intellij.util.kobweb.route.DynamicRouteSegment
 import com.varabyte.kobweb.intellij.util.kobweb.route.RouteResolver
 import com.varabyte.kobweb.intellij.util.kobweb.route.collectPackageMappings
+import com.varabyte.kobweb.intellij.util.kobweb.route.hasDynamicSegments
 import com.varabyte.kobweb.intellij.util.kobweb.route.routeValue
 import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
 import org.jetbrains.kotlin.idea.base.util.module
@@ -46,14 +46,14 @@ private fun Module.findApiRouteResolver(): RouteResolver? {
  *
  * @return null if Kobweb rejects it (or we can't tell its route).
  */
-private fun KtCallableDeclaration.resolveApiRoute(): String? {
+private fun KtCallableDeclaration.resolveApiRoute(): ApiRoute? {
     val apiAnnotation = annotationEntries.firstOrNull { it.isAnnotationOfType(API_FQN) }
     val routeOverride = if (apiAnnotation == null || apiAnnotation.valueArguments.isEmpty()) null else {
         apiAnnotation.routeValue ?: return null
     }
 
     val fileName = FileUtilRt.getNameWithoutExtension(containingKtFile.name)
-    return module?.findApiRouteResolver()?.resolve(containingKtFile.packageFqName, fileName, routeOverride)
+    return module?.findApiRouteResolver()?.resolve(containingKtFile.packageFqName, fileName, routeOverride)?.let(::ApiRoute)
 }
 
 /**
@@ -61,7 +61,7 @@ private fun KtCallableDeclaration.resolveApiRoute(): String? {
  *
  * @return null if this function isn't an API endpoint, or if Kobweb rejects it.
  */
-fun KtNamedFunction.findApiRoute(): String? {
+fun KtNamedFunction.findApiRoute(): ApiRoute? {
     if (!isTopLevel || annotationEntries.none { it.isAnnotationOfType(API_FQN) }) return null
     return resolveApiRoute()
 }
@@ -73,10 +73,10 @@ fun KtNamedFunction.findApiRoute(): String? {
  *
  * @return null if Kobweb rejects this stream.
  */
-fun KtProperty.findApiStreamRoute(): String? {
+fun KtProperty.findApiStreamRoute(): ApiRoute? {
     if (!isTopLevel) return null
     val route = resolveApiRoute() ?: return null
     // Kobweb doesn't currently allow dynamic segments in stream routes
-    if (route.split('/').any { segment -> DynamicRouteSegment.tryCreate(segment) != null }) return null
+    if (route.hasDynamicSegments) return null
     return route
 }

@@ -85,13 +85,5 @@ fun List<PageDefinition>.findLedToBy(path: LinkPath, redirects: List<RouteRedire
         .firstNotNullOfOrNull { candidate -> filter { page -> candidate.matches(page.route) }.ifEmpty { null } }
         .orEmpty()
 
-    // Rank each route segment, where lower ranks win: static segments, then dynamic ones
-    fun PageDefinition.segmentRanks() =
-        route.segments.map { segment -> if (DynamicRouteSegment.tryCreate(segment) == null) 0 else 1 }
-
-    return matches.minWithOrNull { a, b ->
-        val (aRanks, bRanks) = a.segmentRanks() to b.segmentRanks()
-        aRanks.zip(bRanks).firstOrNull { (aRank, bRank) -> aRank != bRank }?.let { (aRank, bRank) -> aRank - bRank }
-            ?: (aRanks.size - bRanks.size)
-    }
+    return matches.pickMostSpecific { page -> page.route }
 }

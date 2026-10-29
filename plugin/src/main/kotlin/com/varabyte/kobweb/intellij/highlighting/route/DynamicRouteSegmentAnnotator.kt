@@ -12,9 +12,10 @@ import com.varabyte.kobweb.intellij.util.kobweb.route.findLedToBy
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPages
 import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteRedirects
 import com.varabyte.kobweb.intellij.util.kobweb.route.hasRoutePathTarget
-import com.varabyte.kobweb.intellij.util.kobweb.route.linkPath
 import com.varabyte.kobweb.intellij.util.kobweb.route.mayHavePathTarget
+import com.varabyte.kobweb.intellij.util.kobweb.route.parseLinkPath
 import com.varabyte.kobweb.intellij.util.kobweb.route.redirectedBy
+import com.varabyte.kobweb.intellij.util.kobweb.route.segments
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
@@ -29,7 +30,7 @@ class DynamicRouteSegmentAnnotator : Annotator {
     override fun annotate(element: PsiElement, holder: AnnotationHolder) {
         val stringExpr = element as? KtStringTemplateExpression ?: return
         if (!stringExpr.mayHavePathTarget()) return
-        val path = stringExpr.linkPath ?: return
+        val path = stringExpr.parseLinkPath() ?: return
         if (!stringExpr.isInReadableKobwebProject()) return
 
         val redirects = stringExpr.findRouteRedirects()

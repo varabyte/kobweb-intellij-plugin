@@ -22,6 +22,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.route.DynamicRouteSegment
 import com.varabyte.kobweb.intellij.util.kobweb.route.PageRoute
 import com.varabyte.kobweb.intellij.util.kobweb.route.findRoute
+import com.varabyte.kobweb.intellij.util.kobweb.route.segments
 import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression

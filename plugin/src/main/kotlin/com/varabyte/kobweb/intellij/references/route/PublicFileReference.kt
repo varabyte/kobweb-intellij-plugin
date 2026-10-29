@@ -15,7 +15,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.route.findPublicFolders
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPublicResource
 import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteRedirects
 import com.varabyte.kobweb.intellij.util.kobweb.route.hasRoutePathTarget
-import com.varabyte.kobweb.intellij.util.kobweb.route.linkPath
+import com.varabyte.kobweb.intellij.util.kobweb.route.parseLinkPath
 import com.varabyte.kobweb.intellij.util.kobweb.route.redirectedBy
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
@@ -53,7 +53,7 @@ class PublicFileReference(
     }
 
     private fun doResolve(): PsiElement? {
-        val path = element.linkPath ?: return null
+        val path = element.parseLinkPath() ?: return null
         // Checked first, as it's the cheapest check and rules out most strings
         if (element.findPublicResource(path) == null) return null
         if (!analyze(element) { element.hasRoutePathTarget() }) return null
@@ -79,7 +79,7 @@ class PublicFileReference(
 
         // Replace everything from the start of the path to the end of this segment, e.g. "images/logo.png" for the
         // last segment of "/images/logo.png", which leaves the slash before it and anything after it alone
-        val path = this.element.linkPath ?: return this.element
+        val path = this.element.parseLinkPath() ?: return this.element
         val range = TextRange(path.segments.first().sourceRange.first, rangeInElement.endOffset)
         return ElementManipulators.handleContentChange(this.element, range, relativePath)
     }

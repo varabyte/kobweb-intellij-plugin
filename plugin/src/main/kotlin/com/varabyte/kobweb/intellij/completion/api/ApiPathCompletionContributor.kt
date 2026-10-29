@@ -20,7 +20,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.api.findApiDefinitions
 import com.varabyte.kobweb.intellij.util.kobweb.api.findApiPathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.api.get
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
-import com.varabyte.kobweb.intellij.util.kobweb.route.DynamicRouteSegment
+import com.varabyte.kobweb.intellij.util.kobweb.route.hasDynamicSegments
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.idea.KotlinIcons
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
@@ -66,7 +66,7 @@ private object ApiPathCompletionProvider : CompletionProvider<CompletionParamete
         // ones from libraries last.
         val pathResult = result.withPrefixMatcher(prefix).withRelevanceSorter(CompletionSorter.emptySorter())
         originalStringExpr.findApiDefinitions()[target.kind]
-            .sortedBy { api -> api.route }
+            .sortedBy { api -> api.route.value }
             .forEach { api -> pathResult.addElement(api.toLookupElement(target.kind, withLeadingSlash)) }
 
         // Otherwise, IntelliJ suggests the project's file paths too, which aren't API paths
@@ -74,10 +74,9 @@ private object ApiPathCompletionProvider : CompletionProvider<CompletionParamete
     }
 
     private fun ApiDefinition.toLookupElement(kind: ApiPathTarget.Kind, withLeadingSlash: Boolean): LookupElement {
-        val path = if (withLeadingSlash) route else route.removePrefix("/")
+        val path = if (withLeadingSlash) route.value else route.value.removePrefix("/")
         // Kobweb doesn't currently allow dynamic segments in stream routes (see `findApiStreamRoute`)
-        val hasDynamicSegments = kind != ApiPathTarget.Kind.STREAM
-                && path.split('/').any { segment -> DynamicRouteSegment.tryCreate(segment) != null }
+        val hasDynamicSegments = kind != ApiPathTarget.Kind.STREAM && route.hasDynamicSegments
         return LookupElementBuilder.create(declaration ?: fqn, path)
             .withTypeText(fqn.substringAfterLast('.'))
             .withIcon(

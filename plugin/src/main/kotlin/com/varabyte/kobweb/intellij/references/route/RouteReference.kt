@@ -8,9 +8,9 @@ import com.varabyte.kobweb.intellij.util.kobweb.route.findLedToBy
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPages
 import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteRedirects
 import com.varabyte.kobweb.intellij.util.kobweb.route.hasRoutePathTarget
-import com.varabyte.kobweb.intellij.util.kobweb.route.linkPath
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPathRange
 import com.varabyte.kobweb.intellij.util.kobweb.route.mayHavePathTarget
+import com.varabyte.kobweb.intellij.util.kobweb.route.parseLinkPath
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
@@ -45,7 +45,7 @@ class RouteReference(element: KtStringTemplateExpression) : PsiReferenceBase<KtS
     }
 
     private fun doResolve(): PsiElement? {
-        val path = element.linkPath ?: return null
+        val path = element.parseLinkPath() ?: return null
         if (!analyze(element) { element.hasRoutePathTarget() }) return null
 
         return element.findPages().findLedToBy(path, element.findRouteRedirects())?.function

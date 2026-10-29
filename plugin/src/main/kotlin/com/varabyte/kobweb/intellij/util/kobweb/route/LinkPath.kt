@@ -66,7 +66,7 @@ class LinkPath private constructor(val segments: List<Segment>) {
      *
      * See also [leadsTo], which also accounts for trailing slashes.
      */
-    fun matches(route: PageRoute): Boolean = matches(route.segments, segmentTexts)
+    fun matches(route: Route): Boolean = matches(route.segments, segmentTexts)
 
     /**
      * How segments whose values aren't known until runtime (e.g. the "$id" in "/posts/$id") are matched against a
@@ -152,18 +152,38 @@ class LinkPath private constructor(val segments: List<Segment>) {
 
     companion object {
         /**
-         * Returns the path of a URL written in code, or null if it isn't an absolute path within the site, e.g. if it's
-         * a relative path, has a host (e.g. "https://example.com" or "//example.com"), or is something else entirely
-         * (e.g. "mailto:me@example.com").
+         * Returns the path of a URL written in code, or null if it isn't a path within the site, e.g. if it has a
+         * host (e.g. "https://example.com" or "//example.com"), or is something else entirely (e.g.
+         * "mailto:me@example.com").
+         *
+         * By default, the path must be absolute (e.g. "/users/bob"), as a relative one (e.g. "users/bob") could lead
+         * almost anywhere, depending on the current page. Some paths are always relative to a fixed root, though, e.g.
+         * API paths, which are relative to "/api/". Pass [allowRelativePath] for those, to parse them as if they were
+         * written from that root, e.g. "users/bob" as "/users/bob".
          *
          * Any query parameters and fragment are ignored.
          *
          * @param parts The pieces of the URL's string literal, in order.
+         * @param allowRelativePath Whether the path may be relative. For example, API paths are always relative to a
+         *   fixed root ("/api/"), so `window.api.get("users/bob")` and `window.api.get("/users/bob")` both lead to
+         *   "/api/users/bob". In other words, Kobweb treats such paths the same whether or not they start with a
+         *   slash. For the same reason, they may start with a template expression, as it doesn't matter whether its
+         *   value (which we don't know yet) starts with a slash.
          */
-        fun parse(parts: List<Part>): LinkPath? {
-            val first = parts.firstOrNull()?.text ?: return null
-            if (!first.startsWith('/') || first.startsWith("//")) return null
+        fun parse(parts: List<Part>, allowRelativePath: Boolean = false): LinkPath? {
+            val first = parts.firstOrNull()?.text
+            if (parts.isEmpty() || first?.startsWith("//") == true) return null
 
+            val hasLeadingSlash = first?.startsWith('/') == true
+            if (!allowRelativePath && !hasLeadingSlash) return null
+
+            // A leading slash leaves an empty first segment behind
+            val segments = parseSegments(parts)
+            return LinkPath(if (hasLeadingSlash) segments.drop(1) else segments)
+        }
+
+        /** Splits the pieces of a path's string literal into its segments, up to any query or fragment. */
+        private fun parseSegments(parts: List<Part>): List<Segment> {
             val segments = mutableListOf<Segment>()
             var segmentText: StringBuilder? = StringBuilder() // null while the current segment is unknown
             var segmentStart = parts.first().sourceRange.first
@@ -195,9 +215,7 @@ class LinkPath private constructor(val segments: List<Segment>) {
                 }
             }
             addSegment(end = pathEnd)
-
-            // The path starts with a slash, which leaves an empty first segment behind
-            return LinkPath(segments.drop(1))
+            return segments
         }
 
         /**

@@ -21,9 +21,13 @@ private val KtStringTemplateExpression.linkPathParts: List<LinkPath.Part>
     }
 
 /**
- * The path in this string, if it's one that could lead to a page (see [LinkPath.parse]).
+ * Returns the path in this string (see [LinkPath.parse]), e.g. "/users/bob" for `Link("/users/bob")`, or "/users/bob"
+ * for `window.api.get("users/bob")` (with [allowRelativePath]).
+ *
+ * @param allowRelativePath See [LinkPath.parse].
  */
-val KtStringTemplateExpression.linkPath: LinkPath? get() = LinkPath.parse(linkPathParts)
+fun KtStringTemplateExpression.parseLinkPath(allowRelativePath: Boolean = false): LinkPath? =
+    LinkPath.parse(linkPathParts, allowRelativePath)
 
 /**
  * Returns the range of the path inside this string, i.e. without any query parameters or fragment.

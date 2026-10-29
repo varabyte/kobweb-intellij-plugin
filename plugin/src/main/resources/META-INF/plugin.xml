@@ -206,6 +206,9 @@
         <psi.referenceContributor
                 language="kotlin"
                 implementation="com.varabyte.kobweb.intellij.references.route.RouteReferenceContributor"/>
+        <psi.referenceContributor
+                language="kotlin"
+                implementation="com.varabyte.kobweb.intellij.references.api.ApiPathReferenceContributor"/>
         <refactoring.elementListenerProvider
                 implementation="com.varabyte.kobweb.intellij.references.layout.LayoutMoveListenerProvider"/>
         <!-- Must run before Kotlin's, which suppresses auto-popups in all strings -->

@@ -19,6 +19,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.route.findDuplicatePackageMappin
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPageRouteResolver
 import com.varabyte.kobweb.intellij.util.kobweb.route.resolve
 import com.varabyte.kobweb.intellij.util.kobweb.route.routeValueExpression
+import com.varabyte.kobweb.intellij.util.kobweb.route.segments
 import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
 import com.varabyte.kobweb.intellij.util.psi.unescapedText
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
