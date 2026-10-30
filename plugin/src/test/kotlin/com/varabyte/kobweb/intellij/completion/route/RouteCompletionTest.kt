@@ -208,6 +208,33 @@ class RouteCompletionTest : KobwebApplicationTestCase() {
         ).inOrder()
     }
 
+    fun testPagesAreNotSuggestedWherePagesArentAllowed() {
+        val resourcesRoot = myFixture.addFileToProject("resources/public/blog/banner.png", "")
+            .virtualFile.parent.parent.parent
+        myFixture.addFileToProject("resources/public/resume.pdf", "")
+        PsiTestUtil.addSourceRoot(module, resourcesRoot, JavaResourceRootType.RESOURCE)
+        Disposer.register(testRootDisposable) { PsiTestUtil.removeSourceRoot(module, resourcesRoot) }
+
+        assertThat(
+            complete(
+                """
+                package $TEST_GROUP.components
+
+                import androidx.compose.runtime.Composable
+                import com.varabyte.kobweb.silk.components.graphics.Image
+
+                @Composable
+                fun Banner() {
+                    Image("<caret>")
+                }
+                """.trimIndent()
+            )!!
+        ).containsExactly(
+            "/blog/banner.png",
+            "/resume.pdf",
+        ).inOrder()
+    }
+
     fun testFilesKobwebGeneratesAreNotSuggested() {
         val resourcesRoot = myFixture.addFileToProject("resources/public/resume.pdf", "").virtualFile.parent.parent
         myFixture.addFileToProject("resources/public/_kobweb/fonts/font.woff2", "")

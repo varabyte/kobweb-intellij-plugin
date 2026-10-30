@@ -151,6 +151,13 @@
         <localInspection
                 language="kotlin"
                 groupKey="kobweb.name"
+                key="inspection.page.route.not.allowed.display.name"
+                enabledByDefault="true"
+                level="WARNING"
+                implementationClass="com.varabyte.kobweb.intellij.inspections.route.PageRouteNotAllowedInspection"/>
+        <localInspection
+                language="kotlin"
+                groupKey="kobweb.name"
                 key="inspection.redirected.page.display.name"
                 enabledByDefault="true"
                 level="WARNING"

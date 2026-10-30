@@ -15,17 +15,20 @@ import com.intellij.psi.util.parentOfType
 import com.intellij.util.ProcessingContext
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.route.PageDefinition
+import com.varabyte.kobweb.intellij.util.kobweb.route.RoutePathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPages
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPublicFolders
+import com.varabyte.kobweb.intellij.util.kobweb.route.findRoutePathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.route.hasDynamicSegments
-import com.varabyte.kobweb.intellij.util.kobweb.route.hasRoutePathTarget
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.idea.KotlinIcons
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
 /**
  * Suggests the routes of pages, as well as public files, inside strings used with something that holds a route (see
- * [hasRoutePathTarget]), e.g. "/blog/post" while typing `Link("/bl")` or `ctx.route.path == "/bl"`.
+ * [findRoutePathTarget]), e.g. "/blog/post" while typing `Link("/bl")` or `ctx.route.path == "/bl"`.
+ *
+ * Pages are left out where they aren't allowed (see [RoutePathTarget.allowPages]), e.g. in `Image("/")`.
  *
  * Routes with dynamic segments (e.g. "/users/{user}/posts") are inserted as a template, so that the value of each
  * dynamic segment can be typed in turn.
@@ -64,11 +67,15 @@ private object RouteCompletionProvider : CompletionProvider<CompletionParameters
         // the caret). Map it back to the real file, so we can analyze it and look up which Kobweb project it belongs to.
         val originalStringExpr = CompletionUtil.getOriginalOrSelf(stringExpr)
         if (!originalStringExpr.isInWritableKobwebProject()) return
-        if (!analyze(originalStringExpr) { originalStringExpr.hasRoutePathTarget() }) return
+        val target = analyze(originalStringExpr) { originalStringExpr.findRoutePathTarget() } ?: return
 
         // Match against everything typed so far in the string, not just the text after the last slash
         val routeResult = result.withPrefixMatcher(prefix)
-        val pages = originalStringExpr.findPages().sortedBy { page -> page.route.value }
+        val pages = if (target.allowPages) {
+            originalStringExpr.findPages().sortedBy { page -> page.route.value }
+        } else {
+            emptyList()
+        }
         pages.forEach { page ->
             routeResult.addElement(PrioritizedLookupElement.withPriority(page.toLookupElement(), 1.0))
         }

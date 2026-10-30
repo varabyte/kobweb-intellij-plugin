@@ -1,0 +1,12 @@
+<html lang="en">
+<body>
+Reports routes that lead to a page where a public resource is expected instead.
+<pre><code>
+// pages/About.kt is served at "/about"
+// resources/public/images/cat.png is served at "/images/cat.png"
+Image("/images/cat.png") // OK
+Image("/about")          // Not OK -- leads to a page
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>

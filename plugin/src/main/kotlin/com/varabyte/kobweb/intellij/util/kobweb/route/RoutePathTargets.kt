@@ -24,8 +24,14 @@ private val ROUTE_PATH_CLASS_ID = ClassId(KOBWEB_CORE_PACKAGE, Name.identifier("
  * @property type What the target accepts, from `@RoutePath(type = ...)`.
  * @property mustExist Whether the route should lead to a page (or another resource the site serves). False for targets
  *   marked `@RoutePath(mustExist = false)`, e.g. parameters that build links to pages that may not exist yet.
+ * @property allowPages Whether the route may lead to a page. False for targets marked `@RoutePath(allowPages = false)`,
+ *   e.g. `Image`'s `src`, which should lead to a file (or something else that isn't a page, like an API endpoint).
  */
-class RoutePathTarget(val type: Type, override val mustExist: Boolean) : PathTarget {
+class RoutePathTarget(
+    val type: Type,
+    override val mustExist: Boolean,
+    val allowPages: Boolean = true,
+) : PathTarget {
     /**
      * What sort of route format is accepted.
      *
@@ -57,6 +63,9 @@ private val LEGACY_ROUTE_PARAMETERS = mapOf(
         to ("pathQueryAndFragment" to RoutePathTarget(RoutePathTarget.Type.URL, mustExist = true)),
     CallableId(KOBWEB_NAVIGATION_PACKAGE, FqName("Router"), Name.identifier("tryRoutingTo"))
         to ("pathQueryAndFragment" to RoutePathTarget(RoutePathTarget.Type.PATH_QUERY_AND_FRAGMENT, mustExist = true)),
+    // Can also load images from other sites
+    CallableId(FqName("com.varabyte.kobweb.silk.components.graphics"), Name.identifier("Image"))
+        to ("src" to RoutePathTarget(RoutePathTarget.Type.URL, mustExist = true, allowPages = false)),
 )
 
 /**
@@ -108,7 +117,11 @@ private val ROUTE_PATH_ANNOTATION = PathAnnotation(
             ?.callableId?.callableName?.asString()
             ?.let { typeName -> RoutePathTarget.Type.entries.firstOrNull { it.name == typeName } }
             ?: RoutePathTarget.Type.URL
-        RoutePathTarget(type, routePath.readBooleanArgument("mustExist", default = true))
+        RoutePathTarget(
+            type,
+            mustExist = routePath.readBooleanArgument("mustExist", default = true),
+            allowPages = routePath.readBooleanArgument("allowPages", default = true),
+        )
     },
     legacyParameters = LEGACY_ROUTE_PARAMETERS,
     legacyGetters = LEGACY_ROUTE_GETTERS,

@@ -13,6 +13,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteRedirects
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPathRange
 import com.varabyte.kobweb.intellij.util.kobweb.route.mayHavePathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.route.mightBeRedirectedBy
+import com.varabyte.kobweb.intellij.util.kobweb.route.mightLeadToPublicResource
 import com.varabyte.kobweb.intellij.util.kobweb.route.parseLinkPath
 import com.varabyte.kobweb.intellij.util.kobweb.route.redirectedBy
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
@@ -49,6 +50,7 @@ class UnknownRouteInspection : LocalInspectionTool() {
                     // Unknown segments could hold anything at runtime, so only report paths that can't lead to any
                     // page, even after a redirect
                     if (pages.any { page -> path.leadsTo(page.route, UnknownSegmentsStrategy.MATCH_ANYTHING) }) return
+                    if (expression.mightLeadToPublicResource(path)) return
                     if (path.mightBeRedirectedBy(redirects)) return
                 } else {
                     if (pages.findLedToBy(path, redirects) != null) return

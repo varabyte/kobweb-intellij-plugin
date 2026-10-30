@@ -86,6 +86,32 @@ class UnknownRouteInspectionTest : KobwebInspectionTestBase() {
         )
     }
 
+    fun testRoutesWithUnknownSegmentsMightLeadToPublicFiles() {
+        val resourcesRoot = myFixture.addFileToProject("resources/public/images/cat.png", "")
+            .virtualFile.parent.parent.parent
+        PsiTestUtil.addSourceRoot(module, resourcesRoot, JavaResourceRootType.RESOURCE)
+        Disposer.register(testRootDisposable) { PsiTestUtil.removeSourceRoot(module, resourcesRoot) }
+
+        doTest(
+            $$"""
+            package $$TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.graphics.Image
+
+            @Composable
+            fun Pictures(name: String) {
+                // Could be a file in the "images" folder
+                Image("/images/$name")
+                Image("/images/$name.png")
+                // Could be any file
+                Image("/$name")
+                Image("<warning>/imgs/$name</warning>")
+            }
+            """.trimIndent(),
+        )
+    }
+
     fun testRoutesAreCheckedWhereTheirRedirectsLead() {
         myFixture.addFileToProject(
             ".kobweb/conf.yaml",

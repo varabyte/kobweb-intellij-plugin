@@ -296,6 +296,28 @@ class RouteReferenceTest : KobwebApplicationTestCase() {
         ).isNull()
     }
 
+    fun testPublicFilesWinOverPagesWherePagesArentAllowed() {
+        addResourcesRoot()
+        // The server serves this file to `Image`, without ever routing to the page at "/blog/post"
+        myFixture.addFileToProject("resources/public/blog/post", "")
+
+        @Language("kotlin")
+        val code = """
+            package $TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.graphics.Image
+
+            @Composable
+            fun Banner() {
+                Image("/blog/po<caret>st")
+            }
+        """.trimIndent()
+
+        assertThat(resolvePublicFileAtCaret(code)).isEqualTo("blog/post")
+        assertThat(resolveRouteAtCaret(code)).isNull()
+    }
+
     fun testRenamingPublicFileUpdatesRoutes() {
         addResourcesRoot()
         val logoFile = myFixture.addFileToProject("resources/public/images/logo.png", "")

@@ -14,7 +14,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.route.findPages
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPublicFolders
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPublicResource
 import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteRedirects
-import com.varabyte.kobweb.intellij.util.kobweb.route.hasRoutePathTarget
+import com.varabyte.kobweb.intellij.util.kobweb.route.findRoutePathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.route.parseLinkPath
 import com.varabyte.kobweb.intellij.util.kobweb.route.redirectedBy
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -56,11 +56,13 @@ class PublicFileReference(
         val path = element.parseLinkPath() ?: return null
         // Checked first, as it's the cheapest check and rules out most strings
         if (element.findPublicResource(path) == null) return null
-        if (!analyze(element) { element.hasRoutePathTarget() }) return null
+        val target = analyze(element) { element.findRoutePathTarget() } ?: return null
         val redirects = element.findRouteRedirects()
         // Kobweb applies redirects before serving public files, so a redirected path doesn't lead to its file
         if (path.redirectedBy(redirects) !== path) return null
-        if (element.findPages().findLedToBy(path, redirects) != null) return null
+        // Kobweb's router shows a page instead, if one matches, except where pages aren't allowed (e.g. an image's
+        // source), as the browser loads those from the server, which serves public files without routing to pages
+        if (target.allowPages && element.findPages().findLedToBy(path, redirects) != null) return null
 
         val file = element.findPublicResource(path.segments.take(segmentIndex + 1)) ?: return null
         val psiManager = PsiManager.getInstance(element.project)

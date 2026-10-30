@@ -6,11 +6,13 @@ import com.intellij.psi.impl.source.resolve.ResolveCache
 import com.varabyte.kobweb.intellij.util.kobweb.route.LinkPath
 import com.varabyte.kobweb.intellij.util.kobweb.route.findLedToBy
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPages
+import com.varabyte.kobweb.intellij.util.kobweb.route.findPublicResource
 import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteRedirects
-import com.varabyte.kobweb.intellij.util.kobweb.route.hasRoutePathTarget
+import com.varabyte.kobweb.intellij.util.kobweb.route.findRoutePathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPathRange
 import com.varabyte.kobweb.intellij.util.kobweb.route.mayHavePathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.route.parseLinkPath
+import com.varabyte.kobweb.intellij.util.kobweb.route.redirectedBy
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
@@ -24,7 +26,7 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
  * [LinkPath.matches]).
  *
  * This reference is created for any absolute path used in a way that could hold a route (see [mayHavePathTarget]),
- * but it only resolves if it actually does (see [hasRoutePathTarget]), which requires Kotlin analysis to check.
+ * but it only resolves if it actually does (see [findRoutePathTarget]), which requires Kotlin analysis to check.
  *
  * Note that a page's route comes from its file and package, not its function's name, so renaming a page function
  * doesn't change any strings.
@@ -46,9 +48,15 @@ class RouteReference(element: KtStringTemplateExpression) : PsiReferenceBase<KtS
 
     private fun doResolve(): PsiElement? {
         val path = element.parseLinkPath() ?: return null
-        if (!analyze(element) { element.hasRoutePathTarget() }) return null
+        val target = analyze(element) { element.findRoutePathTarget() } ?: return null
 
-        return element.findPages().findLedToBy(path, element.findRouteRedirects())?.function
+        val redirects = element.findRouteRedirects()
+        // Where pages aren't allowed (e.g. an image's source), the browser loads the path from the server, which serves
+        // public files without ever routing to a page. So a path that leads to a file doesn't lead to a page, even one
+        // whose route it matches (e.g. "/images/cat.png" and a page at "/images/{...rest}").
+        if (!target.allowPages && element.findPublicResource(path.redirectedBy(redirects)) != null) return null
+
+        return element.findPages().findLedToBy(path, redirects)?.function
     }
 
     // Renaming a page function doesn't change its route -- it is derived from the file name! So leave the string alone

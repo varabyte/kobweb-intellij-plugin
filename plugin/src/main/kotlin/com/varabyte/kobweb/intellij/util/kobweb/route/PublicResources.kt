@@ -87,3 +87,15 @@ fun PsiElement.findPublicResource(segments: List<LinkPath.Segment>): VirtualFile
     val relativePath = segments.map { segment -> segment.text ?: return null }.joinToString("/")
     return findPublicFolders().firstNotNullOfOrNull { folder -> folder.findFileByRelativePath(relativePath) }
 }
+
+/**
+ * Returns true if [path] might lead to a file (or folder) in a public folder: either it does (see
+ * [findPublicResource]), or it has segments that aren't known until runtime and the folder its known segments lead to
+ * exists, e.g. "/images/$name" if there's a `public/images` folder.
+ */
+fun PsiElement.mightLeadToPublicResource(path: LinkPath): Boolean {
+    val knownSegments = path.segments.takeWhile { segment -> segment.text != null }
+    if (knownSegments.size == path.segments.size) return findPublicResource(path) != null
+    if (knownSegments.isEmpty()) return findPublicFolders().isNotEmpty()
+    return findPublicResource(knownSegments)?.isDirectory == true
+}
