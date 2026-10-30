@@ -318,5 +318,7 @@
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
         <supportsKotlinPluginMode supportsK2="true" />
         <kaResolveExtensionProvider implementation="com.varabyte.kobweb.intellij.resolve.worker.WorkerResolveExtensionProvider" />
+        <!-- Registered with the Kotlin plugin's rename handlers, rather than IntelliJ's, so that it takes priority over them instead of IntelliJ asking the user which one to use. -->
+        <renameHandler implementation="com.varabyte.kobweb.intellij.rename.route.RouteRenameHandler" order="first"/>
     </extensions>
 </idea-plugin>
