@@ -5,8 +5,10 @@ import com.intellij.modcommand.PsiUpdateModCommandQuickFix
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.parentOfType
-import com.varabyte.kobweb.intellij.util.kobweb.route.PACKAGE_MAPPING_FQN
+import com.varabyte.kobweb.intellij.util.kobweb.route.RouteKind
+import com.varabyte.kobweb.intellij.util.kobweb.route.packageMappingFqn
 import com.varabyte.kobweb.intellij.util.psi.deleteWithSurroundingWhitespace
+import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
 import com.varabyte.kobweb.intellij.util.psi.removeImportIfUnused
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
@@ -24,8 +26,12 @@ class RemovePackageMappingQuickFix : PsiUpdateModCommandQuickFix() {
         val annotationEntry = element.parentOfType<KtAnnotationEntry>(withSelf = true) ?: return
         val file = annotationEntry.containingKtFile
 
+        val packageMappingFqn = RouteKind.entries
+            .map { kind -> kind.packageMappingFqn }
+            .firstOrNull { fqn -> annotationEntry.isAnnotationOfType(fqn) }
+
         annotationEntry.deleteWithSurroundingWhitespace()
 
-        file.removeImportIfUnused(PACKAGE_MAPPING_FQN)
+        packageMappingFqn?.let(file::removeImportIfUnused)
     }
 }

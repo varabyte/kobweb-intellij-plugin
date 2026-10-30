@@ -1,10 +1,13 @@
 package com.varabyte.kobweb.intellij.util.kobweb.route
 
 import com.intellij.openapi.module.Module
+import com.intellij.openapi.util.io.FileUtilRt
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.PsiElement
 import com.varabyte.kobweb.intellij.util.kobweb.api.API_FQN
 import com.varabyte.kobweb.intellij.util.kobweb.api.API_PACKAGE_MAPPING_FQN
+import com.varabyte.kobweb.intellij.util.kobweb.api.ApiRoute
+import com.varabyte.kobweb.intellij.util.kobweb.api.ApiStreamRoute
 import com.varabyte.kobweb.intellij.util.kobweb.api.findApiRouteResolver
 import com.varabyte.kobweb.intellij.util.kobweb.layout.PAGE_FQN
 import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
@@ -63,6 +66,28 @@ val RouteKind.packageMappingFqn: FqName
  */
 fun KtCallableDeclaration.findRouteAnnotation(kind: RouteKind): KtAnnotationEntry? =
     annotationEntries.firstOrNull { entry -> entry.isAnnotationOfType(kind.annotationFqn) }
+
+/**
+ * The name of the file this declaration lives in, without its extension, which Kobweb generates the last segment of its
+ * route from, e.g. "Post" for `Post.kt`.
+ */
+val KtCallableDeclaration.routeFileName: String
+    get() = FileUtilRt.getNameWithoutExtension(containingKtFile.name)
+
+/**
+ * Returns the route that Kobweb would register this declaration at as a route of this [kind], if its route override
+ * were [routeOverride] (or if it had none, if null), instead of its own, e.g. to compare alternatives.
+ *
+ * @return null if Kobweb would reject it (or we can't tell where its routes are relative to).
+ */
+fun KtCallableDeclaration.resolveRoute(kind: RouteKind, routeOverride: String?): Route? {
+    val pkg = containingKtFile.packageFqName
+    return when (kind) {
+        RouteKind.PAGE -> findPageRouteResolver()?.resolve(pkg, routeFileName, routeOverride)
+        RouteKind.API -> findApiRouteResolver()?.resolve(pkg, routeFileName, routeOverride)?.let(::ApiRoute)
+        RouteKind.STREAM -> findApiRouteResolver()?.resolve(pkg, routeFileName, routeOverride)?.let(::ApiStreamRoute)
+    }
+}
 
 /**
  * Returns the package that routes of this [kind] are relative to in this element's module, e.g. the pages package,

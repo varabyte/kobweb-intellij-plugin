@@ -10,7 +10,9 @@ class RouteValueSimplificationTest {
     private val resolver = PageRouteResolver(FqName("com.example.pages"), emptyMap())
 
     private fun simplifyRouteOverride(pagePackage: String, fileName: String, routeOverride: String) =
-        RouteValueSimplification.forRouteOverride(resolver, FqName(pagePackage), fileName, routeOverride)
+        RouteValueSimplification.forRouteOverride(fileName, routeOverride) { override ->
+            resolver.resolve(FqName(pagePackage), fileName, override)
+        }
 
     private fun simplifyPackageMapping(pkg: String, packageMapping: String) =
         RouteValueSimplification.forPackageMapping(FqName(pkg), packageMapping)

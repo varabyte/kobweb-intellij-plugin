@@ -1,7 +1,7 @@
 <html lang="en">
 <body>
-Reports <code>@Page</code> route overrides and <code>@file:PackageMapping</code> values that don't change the route
-Kobweb would generate anyway, or that could be written more simply.
+Reports route overrides (e.g. in <code>@Page</code> or <code>@Api</code>) and <code>@file:PackageMapping</code> values
+that don't change the route Kobweb would generate anyway, or that could be written more simply.
 <p>
 Kobweb recommends letting it generate routes from file and package names where possible, which makes it easier to tell
 where a URL comes from.
@@ -10,6 +10,9 @@ where a URL comes from.
 @Page("post")         // Redundant, as the route is "/blog/post" either way
 @Page("/blog/post")   // Redundant
 @Page("{post}")       // Can be simplified to "{}"
+
+// api/Hello.kt
+@Api("hello")         // Redundant, as the route is "/api/hello" either way
 
 // pages/ourTeam/PackageMapping.kt
 @file:PackageMapping("our-team")  // Redundant, as Kobweb already turns "ourTeam" into "our-team"

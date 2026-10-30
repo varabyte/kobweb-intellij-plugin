@@ -9,28 +9,35 @@ import com.varabyte.kobweb.intellij.quickfixes.route.DeletePackageMappingFileQui
 import com.varabyte.kobweb.intellij.quickfixes.route.RemovePackageMappingQuickFix
 import com.varabyte.kobweb.intellij.quickfixes.route.RemoveRouteOverrideQuickFix
 import com.varabyte.kobweb.intellij.quickfixes.route.ReplaceRouteValueQuickFix
+import com.varabyte.kobweb.intellij.util.kobweb.api.isRegisteredApiStream
+import com.varabyte.kobweb.intellij.util.kobweb.api.mightBeApiStream
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
-import com.varabyte.kobweb.intellij.util.kobweb.layout.PAGE_FQN
-import com.varabyte.kobweb.intellij.util.kobweb.route.PACKAGE_MAPPING_FQN
+import com.varabyte.kobweb.intellij.util.kobweb.route.RouteKind
 import com.varabyte.kobweb.intellij.util.kobweb.route.RouteValueProblem
 import com.varabyte.kobweb.intellij.util.kobweb.route.RouteValueSimplification
-import com.varabyte.kobweb.intellij.util.kobweb.route.findPageRouteResolver
-import com.varabyte.kobweb.intellij.util.kobweb.route.pageFileName
-import com.varabyte.kobweb.intellij.util.kobweb.route.resolve
+import com.varabyte.kobweb.intellij.util.kobweb.route.displayValue
+import com.varabyte.kobweb.intellij.util.kobweb.route.findRootPackage
+import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteAnnotation
+import com.varabyte.kobweb.intellij.util.kobweb.route.packageMappingFqn
+import com.varabyte.kobweb.intellij.util.kobweb.route.resolveRoute
+import com.varabyte.kobweb.intellij.util.kobweb.route.routeFileName
 import com.varabyte.kobweb.intellij.util.kobweb.route.routeValueExpression
 import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
 import com.varabyte.kobweb.intellij.util.psi.unescapedText
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
+import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.name.isSubpackageOf
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
-import org.jetbrains.kotlin.psi.KtModifierList
+import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtVisitorVoid
 
 /**
- * Reports `@Page` route overrides and `@file:PackageMapping` values that don't change anything (e.g. `@Page("post")`
- * in `Post.kt`), or that could be written more simply (e.g. `@Page("{post}")` in `Post.kt` can be `@Page("{}")`).
+ * Reports route overrides (e.g. in `@Page` or `@Api`) and `@file:PackageMapping` values that don't change anything
+ * (e.g. `@Page("post")` in `Post.kt`), or that could be written more simply (e.g. `@Page("{post}")` in `Post.kt` can be
+ * `@Page("{}")`).
  *
  * Kobweb recommends leaving routes to be generated from file and package names where possible, so that it's easy to
  * tell where a URL comes from.
@@ -42,33 +49,50 @@ class RedundantRouteInspection : LocalInspectionTool() {
         return object : KtVisitorVoid() {
             override fun visitAnnotationEntry(annotationEntry: KtAnnotationEntry) {
                 super.visitAnnotationEntry(annotationEntry)
-                when {
-                    annotationEntry.isAnnotationOfType(PAGE_FQN) -> checkPage(annotationEntry)
-                    annotationEntry.isAnnotationOfType(PACKAGE_MAPPING_FQN)
-                        && annotationEntry.useSiteTarget?.getAnnotationUseSiteTarget() == AnnotationUseSiteTarget.FILE
-                        -> checkPackageMapping(annotationEntry)
-                }
+                if (annotationEntry.useSiteTarget?.getAnnotationUseSiteTarget() != AnnotationUseSiteTarget.FILE) return
+                // Streams share their package mappings with API endpoints
+                val kind = listOf(RouteKind.PAGE, RouteKind.API)
+                    .firstOrNull { kind -> annotationEntry.isAnnotationOfType(kind.packageMappingFqn) }
+                    ?: return
+                checkPackageMapping(annotationEntry, kind)
             }
 
-            private fun checkPage(pageAnnotation: KtAnnotationEntry) {
-                val page = (pageAnnotation.parent as? KtModifierList)?.parent as? KtNamedFunction ?: return
-                if (!page.isTopLevel) return
-                val routeOverrideExpr = pageAnnotation.routeValueExpression ?: return
+            override fun visitNamedFunction(function: KtNamedFunction) {
+                super.visitNamedFunction(function)
+                if (!function.isTopLevel) return
+                // Streams are properties, so they're checked separately (see `visitProperty`)
+                val kind = listOf(RouteKind.PAGE, RouteKind.API)
+                    .firstOrNull { kind -> function.findRouteAnnotation(kind) != null }
+                    ?: return
+                checkRouteOverride(function, kind)
+            }
+
+            override fun visitProperty(property: KtProperty) {
+                super.visitProperty(property)
+                // Analysis is expensive, so skip properties that obviously aren't streams (or have no override to
+                // check)
+                if (!property.isTopLevel || !property.mightBeApiStream) return
+                if (property.findRouteAnnotation(RouteKind.STREAM) == null) return
+                if (!analyze(property) { property.isRegisteredApiStream() }) return
+                checkRouteOverride(property, RouteKind.STREAM)
+            }
+
+            private fun checkRouteOverride(declaration: KtCallableDeclaration, kind: RouteKind) {
+                val routeOverrideExpr = declaration.findRouteAnnotation(kind)?.routeValueExpression ?: return
                 val routeOverride = routeOverrideExpr.unescapedText
                 // Invalid overrides are reported separately, so don't pile on
                 if (RouteValueProblem.findInRouteOverride(routeOverride).isNotEmpty()) return
 
-                val resolver = page.findPageRouteResolver() ?: return
-                val pagePackage = page.containingKtFile.packageFqName
-                when (
-                    val simplification =
-                        RouteValueSimplification.forRouteOverride(resolver, pagePackage, page.pageFileName, routeOverride)
-                ) {
+                val simplification = RouteValueSimplification.forRouteOverride(
+                    declaration.routeFileName,
+                    routeOverride,
+                ) { override -> declaration.resolveRoute(kind, override) }
+                when (simplification) {
                     RouteValueSimplification.Redundant -> holder.registerProblem(
                         routeOverrideExpr,
                         UxGlobals.textBundle.message(
                             "inspection.redundant.route.override.display.text",
-                            resolver.resolve(page, null)?.value.orEmpty(),
+                            declaration.resolveRoute(kind, routeOverride = null)?.displayValue.orEmpty(),
                         ),
                         ProblemHighlightType.LIKE_UNUSED_SYMBOL,
                         RemoveRouteOverrideQuickFix(),
@@ -87,7 +111,7 @@ class RedundantRouteInspection : LocalInspectionTool() {
                 }
             }
 
-            private fun checkPackageMapping(annotationEntry: KtAnnotationEntry) {
+            private fun checkPackageMapping(annotationEntry: KtAnnotationEntry, kind: RouteKind) {
                 val packageMappingExpr = annotationEntry.routeValueExpression ?: return
                 val packageMapping = packageMappingExpr.unescapedText
                 // Invalid package mappings are reported separately, so don't pile on
@@ -95,9 +119,9 @@ class RedundantRouteInspection : LocalInspectionTool() {
 
                 val file = annotationEntry.containingKtFile
                 val pkg = file.packageFqName
-                // Kobweb ignores package mappings outside the pages package, which is reported separately
-                val resolver = annotationEntry.findPageRouteResolver() ?: return
-                if (!pkg.isSubpackageOf(resolver.pagesPackage)) return
+                // Kobweb ignores package mappings outside the root package, which is reported separately
+                val rootPackage = annotationEntry.findRootPackage(kind) ?: return
+                if (!pkg.isSubpackageOf(rootPackage)) return
 
                 when (val simplification = RouteValueSimplification.forPackageMapping(pkg, packageMapping)) {
                     RouteValueSimplification.Redundant -> {

@@ -2,7 +2,6 @@ package com.varabyte.kobweb.intellij.util.kobweb.api
 
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.roots.ProjectRootModificationTracker
-import com.intellij.openapi.util.io.FileUtilRt
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
@@ -14,6 +13,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.route.RouteResolver
 import com.varabyte.kobweb.intellij.util.kobweb.route.collectPackageMappings
 import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteAnnotation
 import com.varabyte.kobweb.intellij.util.kobweb.route.hasDynamicSegments
+import com.varabyte.kobweb.intellij.util.kobweb.route.routeFileName
 import com.varabyte.kobweb.intellij.util.kobweb.route.routeValue
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
@@ -68,8 +68,7 @@ private fun KtCallableDeclaration.resolveApiRouteValue(): String? {
         apiAnnotation.routeValue ?: return null
     }
 
-    val fileName = FileUtilRt.getNameWithoutExtension(containingKtFile.name)
-    return module?.findApiRouteResolver()?.resolve(containingKtFile.packageFqName, fileName, routeOverride)
+    return module?.findApiRouteResolver()?.resolve(containingKtFile.packageFqName, routeFileName, routeOverride)
 }
 
 /**

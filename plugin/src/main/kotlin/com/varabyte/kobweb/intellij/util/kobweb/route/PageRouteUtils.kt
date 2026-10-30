@@ -2,7 +2,6 @@ package com.varabyte.kobweb.intellij.util.kobweb.route
 
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.roots.ProjectRootModificationTracker
-import com.intellij.openapi.util.io.FileUtilRt
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
@@ -38,17 +37,12 @@ private fun Module.findPageRouteResolver(): PageRouteResolver? {
 fun PsiElement.findPageRouteResolver(): PageRouteResolver? = module?.findPageRouteResolver()
 
 /**
- * The name of the file this page lives in, without its extension, which Kobweb generates its slug from.
- */
-val KtNamedFunction.pageFileName: String get() = FileUtilRt.getNameWithoutExtension(containingKtFile.name)
-
-/**
  * Returns the route that Kobweb generates for [page], if it had the given route override (instead of its own).
  *
  * This is useful for comparing alternatives, e.g. to check if a route override is redundant.
  */
 fun PageRouteResolver.resolve(page: KtNamedFunction, routeOverride: String?): PageRoute? {
-    return resolve(page.containingKtFile.packageFqName, page.pageFileName, routeOverride)
+    return resolve(page.containingKtFile.packageFqName, page.routeFileName, routeOverride)
 }
 
 /**
