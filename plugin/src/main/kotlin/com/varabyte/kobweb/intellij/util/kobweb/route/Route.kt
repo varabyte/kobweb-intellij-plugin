@@ -8,10 +8,40 @@ package com.varabyte.kobweb.intellij.util.kobweb.route
  * [PageRoute].
  *
  * @property value The route, e.g. "/users/{user}".
+ * @property kind The type of target endpoint this route refers to.
  */
 interface Route {
     val value: String
+    val kind: RouteKind
 }
+
+/**
+ * What a route belongs to, which decides the rules that apply to it, e.g. which package it's relative to.
+ */
+enum class RouteKind {
+    /** A page, i.e. an `@Page` function, e.g. "/blog/post". */
+    PAGE,
+
+    /** An API endpoint, i.e. an `@Api` function, e.g. "/users/{user}" (for `/api/users/{user}`). */
+    API,
+
+    /**
+     * An API stream, i.e. an `ApiStream` property, e.g. "/chat". Streams share their routing rules (e.g. the api
+     * package) with API endpoints, but are connected to by their exact route.
+     */
+    STREAM,
+}
+
+/**
+ * This route as users write it, e.g. "/api/users/{user}" for an API endpoint, or "chat" for a stream (which is
+ * connected to without a leading slash, e.g. `ApiStream("chat")`).
+ */
+val Route.displayValue: String
+    get() = when (kind) {
+        RouteKind.PAGE -> value
+        RouteKind.API -> "/api$value"
+        RouteKind.STREAM -> value.removePrefix("/")
+    }
 
 /**
  * A declaration that Kobweb registers at some route, e.g. a page or an API endpoint.

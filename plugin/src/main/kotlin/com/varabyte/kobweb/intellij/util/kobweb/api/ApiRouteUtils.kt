@@ -9,14 +9,15 @@ import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiModificationTracker
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.project.qualifiedApiPackage
+import com.varabyte.kobweb.intellij.util.kobweb.route.RouteKind
 import com.varabyte.kobweb.intellij.util.kobweb.route.RouteResolver
 import com.varabyte.kobweb.intellij.util.kobweb.route.collectPackageMappings
+import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteAnnotation
 import com.varabyte.kobweb.intellij.util.kobweb.route.hasDynamicSegments
 import com.varabyte.kobweb.intellij.util.kobweb.route.routeValue
-import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
-import org.jetbrains.kotlin.idea.base.util.module
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
+import org.jetbrains.kotlin.idea.base.util.module
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
@@ -42,7 +43,7 @@ private fun Module.findApiRouteResolver(): RouteResolver? {
     return CachedValuesManager.getManager(project).getCachedValue(this) {
         val apiPackage = findKobwebProject()?.qualifiedApiPackage
         CachedValueProvider.Result.create(
-            apiPackage?.let { RouteResolver(it, collectPackageMappings(it, API_PACKAGE_MAPPING_FQN)) },
+            apiPackage?.let { RouteResolver(it, collectPackageMappings(it, RouteKind.API)) },
             PsiModificationTracker.getInstance(project),
             ProjectRootModificationTracker.getInstance(project),
         )
@@ -56,23 +57,35 @@ private fun Module.findApiRouteResolver(): RouteResolver? {
 fun PsiElement.findApiRouteResolver(): RouteResolver? = module?.findApiRouteResolver()
 
 /**
- * Returns the route that Kobweb would serve this declaration at, relative to "/api", using its `@Api` annotation's
- * route override if it has one.
- *
- * Unlike [findApiRoute] and [findApiStreamRoute], this doesn't check that the declaration is something Kobweb
- * registers, or (for streams) that its route has no dynamic segments.
+ * Returns the route that Kobweb would register this declaration at, as an API endpoint or stream, using its `@Api`
+ * annotation's route override if it has one, e.g. "/users/{user}" (for `/api/users/{user}`).
  *
  * @return null if Kobweb rejects it (or we can't tell its route).
  */
-fun KtCallableDeclaration.resolveApiRoute(): ApiRoute? {
-    val apiAnnotation = annotationEntries.firstOrNull { it.isAnnotationOfType(API_FQN) }
+private fun KtCallableDeclaration.resolveApiRouteValue(): String? {
+    val apiAnnotation = findRouteAnnotation(RouteKind.API)
     val routeOverride = if (apiAnnotation == null || apiAnnotation.valueArguments.isEmpty()) null else {
         apiAnnotation.routeValue ?: return null
     }
 
     val fileName = FileUtilRt.getNameWithoutExtension(containingKtFile.name)
-    return module?.findApiRouteResolver()?.resolve(containingKtFile.packageFqName, fileName, routeOverride)?.let(::ApiRoute)
+    return module?.findApiRouteResolver()?.resolve(containingKtFile.packageFqName, fileName, routeOverride)
 }
+
+/**
+ * Returns the route that Kobweb would serve this declaration at as an API endpoint (see [resolveApiRouteValue]).
+ *
+ * Unlike [findApiRoute], this doesn't check that the declaration is an `@Api` function.
+ */
+fun KtCallableDeclaration.resolveApiRoute(): ApiRoute? = resolveApiRouteValue()?.let(::ApiRoute)
+
+/**
+ * Returns the route that Kobweb would register this declaration at as an API stream (see [resolveApiRouteValue]).
+ *
+ * Unlike [findApiStreamRoute], this doesn't check that the declaration is an `ApiStream` that Kobweb registers, or
+ * that its route has no dynamic segments.
+ */
+fun KtCallableDeclaration.resolveApiStreamRoute(): ApiStreamRoute? = resolveApiRouteValue()?.let(::ApiStreamRoute)
 
 /**
  * Returns the route that Kobweb serves this `@Api` function at, relative to "/api", e.g. "/hello" or "/users/{user}".
@@ -80,12 +93,12 @@ fun KtCallableDeclaration.resolveApiRoute(): ApiRoute? {
  * @return null if this function isn't an API endpoint, or if Kobweb rejects it.
  */
 fun KtNamedFunction.findApiRoute(): ApiRoute? {
-    if (!isTopLevel || annotationEntries.none { it.isAnnotationOfType(API_FQN) }) return null
+    if (!isTopLevel || findRouteAnnotation(RouteKind.API) == null) return null
     return resolveApiRoute()
 }
 
 /**
- * Returns the route that Kobweb serves this `ApiStream` property at, relative to "/api", e.g. "/chat".
+ * Returns the route that Kobweb registers this `ApiStream` property at, e.g. "/chat".
  *
  * This method must be called inside an `analyze` block.
  *
@@ -93,9 +106,9 @@ fun KtNamedFunction.findApiRoute(): ApiRoute? {
  *   type is exactly `ApiStream`, e.g. `val chat = object : ApiStream() { ... }`), or if Kobweb rejects its route.
  */
 context(_: KaSession)
-fun KtProperty.findApiStreamRoute(): ApiRoute? {
+fun KtProperty.findApiStreamRoute(): ApiStreamRoute? {
     if (!isTopLevel || !isPublic) return null
-    val route = resolveApiRoute() ?: return null
+    val route = resolveApiStreamRoute() ?: return null
     // Kobweb doesn't currently allow dynamic segments in stream routes
     if (route.hasDynamicSegments) return null
     // Checked last, as it's the only check that needs analysis

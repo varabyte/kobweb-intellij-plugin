@@ -7,10 +7,8 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiModificationTracker
-import com.varabyte.kobweb.intellij.util.kobweb.layout.PAGE_FQN
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.project.qualifiedPagesPackage
-import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
 import org.jetbrains.kotlin.idea.base.util.module
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -26,7 +24,7 @@ private fun Module.findPageRouteResolver(): PageRouteResolver? {
     return CachedValuesManager.getManager(project).getCachedValue(this) {
         val pagesPackage = findKobwebProject()?.qualifiedPagesPackage
         CachedValueProvider.Result.create(
-            pagesPackage?.let { PageRouteResolver(it, collectPackageMappings(it, PACKAGE_MAPPING_FQN)) },
+            pagesPackage?.let { PageRouteResolver(it, collectPackageMappings(it, RouteKind.PAGE)) },
             PsiModificationTracker.getInstance(project),
             ProjectRootModificationTracker.getInstance(project),
         )
@@ -62,7 +60,7 @@ fun PageRouteResolver.resolve(page: KtNamedFunction, routeOverride: String?): Pa
  */
 fun KtNamedFunction.findRoute(): PageRoute? {
     if (!isTopLevel) return null
-    val pageAnnotation = annotationEntries.firstOrNull { it.isAnnotationOfType(PAGE_FQN) } ?: return null
+    val pageAnnotation = findRouteAnnotation(RouteKind.PAGE) ?: return null
     val routeOverride = if (pageAnnotation.valueArguments.isEmpty()) null else {
         pageAnnotation.routeValue ?: return null
     }

@@ -11,6 +11,7 @@ import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiModificationTracker
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.readKobwebBackendMetadata
+import com.varabyte.kobweb.intellij.util.kobweb.route.Route
 import com.varabyte.kobweb.intellij.util.kobweb.route.RouteDefinition
 import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -27,14 +28,15 @@ import org.jetbrains.kotlin.psi.KtProperty
 /**
  * An API endpoint, i.e. an `@Api` function or an `ApiStream` property, and the route Kobweb serves it at.
  *
+ * @param R The type of route, i.e. [ApiRoute] for `@Api` functions, or [ApiStreamRoute] for streams.
  * @property fqn The fully qualified name of the declaration, e.g. "com.example.api.users.user".
- * @property route The route the endpoint is served at, relative to "/api", e.g. "/users/{user}".
+ * @property route The route the endpoint is served at, e.g. "/users/{user}" (for `/api/users/{user}`).
  * @property declaration The endpoint's declaration. This can be null if a library advertises an endpoint that we
  *   couldn't find a declaration for.
  */
-class ApiDefinition(
+class ApiDefinition<R : Route>(
     override val fqn: String,
-    override val route: ApiRoute,
+    override val route: R,
     val declaration: KtCallableDeclaration?,
 ) : RouteDefinition
 
@@ -44,10 +46,10 @@ class ApiDefinition(
  * @property apis The `@Api` functions, which are called with `window.api.get(...)` and friends.
  * @property streams The `ApiStream` properties, which are connected to with `ApiStream(...)`.
  */
-class ApiDefinitions(val apis: List<ApiDefinition>, val streams: List<ApiDefinition>)
+class ApiDefinitions(val apis: List<ApiDefinition<ApiRoute>>, val streams: List<ApiDefinition<ApiStreamRoute>>)
 
 /** Returns the endpoints that paths of the given [kind] lead to. */
-operator fun ApiDefinitions.get(kind: ApiPathTarget.Kind): List<ApiDefinition> = when (kind) {
+operator fun ApiDefinitions.get(kind: ApiPathTarget.Kind): List<ApiDefinition<*>> = when (kind) {
     ApiPathTarget.Kind.API -> apis
     ApiPathTarget.Kind.STREAM -> streams
 }
@@ -70,7 +72,7 @@ private fun Module.collectApiDefinitions(): ApiDefinitions {
         .toList()
 
     // Streams don't need an annotation, so look for properties in files that mention them instead
-    val sourceStreams = mutableListOf<ApiDefinition>()
+    val sourceStreams = mutableListOf<ApiDefinition<ApiStreamRoute>>()
     val streamClassName = API_STREAM_CLASS_ID.shortClassName.asString()
     PsiSearchHelper.getInstance(project).processAllFilesWithWord(streamClassName, sourceScope, { file ->
         (file as? KtFile)?.declarations.orEmpty().filterIsInstance<KtProperty>().forEach { property ->
@@ -95,7 +97,7 @@ private fun Module.collectApiDefinitions(): ApiDefinitions {
     val libraryStreams = libraryMetadata.flatMap { metadata -> metadata.apiStreams }.map { stream ->
         ApiDefinition(
             stream.fqn,
-            ApiRoute(stream.route),
+            ApiStreamRoute(stream.route),
             KotlinTopLevelPropertyFqnNameIndex[stream.fqn, project, libraryScope].firstOrNull(),
         )
     }

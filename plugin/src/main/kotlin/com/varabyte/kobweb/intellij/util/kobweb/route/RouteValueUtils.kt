@@ -2,7 +2,11 @@ package com.varabyte.kobweb.intellij.util.kobweb.route
 
 import com.intellij.openapi.module.Module
 import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.psi.PsiElement
+import com.varabyte.kobweb.intellij.util.kobweb.api.API_FQN
 import com.varabyte.kobweb.intellij.util.kobweb.api.API_PACKAGE_MAPPING_FQN
+import com.varabyte.kobweb.intellij.util.kobweb.api.findApiRouteResolver
+import com.varabyte.kobweb.intellij.util.kobweb.layout.PAGE_FQN
 import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
 import com.varabyte.kobweb.intellij.util.psi.unescapedText
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
@@ -11,6 +15,7 @@ import org.jetbrains.kotlin.idea.stubindex.KotlinAnnotationsIndex
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.isSubpackageOf
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
+import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
 /**
@@ -32,12 +37,47 @@ val KtAnnotationEntry.routeValueExpression: KtStringTemplateExpression?
 val KtAnnotationEntry.routeValue: String? get() = routeValueExpression?.unescapedText
 
 /**
- * Returns all `@file:PackageMapping` annotations in this module.
- *
- * @param packageMappingFqn Which `PackageMapping` annotation to look for, as pages and API endpoints each have their own
- *   (see [PACKAGE_MAPPING_FQN] and [API_PACKAGE_MAPPING_FQN]).
+ * The annotation that declares a route of this kind, e.g. `@Page` for pages, which can also override the route Kobweb
+ * would otherwise generate. (API streams are identified by their type instead, so they don't need one, but can use
+ * `@Api` to override their routes.)
  */
-private fun Module.findPackageMappingAnnotations(packageMappingFqn: FqName): Sequence<KtAnnotationEntry> {
+val RouteKind.annotationFqn: FqName
+    get() = when (this) {
+        RouteKind.PAGE -> PAGE_FQN
+        RouteKind.API, RouteKind.STREAM -> API_FQN
+    }
+
+/**
+ * The `@file:PackageMapping` annotation that maps packages of declarations of this kind, as pages have their own (in
+ * the frontend), separate from the one API endpoints and streams share (in the backend).
+ */
+val RouteKind.packageMappingFqn: FqName
+    get() = when (this) {
+        RouteKind.PAGE -> PACKAGE_MAPPING_FQN
+        RouteKind.API, RouteKind.STREAM -> API_PACKAGE_MAPPING_FQN
+    }
+
+/**
+ * Returns this declaration's annotation that declares a route of this [kind] (see [annotationFqn]), e.g. its `@Page`
+ * annotation, if it has one.
+ */
+fun KtCallableDeclaration.findRouteAnnotation(kind: RouteKind): KtAnnotationEntry? =
+    annotationEntries.firstOrNull { entry -> entry.isAnnotationOfType(kind.annotationFqn) }
+
+/**
+ * Returns the package that routes of this [kind] are relative to in this element's module, e.g. the pages package,
+ * or null if it isn't in a Kobweb project (or we can't tell).
+ */
+fun PsiElement.findRootPackage(kind: RouteKind): FqName? = when (kind) {
+    RouteKind.PAGE -> findPageRouteResolver()?.pagesPackage
+    RouteKind.API, RouteKind.STREAM -> findApiRouteResolver()?.rootPackage
+}
+
+/**
+ * Returns all `@file:PackageMapping` annotations in this module for routes of this [kind] (see [packageMappingFqn]).
+ */
+private fun Module.findPackageMappingAnnotations(kind: RouteKind): Sequence<KtAnnotationEntry> {
+    val packageMappingFqn = kind.packageMappingFqn
     // Package mappings only apply to declarations in the same module, so we don't need to search dependencies
     return KotlinAnnotationsIndex[packageMappingFqn.shortName().asString(), project, GlobalSearchScope.moduleScope(this)]
         .asSequence()
@@ -50,11 +90,12 @@ private fun Module.findPackageMappingAnnotations(packageMappingFqn: FqName): Seq
  *
  * A package can only be mapped once, so if this returns anything, it's a mistake.
  *
- * @param packageMappingFqn See [findPackageMappingAnnotations]. This should be the type of this annotation.
+ * @param kind The kind of routes this annotation maps packages for, which should match its type (see
+ *   [packageMappingFqn]).
  */
-fun KtAnnotationEntry.findDuplicatePackageMappings(packageMappingFqn: FqName): List<KtAnnotationEntry> {
+fun KtAnnotationEntry.findDuplicatePackageMappings(kind: RouteKind): List<KtAnnotationEntry> {
     val pkg = containingKtFile.packageFqName
-    return module?.findPackageMappingAnnotations(packageMappingFqn).orEmpty()
+    return module?.findPackageMappingAnnotations(kind).orEmpty()
         .filter { entry -> entry != this && entry.containingKtFile.packageFqName == pkg }
         .toList()
 }
@@ -62,11 +103,11 @@ fun KtAnnotationEntry.findDuplicatePackageMappings(packageMappingFqn: FqName): L
 /**
  * Returns the package mappings in this module that Kobweb uses, by the package they map.
  *
- * @param packageMappingFqn See [findPackageMappingAnnotations].
  * @param rootPackage The package that routes are relative to, e.g. "com.example.pages".
+ * @param kind The kind of routes to collect package mappings for (see [packageMappingFqn]).
  */
-internal fun Module.collectPackageMappings(rootPackage: FqName, packageMappingFqn: FqName): Map<FqName, String> {
-    return findPackageMappingAnnotations(packageMappingFqn)
+internal fun Module.collectPackageMappings(rootPackage: FqName, kind: RouteKind): Map<FqName, String> {
+    return findPackageMappingAnnotations(kind)
         // A package mapped more than once is reported as an error. Until the user fixes it, we sort by file path, so
         // which mapping we use doesn't change randomly
         .sortedBy { entry -> entry.containingFile.virtualFile?.path.orEmpty() }

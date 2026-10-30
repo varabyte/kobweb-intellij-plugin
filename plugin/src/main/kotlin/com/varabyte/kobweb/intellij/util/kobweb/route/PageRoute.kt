@@ -7,5 +7,7 @@ package com.varabyte.kobweb.intellij.util.kobweb.route
  */
 @JvmInline
 value class PageRoute(override val value: String) : Route {
+    override val kind get() = RouteKind.PAGE
+
     override fun toString() = value
 }

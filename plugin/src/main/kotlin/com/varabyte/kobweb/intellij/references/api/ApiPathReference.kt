@@ -7,6 +7,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.api.ApiPathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.api.findApiDefinitions
 import com.varabyte.kobweb.intellij.util.kobweb.api.findApiPathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.api.mayHaveApiPathTarget
+import com.varabyte.kobweb.intellij.util.kobweb.api.path
 import com.varabyte.kobweb.intellij.util.kobweb.route.LinkPath
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPathRange
 import com.varabyte.kobweb.intellij.util.kobweb.route.parseLinkPath
@@ -64,7 +65,7 @@ class ApiPathReference(element: KtStringTemplateExpression) : PsiReferenceBase<K
             ApiPathTarget.Kind.STREAM -> {
                 if (element.hasInterpolation()) return null
                 val path = element.unescapedText.removePrefix("/")
-                definitions.streams.firstOrNull { stream -> stream.route.value.removePrefix("/") == path }
+                definitions.streams.firstOrNull { stream -> stream.route.path == path }
             }
         }?.declaration
     }

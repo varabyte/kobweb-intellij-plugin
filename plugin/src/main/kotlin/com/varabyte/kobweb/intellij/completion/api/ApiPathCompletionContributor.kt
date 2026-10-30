@@ -73,7 +73,7 @@ private object ApiPathCompletionProvider : CompletionProvider<CompletionParamete
         result.stopHere()
     }
 
-    private fun ApiDefinition.toLookupElement(kind: ApiPathTarget.Kind, withLeadingSlash: Boolean): LookupElement {
+    private fun ApiDefinition<*>.toLookupElement(kind: ApiPathTarget.Kind, withLeadingSlash: Boolean): LookupElement {
         val path = if (withLeadingSlash) route.value else route.value.removePrefix("/")
         // Kobweb doesn't currently allow dynamic segments in stream routes (see `findApiStreamRoute`)
         val hasDynamicSegments = kind != ApiPathTarget.Kind.STREAM && route.hasDynamicSegments

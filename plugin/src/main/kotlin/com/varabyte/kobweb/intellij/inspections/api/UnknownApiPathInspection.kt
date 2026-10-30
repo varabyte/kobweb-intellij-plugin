@@ -7,9 +7,11 @@ import com.intellij.psi.PsiElementVisitor
 import com.varabyte.kobweb.intellij.util.kobweb.api.ApiDefinition
 import com.varabyte.kobweb.intellij.util.kobweb.api.ApiPathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.api.ApiRoute
+import com.varabyte.kobweb.intellij.util.kobweb.api.ApiStreamRoute
 import com.varabyte.kobweb.intellij.util.kobweb.api.findApiDefinitions
 import com.varabyte.kobweb.intellij.util.kobweb.api.findApiPathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.api.mayHaveApiPathTarget
+import com.varabyte.kobweb.intellij.util.kobweb.api.path
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.route.LinkPath.UnknownSegmentsStrategy
 import com.varabyte.kobweb.intellij.util.kobweb.route.isFullUrl
@@ -50,7 +52,7 @@ class UnknownApiPathInspection : LocalInspectionTool() {
                 }
             }
 
-            private fun checkApiPath(expression: KtStringTemplateExpression, apis: List<ApiDefinition>) {
+            private fun checkApiPath(expression: KtStringTemplateExpression, apis: List<ApiDefinition<ApiRoute>>) {
                 val path = expression.parseLinkPath(allowRelativePath = true) ?: return
                 // Unknown segments could hold anything at runtime, so only report paths that can't lead to any endpoint
                 if (apis.any { api -> path.matches(api.route, UnknownSegmentsStrategy.MATCH_ANYTHING) }) return
@@ -72,12 +74,15 @@ class UnknownApiPathInspection : LocalInspectionTool() {
                 )
             }
 
-            private fun checkStreamPath(expression: KtStringTemplateExpression, streams: List<ApiDefinition>) {
+            private fun checkStreamPath(
+                expression: KtStringTemplateExpression,
+                streams: List<ApiDefinition<ApiStreamRoute>>,
+            ) {
                 if (expression.hasInterpolation()) return
                 val path = expression.unescapedText.removePrefix("/")
                 // Reported by `InvalidApiPathFormatInspection` instead
                 if ('?' in path || '#' in path) return
-                if (streams.any { stream -> stream.route.value.removePrefix("/") == path }) return
+                if (streams.any { stream -> stream.route.path == path }) return
 
                 holder.registerProblem(
                     expression,

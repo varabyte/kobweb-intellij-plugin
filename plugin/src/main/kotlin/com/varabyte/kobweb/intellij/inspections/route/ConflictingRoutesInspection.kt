@@ -10,7 +10,10 @@ import com.varabyte.kobweb.intellij.util.kobweb.api.findApiStreamRoute
 import com.varabyte.kobweb.intellij.util.kobweb.api.mightBeApiStream
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.route.PageRoute
+import com.varabyte.kobweb.intellij.util.kobweb.route.Route
 import com.varabyte.kobweb.intellij.util.kobweb.route.RouteDefinition
+import com.varabyte.kobweb.intellij.util.kobweb.route.RouteKind
+import com.varabyte.kobweb.intellij.util.kobweb.route.displayValue
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPages
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPublicFolders
 import com.varabyte.kobweb.intellij.util.kobweb.route.findRoute
@@ -35,19 +38,12 @@ class ConflictingRoutesInspection : LocalInspectionTool() {
                 super.visitNamedFunction(function)
 
                 function.findRoute()?.let { route ->
-                    function.reportAnyDuplicates("inspection.conflicting.routes.page.display.text", route.value) {
-                        findPages().filter { page -> page.route == route }
-                    }
+                    function.reportAnyDuplicates(route) { findPages() }
                     function.reportAnyPublicFileConflict(route)
                 }
 
                 function.findApiRoute()?.let { route ->
-                    function.reportAnyDuplicates(
-                        "inspection.conflicting.routes.api.display.text",
-                        "/api${route.value}",
-                    ) {
-                        findApiDefinitions().apis.filter { api -> api.route == route }
-                    }
+                    function.reportAnyDuplicates(route) { findApiDefinitions().apis }
                 }
             }
 
@@ -57,38 +53,35 @@ class ConflictingRoutesInspection : LocalInspectionTool() {
                 if (!property.isTopLevel || !property.mightBeApiStream) return
                 val route = analyze(property) { property.findApiStreamRoute() } ?: return
 
-                property.reportAnyDuplicates(
-                    "inspection.conflicting.routes.stream.display.text",
-                    // Streams are connected to without a leading slash, e.g. `ApiStream("chat")`
-                    route.value.removePrefix("/"),
-                ) {
-                    findApiDefinitions().streams.filter { stream -> stream.route == route }
-                }
+                property.reportAnyDuplicates(route) { findApiDefinitions().streams }
             }
 
             /**
-             * Reports this declaration if any declarations besides it are registered at its route, which Kobweb fails
-             * the build for.
+             * Reports this declaration if any declarations besides it are registered at its [route], which Kobweb
+             * fails the build for.
              *
-             * @param displayRoute The route as it should be shown to the user, e.g. with "/api" prepended.
-             *
-             * @param findDefinitionsAtRoute Returns the declarations registered at this declaration's route, which may
-             *   include it.
+             * @param findDefinitions Returns the declarations that might be registered at the same route, e.g. all the
+             *   pages this declaration can see (which may include this one).
              */
             private fun KtCallableDeclaration.reportAnyDuplicates(
-                messageKey: String,
-                displayRoute: String,
-                findDefinitionsAtRoute: KtCallableDeclaration.() -> List<RouteDefinition>,
+                route: Route,
+                findDefinitions: KtCallableDeclaration.() -> List<RouteDefinition>,
             ) {
                 val ownFqn = fqName?.asString() ?: return
-                val others = findDefinitionsAtRoute().filter { definition -> definition.fqn != ownFqn }
+                val others = findDefinitions()
+                    .filter { definition -> definition.route == route && definition.fqn != ownFqn }
                 if (others.isEmpty()) return
 
+                val messageKey = when (route.kind) {
+                    RouteKind.PAGE -> "inspection.conflicting.routes.page.display.text"
+                    RouteKind.API -> "inspection.conflicting.routes.api.display.text"
+                    RouteKind.STREAM -> "inspection.conflicting.routes.stream.display.text"
+                }
                 holder.registerProblem(
                     nameIdentifier ?: this,
                     UxGlobals.textBundle.message(
                         messageKey,
-                        displayRoute,
+                        route.displayValue,
                         others.joinToString { definition -> "`${definition.fqn}`" },
                     ),
                 )

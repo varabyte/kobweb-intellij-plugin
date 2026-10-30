@@ -10,10 +10,10 @@ import com.intellij.usages.UsageInfo2UsageAdapter
 import com.intellij.util.Processor
 import com.varabyte.kobweb.intellij.findUsages.route.processCandidateStrings
 import com.varabyte.kobweb.intellij.references.api.ApiPathReference
-import com.varabyte.kobweb.intellij.util.kobweb.api.ApiRoute
 import com.varabyte.kobweb.intellij.util.kobweb.api.findApiRoute
 import com.varabyte.kobweb.intellij.util.kobweb.api.findApiStreamRoute
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
+import com.varabyte.kobweb.intellij.util.kobweb.route.Route
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtNamedFunction
@@ -29,7 +29,7 @@ import org.jetbrains.kotlin.psi.KtProperty
  */
 class ApiRouteUsageSearcher : CustomUsageSearcher() {
     override fun processElementUsages(element: PsiElement, processor: Processor<in Usage>, options: FindUsagesOptions) {
-        val (endpoint, route) = ReadAction.compute<Pair<KtCallableDeclaration, ApiRoute>?, Throwable> {
+        val (endpoint, route) = ReadAction.compute<Pair<KtCallableDeclaration, Route>?, Throwable> {
             if (!element.isInReadableKobwebProject()) return@compute null
             val route = when (element) {
                 is KtNamedFunction -> element.findApiRoute()
