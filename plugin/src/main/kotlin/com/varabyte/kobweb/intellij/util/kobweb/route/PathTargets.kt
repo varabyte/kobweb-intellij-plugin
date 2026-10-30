@@ -51,25 +51,26 @@ interface PathTarget {
  * A Kobweb annotation for parameters and properties that hold some kind of path, e.g. `@RoutePath` on `Link`'s `path`,
  * which tells us what strings used with them should look like.
  *
- * Older versions of Kobweb didn't have these annotations, so this also lists the declarations they were later added to.
+ * Some declarations are also implicit targets, i.e. treated as if they were marked with the annotation even though
+ * they aren't, e.g. the ones in older versions of Kobweb, from before it added the annotation to them.
  *
  * @param T What a string's target tells us about it, e.g. [RoutePathTarget].
  * @property classId The annotation class.
  * @property toPathTarget Returns what an instance of the annotation says, e.g. from its arguments.
- * @property legacyParameters Parameters that hold a path, by the function they belong to, as (parameter name, target)
+ * @property implicitParameters Parameters that hold a path, by the function they belong to, as (parameter name, target)
  *   pairs.
- * @property legacyConstructorParameters Like [legacyParameters], but for constructors, by the class they belong to.
- * @property legacyGetters Property getters that return a path, i.e. what strings compared against them should look
+ * @property implicitConstructorParameters Like [implicitParameters], but for constructors, by the class they belong to.
+ * @property implicitGetters Property getters that return a path, i.e. what strings compared against them should look
  *   like.
- * @property legacySetters Property setters that take a path, i.e. what strings assigned to them should look like.
+ * @property implicitSetters Property setters that take a path, i.e. what strings assigned to them should look like.
  */
 class PathAnnotation<T : PathTarget>(
     val classId: ClassId,
     val toPathTarget: (KaAnnotation) -> T,
-    val legacyParameters: Map<CallableId, Pair<String, T>> = emptyMap(),
-    val legacyConstructorParameters: Map<ClassId, Pair<String, T>> = emptyMap(),
-    val legacyGetters: Map<CallableId, T> = emptyMap(),
-    val legacySetters: Map<CallableId, T> = emptyMap(),
+    val implicitParameters: Map<CallableId, Pair<String, T>> = emptyMap(),
+    val implicitConstructorParameters: Map<ClassId, Pair<String, T>> = emptyMap(),
+    val implicitGetters: Map<CallableId, T> = emptyMap(),
+    val implicitSetters: Map<CallableId, T> = emptyMap(),
 )
 
 /**
@@ -175,7 +176,7 @@ fun KtStringTemplateExpression.findTargetName(): String? {
 
 /**
  * Returns the names of the declarations that are targets of [annotation] (see [findTargetName]), i.e. those marked
- * with it in this project's indexed code, plus its legacy declarations.
+ * with it in this project's indexed code, plus its implicit targets.
  *
  * This is only as complete as the index, so it can miss annotated declarations that aren't in it (e.g. in a compiled
  * library without sources). It can also include ones that aren't really targets, as annotations are matched by name
@@ -183,9 +184,9 @@ fun KtStringTemplateExpression.findTargetName(): String? {
  * now and then, e.g. whether to show a completion popup.
  */
 fun Project.findTargetNames(annotation: PathAnnotation<*>): Set<String> = buildSet {
-    annotation.legacyParameters.keys.forEach { callableId -> add(callableId.callableName.asString()) }
-    annotation.legacyConstructorParameters.keys.forEach { classId -> add(classId.shortClassName.asString()) }
-    (annotation.legacyGetters.keys + annotation.legacySetters.keys).forEach { callableId ->
+    annotation.implicitParameters.keys.forEach { callableId -> add(callableId.callableName.asString()) }
+    annotation.implicitConstructorParameters.keys.forEach { classId -> add(classId.shortClassName.asString()) }
+    (annotation.implicitGetters.keys + annotation.implicitSetters.keys).forEach { callableId ->
         add(callableId.callableName.asString())
     }
 
@@ -222,7 +223,7 @@ private fun <T : PathTarget> KaAnnotated.findPathTarget(annotation: PathAnnotati
 
 /**
  * Returns the target of the parameter that this string is passed into, if that parameter is marked with
- * [annotation] (or is one of its legacy parameters).
+ * [annotation] (or is one of its implicit target parameters).
  */
 context(kaSession: KaSession)
 private fun <T : PathTarget> KtStringTemplateExpression.findParameterPathTarget(annotation: PathAnnotation<T>): T? =
@@ -233,12 +234,12 @@ private fun <T : PathTarget> KtStringTemplateExpression.findParameterPathTarget(
         val parameter = call.argumentMapping[this@findParameterPathTarget]?.symbol ?: return null
         parameter.findPathTarget(annotation)?.let { return it }
 
-        val (legacyName, legacyTarget) = when (val function = call.symbol) {
+        val (implicitName, implicitTarget) = when (val function = call.symbol) {
             // Constructors don't have a callable ID of their own
-            is KaConstructorSymbol -> function.containingClassId?.let { annotation.legacyConstructorParameters[it] }
-            else -> function.callableId?.let { annotation.legacyParameters[it] }
+            is KaConstructorSymbol -> function.containingClassId?.let { annotation.implicitConstructorParameters[it] }
+            else -> function.callableId?.let { annotation.implicitParameters[it] }
         } ?: return null
-        return legacyTarget.takeIf { legacyName == parameter.name.asString() }
+        return implicitTarget.takeIf { implicitName == parameter.name.asString() }
     }
 
 /**
@@ -259,7 +260,7 @@ private fun <T : PathTarget> KtStringTemplateExpression.findComparedPathTarget(a
     val property = findComparedExpression()?.resolveToProperty() ?: return null
     return property.getter?.findPathTarget(annotation)
         ?: property.findPathTarget(annotation)
-        ?: annotation.legacyGetters[property.callableId]
+        ?: annotation.implicitGetters[property.callableId]
 }
 
 /**
@@ -271,7 +272,7 @@ private fun <T : PathTarget> KtStringTemplateExpression.findAssignedPathTarget(a
     val property = findAssignedExpression()?.resolveToProperty() ?: return null
     return property.setter?.findPathTarget(annotation)
         ?: property.findPathTarget(annotation)
-        ?: annotation.legacySetters[property.callableId]
+        ?: annotation.implicitSetters[property.callableId]
 }
 
 /**

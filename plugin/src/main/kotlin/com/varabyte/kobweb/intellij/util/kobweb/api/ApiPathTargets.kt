@@ -51,7 +51,7 @@ class ApiPathTarget(val kind: Kind, override val mustExist: Boolean) : PathTarge
  * These are both members of `ApiFetcher` (e.g. `window.api.get(...)`) and extension functions on it (from the
  * `kobwebx-serialization-kotlinx` library), and all of them call the path parameter `apiPath`.
  */
-private val LEGACY_API_FETCHER_FUNCTIONS = listOf(
+private val IMPLICIT_API_FETCHER_FUNCTIONS = listOf(
     "delete", "deleteBytes", "tryDelete", "tryDeleteBytes",
     "get", "getBytes", "tryGet", "tryGetBytes",
     "head", "tryHead",
@@ -66,9 +66,9 @@ private val LEGACY_API_FETCHER_FUNCTIONS = listOf(
  * Hardcoded list of parameters that take an API path in versions of Kobweb from before it annotated them with
  * `@ApiPath`, by the function they belong to.
  */
-private val LEGACY_API_PARAMETERS = buildMap {
+private val IMPLICIT_API_PARAMETERS = buildMap {
     val target = ApiPathTarget(ApiPathTarget.Kind.API, mustExist = true)
-    for (name in LEGACY_API_FETCHER_FUNCTIONS.map(Name::identifier)) {
+    for (name in IMPLICIT_API_FETCHER_FUNCTIONS.map(Name::identifier)) {
         put(CallableId(KOBWEB_BROWSER_PACKAGE, FqName("ApiFetcher"), name), "apiPath" to target)
         put(CallableId(KOBWEB_BROWSER_PACKAGE, name), "apiPath" to target)
     }
@@ -78,7 +78,7 @@ private val LEGACY_API_PARAMETERS = buildMap {
  * Hardcoded list of parameters that take an API stream path in versions of Kobweb from before it annotated them with
  * `@ApiStreamPath`, by the function they belong to.
  */
-private val LEGACY_API_STREAM_PARAMETERS = mapOf(
+private val IMPLICIT_API_STREAM_PARAMETERS = mapOf(
     CallableId(KOBWEB_STREAMS_PACKAGE, Name.identifier("rememberApiStream"))
         to ("route" to ApiPathTarget(ApiPathTarget.Kind.STREAM, mustExist = true)),
 )
@@ -87,7 +87,7 @@ private val LEGACY_API_STREAM_PARAMETERS = mapOf(
  * Hardcoded list of constructor parameters that take an API stream path in versions of Kobweb from before it annotated
  * them with `@ApiStreamPath`, by the class they belong to.
  */
-private val LEGACY_API_STREAM_CONSTRUCTOR_PARAMETERS = mapOf(
+private val IMPLICIT_API_STREAM_CONSTRUCTOR_PARAMETERS = mapOf(
     ClassId(KOBWEB_STREAMS_PACKAGE, Name.identifier("ApiStream"))
         to ("route" to ApiPathTarget(ApiPathTarget.Kind.STREAM, mustExist = true)),
 )
@@ -96,7 +96,7 @@ private val LEGACY_API_STREAM_CONSTRUCTOR_PARAMETERS = mapOf(
  * Hardcoded list of property getters that return an API stream path in versions of Kobweb from before it annotated
  * them with `@ApiStreamPath`, i.e. what strings compared against them should look like.
  */
-private val LEGACY_API_STREAM_GETTERS = buildMap {
+private val IMPLICIT_API_STREAM_GETTERS = buildMap {
     val target = ApiPathTarget(ApiPathTarget.Kind.STREAM, mustExist = true)
     for (stream in listOf("ImmutableApiStream", "ApiStream")) {
         put(CallableId(KOBWEB_STREAMS_PACKAGE, FqName(stream), Name.identifier("route")), target)
@@ -111,7 +111,7 @@ private val API_PATH_ANNOTATION = PathAnnotation(
     toPathTarget = { apiPath ->
         ApiPathTarget(ApiPathTarget.Kind.API, apiPath.readBooleanArgument("mustExist", default = true))
     },
-    legacyParameters = LEGACY_API_PARAMETERS,
+    implicitParameters = IMPLICIT_API_PARAMETERS,
 )
 
 /**
@@ -122,9 +122,9 @@ private val API_STREAM_PATH_ANNOTATION = PathAnnotation(
     toPathTarget = { apiStreamPath ->
         ApiPathTarget(ApiPathTarget.Kind.STREAM, apiStreamPath.readBooleanArgument("mustExist", default = true))
     },
-    legacyParameters = LEGACY_API_STREAM_PARAMETERS,
-    legacyConstructorParameters = LEGACY_API_STREAM_CONSTRUCTOR_PARAMETERS,
-    legacyGetters = LEGACY_API_STREAM_GETTERS,
+    implicitParameters = IMPLICIT_API_STREAM_PARAMETERS,
+    implicitConstructorParameters = IMPLICIT_API_STREAM_CONSTRUCTOR_PARAMETERS,
+    implicitGetters = IMPLICIT_API_STREAM_GETTERS,
 )
 
 /**

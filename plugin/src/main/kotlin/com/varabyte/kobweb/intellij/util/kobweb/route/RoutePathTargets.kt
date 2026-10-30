@@ -77,7 +77,7 @@ val RoutePathTarget.allowsResources: Boolean get() = destination != RoutePathTar
  * Hardcoded list of parameters that take a route in versions of Kobweb from before it annotated them with `@RoutePath`,
  * by the function they belong to.
  */
-private val LEGACY_ROUTE_PARAMETERS = mapOf(
+private val IMPLICIT_ROUTE_PARAMETERS = mapOf(
     CallableId(FqName("com.varabyte.kobweb.silk.components.navigation"), Name.identifier("Link"))
         to ("path" to RoutePathTarget(RoutePathTarget.Type.URL, mustExist = true)),
     CallableId(KOBWEB_NAVIGATION_PACKAGE, Name.identifier("Anchor"))
@@ -111,7 +111,7 @@ private val LEGACY_ROUTE_PARAMETERS = mapOf(
  * Kobweb marks these with `mustExist = false`, as they hold routes that might not lead to any page (e.g. the current
  * route, which might be a 404).
  */
-private val LEGACY_ROUTE_GETTERS = buildMap {
+private val IMPLICIT_ROUTE_GETTERS = buildMap {
     // `RouteInfo` was nested inside `PageContext` in older versions of Kobweb
     for (routeInfo in listOf(FqName("RouteInfo"), FqName("PageContext.RouteInfo"))) {
         put(
@@ -137,7 +137,7 @@ private val LEGACY_ROUTE_GETTERS = buildMap {
  * Hardcoded list of property setters that take a route in versions of Kobweb from before it annotated them with
  * `@RoutePath`, i.e. what strings assigned to them should look like.
  */
-private val LEGACY_ROUTE_SETTERS = mapOf(
+private val IMPLICIT_ROUTE_SETTERS = mapOf(
     // Route interceptors redirect Kobweb's client router to the path they set, so it should lead to a page
     CallableId(KOBWEB_NAVIGATION_PACKAGE, FqName("RouteInterceptorScope"), Name.identifier("path"))
         to RoutePathTarget(
@@ -162,9 +162,9 @@ private val ROUTE_PATH_ANNOTATION = PathAnnotation(
             ),
         )
     },
-    legacyParameters = LEGACY_ROUTE_PARAMETERS,
-    legacyGetters = LEGACY_ROUTE_GETTERS,
-    legacySetters = LEGACY_ROUTE_SETTERS,
+    implicitParameters = IMPLICIT_ROUTE_PARAMETERS,
+    implicitGetters = IMPLICIT_ROUTE_GETTERS,
+    implicitSetters = IMPLICIT_ROUTE_SETTERS,
 )
 
 /**
