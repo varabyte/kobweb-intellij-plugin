@@ -2,14 +2,32 @@
 <body>
 Reports pages, API endpoints, and API streams whose routes conflict with existing ones.
 <p>
-Two pages, two API endpoints, or two API streams at the same route will fail the build. A page at the same route as a
-public file still builds, but you should be aware that visiting the URL directly will show the file, while navigating to
-it from within the site (e.g. clicking a link) will show the page.
+Kobweb would fail the build for:
+<ul>
+    <li>two pages, two API endpoints, or two API streams at the same route</li>
+    <li>two routes that use different dynamic segments in the same position, e.g. <code>/users/{id}</code> and
+        <code>/users/{name}</code></li>
+    <li>a route ending with an optional segment that's never empty, as another route matches it first, e.g.
+        <code>/blog/{post?}</code> next to <code>/blog/</code></li>
+</ul>
+<p>
+A page at the same route as a public file still builds, but you should be aware that visiting the URL directly will
+show the file, while navigating to it from within the site (e.g. clicking a link) will show the page.
 <pre><code>
 // pages/About.kt
 @Page fun AboutPage() { ... }
 // pages/Company.kt
 @Page("/about") fun CompanyPage() { ... }  // Not OK -- AboutPage is also served at "/about"
+
+// pages/users/Profile.kt
+@Page("{id}") fun ProfilePage() { ... }
+// pages/users/Settings.kt
+@Page("{name}/settings") fun SettingsPage() { ... }  // Not OK -- ProfilePage uses "{id}" here
+
+// pages/blog/Index.kt
+@Page fun BlogPage() { ... }
+// pages/blog/Post.kt
+@Page("{post?}") fun PostPage() { ... }    // Not OK -- BlogPage is always used for "/blog/"
 
 // pages/Resume.kt, next to resources/public/resume
 @Page fun ResumePage() { ... }             // Not OK -- the public file is also served at "/resume"

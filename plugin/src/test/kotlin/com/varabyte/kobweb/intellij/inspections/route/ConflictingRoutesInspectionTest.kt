@@ -135,6 +135,146 @@ class ConflictingRoutesInspectionTest : KobwebFullStackTestCase() {
         )
     }
 
+    private fun addProfilePage() {
+        addFileToProject(
+            Platform.Js,
+            "pages/users/Profile.kt",
+            // language=kotlin
+            """
+            package $TEST_GROUP.pages.users
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+
+            @Page("{id}")
+            @Composable
+            fun ProfilePage() {
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testPagesWithDifferentDynamicSegmentsInTheSamePositionAreFlagged() {
+        addProfilePage()
+
+        checkHighlighting(
+            Platform.Js,
+            "Settings.kt",
+            """
+            package $TEST_GROUP.pages.users
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+
+            @Page("{name}/settings")
+            @Composable
+            fun <error descr="This page's route (\"/users/{name}/settings\") uses \"{name}\" where the route of `$TEST_GROUP.pages.users.ProfilePage` (\"/users/{id}\") uses \"{id}\", which will fail the build, as only one dynamic segment can be registered in the same position. Please use the same dynamic segment in both.">SettingsPage</error>() {
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testPagesThatShareADynamicSegmentAreNotFlagged() {
+        addProfilePage()
+
+        checkHighlighting(
+            Platform.Js,
+            "Posts.kt",
+            """
+            package $TEST_GROUP.pages.users
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+
+            // Shares the dynamic segment, so it doesn't conflict
+            @Page("{id}/posts")
+            @Composable
+            fun PostsPage() {
+            }
+
+            // Static segments can sit next to a dynamic one
+            @Page("new")
+            @Composable
+            fun NewUserPage() {
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testApiEndpointsWithDifferentDynamicSegmentsInTheSamePositionAreFlagged() {
+        addFileToProject(
+            Platform.Jvm,
+            "api/users/User.kt",
+            // language=kotlin
+            """
+            package $TEST_GROUP.api.users
+
+            import com.varabyte.kobweb.api.Api
+            import com.varabyte.kobweb.api.ApiContext
+
+            @Api("{id}")
+            suspend fun user(ctx: ApiContext) {
+            }
+            """.trimIndent()
+        )
+
+        checkHighlighting(
+            Platform.Jvm,
+            "api/users/Avatar.kt",
+            """
+            package $TEST_GROUP.api.users
+
+            import com.varabyte.kobweb.api.Api
+            import com.varabyte.kobweb.api.ApiContext
+
+            @Api("{...path}")
+            suspend fun <error descr="This API endpoint's route (\"/api/users/{...path}\") uses \"{...path}\" where the route of `$TEST_GROUP.api.users.user` (\"/api/users/{id}\") uses \"{id}\", which will fail the build, as only one dynamic segment can be registered in the same position. Please use the same dynamic segment in both.">avatar</error>(ctx: ApiContext) {
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testTrailingOptionalSegmentsThatAreNeverEmptyAreFlagged() {
+        addFileToProject(
+            Platform.Js,
+            "pages/blog/Index.kt",
+            // language=kotlin
+            """
+            package $TEST_GROUP.pages.blog
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+
+            @Page
+            @Composable
+            fun BlogPage() {
+            }
+            """.trimIndent()
+        )
+
+        checkHighlighting(
+            Platform.Js,
+            "Post.kt",
+            """
+            package $TEST_GROUP.pages.blog
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+
+            @Page("{post?}")
+            @Composable
+            fun <error descr="This page's route (\"/blog/{post?}\") ends with an optional segment, but `$TEST_GROUP.pages.blog.BlogPage` is registered at \"/blog/\", which always takes precedence when the segment is empty. This will fail the build, so please make the segment required instead, i.e. \"{post}\".">PostPage</error>() {
+            }
+
+            // Nothing is registered at "/drafts/", so the segment can be empty
+            @Page("/drafts/{draft?}")
+            @Composable
+            fun DraftPage() {
+            }
+            """.trimIndent()
+        )
+    }
+
     fun testPagesAtTheSameRouteAsAPublicFileAreFlagged() {
         val resourcesRoot = myFixture.addFileToProject("resources/public/resume", "").virtualFile.parent.parent
         myFixture.addFileToProject("resources/public/blog/cat.png", "")

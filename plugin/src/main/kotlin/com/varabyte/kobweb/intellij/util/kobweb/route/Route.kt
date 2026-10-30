@@ -82,3 +82,21 @@ fun <T> List<T>.pickMostSpecific(route: (T) -> Route): T? {
             ?: (aRanks.size - bRanks.size)
     }
 }
+
+/**
+ * Returns the dynamic segments of this route and [other] that can't both be registered, if any, e.g. "{id}" and
+ * "{name}" for "/users/{id}" and "/users/{name}/posts".
+ *
+ * Kobweb registers all of a site's routes (or all of its API routes) in a single tree, where each node can have at most
+ * one dynamic child. So two routes conflict if, at the first position where their segments differ, both of them are
+ * dynamic, e.g. "/{a}/x" and "/{b}/y", or "/docs/{page}" and "/docs/{...rest}". (This mirrors
+ * `reportConflictingDynamicSegments` in Kobweb's `RouteEntry.kt`.)
+ *
+ * @return This route's segment paired with the other route's segment, or null if the routes don't conflict.
+ */
+fun Route.findConflictingDynamicSegments(other: Route): Pair<String, String>? {
+    val (segment, otherSegment) = segments.zip(other.segments).firstOrNull { (a, b) -> a != b } ?: return null
+    val bothDynamic =
+        DynamicRouteSegment.tryCreate(segment) != null && DynamicRouteSegment.tryCreate(otherSegment) != null
+    return if (bothDynamic) segment to otherSegment else null
+}

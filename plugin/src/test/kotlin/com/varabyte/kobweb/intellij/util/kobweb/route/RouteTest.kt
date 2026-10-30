@@ -29,4 +29,23 @@ class RouteTest {
         assertThat(pick("/{a}/b", "/a/{b}")).isEqualTo("/a/{b}")
         assertThat(pick()).isNull()
     }
+
+    @Test
+    fun conflictingDynamicSegments() {
+        fun conflict(a: String, b: String) = PageRoute(a).findConflictingDynamicSegments(PageRoute(b))
+
+        assertThat(conflict("/users/{id}", "/users/{name}")).isEqualTo("{id}" to "{name}")
+        assertThat(conflict("/users/{id}", "/users/{name}/posts")).isEqualTo("{id}" to "{name}")
+        assertThat(conflict("/{a}/x", "/{b}/y")).isEqualTo("{a}" to "{b}")
+        assertThat(conflict("/docs/{page}", "/docs/{...rest}")).isEqualTo("{page}" to "{...rest}")
+        assertThat(conflict("/docs/{page}", "/docs/{page?}")).isEqualTo("{page}" to "{page?}")
+
+        // The same dynamic segment is shared, so the routes only diverge later (or not at all)
+        assertThat(conflict("/users/{id}", "/users/{id}/posts")).isNull()
+        assertThat(conflict("/users/{id}", "/users/{id}")).isNull()
+        // A static segment and a dynamic one can sit side by side
+        assertThat(conflict("/users/{id}", "/users/new")).isNull()
+        // Different static segments mean the routes never meet again
+        assertThat(conflict("/a/{x}", "/b/{y}")).isNull()
+    }
 }
