@@ -64,6 +64,7 @@
 
         <lang.inspectionSuppressor language="kotlin" implementationClass="com.varabyte.kobweb.intellij.inspections.supressors.FunctionNameInspectionSuppressor"/>
         <lang.inspectionSuppressor language="kotlin" implementationClass="com.varabyte.kobweb.intellij.inspections.supressors.UnusedInspectionSuppressor"/>
+        <customUsageSearcher implementation="com.varabyte.kobweb.intellij.findUsages.api.ApiRouteUsageSearcher"/>
         <customUsageSearcher implementation="com.varabyte.kobweb.intellij.findUsages.route.PageRouteUsageSearcher"/>
         <customUsageSearcher implementation="com.varabyte.kobweb.intellij.findUsages.worker.WorkerFactoryUsageSearcher"/>
         <!-- This processor is registered with `order="last"`, so that the Kotlin plugin's own processor still handles renaming the factory class itself. -->
