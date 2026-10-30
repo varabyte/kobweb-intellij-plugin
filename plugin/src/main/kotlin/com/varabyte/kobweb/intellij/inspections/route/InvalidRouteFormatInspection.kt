@@ -8,26 +8,13 @@ import com.intellij.psi.PsiElementVisitor
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.route.RoutePathTarget
 import com.varabyte.kobweb.intellij.util.kobweb.route.findRoutePathTarget
+import com.varabyte.kobweb.intellij.util.kobweb.route.isFullUrl
 import com.varabyte.kobweb.intellij.util.kobweb.route.linkPathRange
 import com.varabyte.kobweb.intellij.util.kobweb.route.mayHavePathTarget
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.KtVisitorVoid
-
-/** Matches the scheme at the start of a URL, e.g. "https:" or "mailto:". */
-private val SCHEME_REGEX = Regex("^[A-Za-z][A-Za-z0-9+.-]*:")
-
-/**
- * True if this string starts with a scheme or an authority (e.g. "https://example.com", "//example.com", or
- * "mailto:me@example.com"), i.e. it's a full URL rather than a path within the site.
- */
-private val KtStringTemplateExpression.isFullUrl: Boolean
-    get() {
-        val text = (entries.firstOrNull() as? KtLiteralStringTemplateEntry)?.text ?: return false
-        return text.startsWith("//") || SCHEME_REGEX.containsMatchIn(text)
-    }
 
 /**
  * Reports route strings that aren't in the format expected by the parameter or property they're used with, according

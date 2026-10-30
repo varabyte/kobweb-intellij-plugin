@@ -6,6 +6,19 @@ import org.jetbrains.kotlin.psi.KtEscapeStringTemplateEntry
 import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
+/** Matches the scheme at the start of a URL, e.g. "https:" or "mailto:". */
+private val SCHEME_REGEX = Regex("^[A-Za-z][A-Za-z0-9+.-]*:")
+
+/**
+ * True if this string starts with a scheme or an authority (e.g. "https://example.com", "//example.com", or
+ * "mailto:me@example.com"), i.e. it's a full URL rather than a path within the site.
+ */
+val KtStringTemplateExpression.isFullUrl: Boolean
+    get() {
+        val text = (entries.firstOrNull() as? KtLiteralStringTemplateEntry)?.text ?: return false
+        return text.startsWith("//") || SCHEME_REGEX.containsMatchIn(text)
+    }
+
 /**
  * The parts of this string, in order, for parsing as a [LinkPath] (see [LinkPath.Part]), positioned relative to this
  * string.

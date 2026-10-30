@@ -151,6 +151,20 @@
         <localInspection
                 language="kotlin"
                 groupKey="kobweb.name"
+                key="inspection.invalid.api.path.format.display.name"
+                enabledByDefault="true"
+                level="ERROR"
+                implementationClass="com.varabyte.kobweb.intellij.inspections.api.InvalidApiPathFormatInspection"/>
+        <localInspection
+                language="kotlin"
+                groupKey="kobweb.name"
+                key="inspection.unknown.api.path.display.name"
+                enabledByDefault="true"
+                level="WARNING"
+                implementationClass="com.varabyte.kobweb.intellij.inspections.api.UnknownApiPathInspection"/>
+        <localInspection
+                language="kotlin"
+                groupKey="kobweb.name"
                 key="inspection.page.route.not.allowed.display.name"
                 enabledByDefault="true"
                 level="WARNING"

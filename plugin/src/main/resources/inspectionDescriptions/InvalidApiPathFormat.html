@@ -1,0 +1,19 @@
+<html lang="en">
+<body>
+Reports API paths that aren't in the format expected by what they're used with.
+<p>
+API paths, such as those passed to <code>window.api.get</code>, are relative to <code>/api/</code>, so they can't be
+full URLs. API stream paths, such as those passed to <code>ApiStream</code>, must match a stream's path exactly, so they
+can't have query parameters or a fragment either.
+<pre><code>
+// OK
+window.api.get("users?id=5")
+ApiStream("chat")
+// Not OK: not a path relative to "/api/"
+window.api.get("https://example.com/api/users")
+// Not OK: stream paths can't have query parameters
+ApiStream("chat?room=general")
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>

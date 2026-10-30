@@ -62,11 +62,21 @@ class LinkPath private constructor(val segments: List<Segment>) {
     /**
      * Returns true if this path matches [route] exactly, e.g. "/users/bob/posts" matches "/users/{user}/posts".
      *
-     * Segments with unknown values only match dynamic segments (see [UnknownSegmentsStrategy.MATCH_DYNAMIC]).
+     * See [UnknownSegmentsStrategy] for how [unknownSegmentsStrategy] affects paths with segments whose values aren't
+     * known until runtime.
      *
      * See also [leadsTo], which also accounts for trailing slashes.
      */
-    fun matches(route: Route): Boolean = matches(route.segments, segmentTexts)
+    fun matches(
+        route: Route,
+        unknownSegmentsStrategy: UnknownSegmentsStrategy = UnknownSegmentsStrategy.MATCH_DYNAMIC,
+    ): Boolean {
+        val firstUnknownIndex = segmentTexts.indexOf(null)
+        if (unknownSegmentsStrategy == UnknownSegmentsStrategy.MATCH_ANYTHING && firstUnknownIndex >= 0) {
+            return startsLike(route, segmentTexts.subList(0, firstUnknownIndex))
+        }
+        return matches(route.segments, segmentTexts)
+    }
 
     /**
      * How segments whose values aren't known until runtime (e.g. the "$id" in "/posts/$id") are matched against a
@@ -104,13 +114,8 @@ class LinkPath private constructor(val segments: List<Segment>) {
         route: PageRoute,
         unknownSegmentsStrategy: UnknownSegmentsStrategy = UnknownSegmentsStrategy.MATCH_DYNAMIC,
     ): Boolean {
-        val firstUnknownIndex = segmentTexts.indexOf(null)
-        if (unknownSegmentsStrategy == UnknownSegmentsStrategy.MATCH_ANYTHING && firstUnknownIndex >= 0) {
-            return startsLike(route, segmentTexts.subList(0, firstUnknownIndex))
-        }
-
-        if (matches(route)) return true
-        return withToggledTrailingSlash()?.matches(route) == true
+        if (matches(route, unknownSegmentsStrategy)) return true
+        return withToggledTrailingSlash()?.matches(route, unknownSegmentsStrategy) == true
     }
 
     /**
@@ -131,7 +136,7 @@ class LinkPath private constructor(val segments: List<Segment>) {
 
     // True if the route could start with these (known) path segments, e.g. "/posts/{post}/edit" could start with
     // ["posts", "new"]
-    private fun startsLike(route: PageRoute, knownSegments: List<String?>): Boolean {
+    private fun startsLike(route: Route, knownSegments: List<String?>): Boolean {
         val routeSegments = route.segments
         for ((i, pathSegment) in knownSegments.withIndex()) {
             val routeSegment = routeSegments.getOrNull(i) ?: return false

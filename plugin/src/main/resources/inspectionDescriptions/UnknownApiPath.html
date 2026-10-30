@@ -1,0 +1,22 @@
+<html lang="en">
+<body>
+Reports API paths that don't lead to any API endpoint, which are usually typos or calls to endpoints that were moved or
+deleted.
+<p>
+API paths are automatically prefixed by the framework with <code>/api/</code>, so including it manually is probably a
+mistake that would actually lead to somewhere else.
+<pre><code>
+// api/Hello.kt is served at "/api/hello"
+window.api.get("hello")      // OK
+window.api.get("/hello")     // OK, as a leading slash makes no difference
+window.api.get("helo")       // Doesn't correspond to any known API endpoint
+window.api.get("api/hello")  // Leads to "/api/api/hello"
+window.api.get("users/$id")  // OK, if an endpoint like api/users/{user} exists
+
+// val chat = ApiStream { ... } in api/Chat.kt is served as "chat"
+ApiStream("chat")            // OK
+ApiStream("chta")            // Doesn't correspond to any known API stream
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>
