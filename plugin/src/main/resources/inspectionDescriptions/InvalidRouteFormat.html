@@ -1,33 +1,18 @@
 <html lang="en">
 <body>
-Reports route strings that aren't in the format expected by the parameter or property they're used with, according to
-its <code>@RoutePath(type = ...)</code> annotation, which is one of:
-<ul>
-  <li><code>URL</code> (the default): any URL, including ones to other sites, e.g. <code>"/blog/post"</code> or
-    <code>"https://example.com"</code>. Used by <code>Link</code> and
-    <code>Router.navigateTo</code>, for example.</li>
-  <li><code>PATH_QUERY_AND_FRAGMENT</code>: a path within the site, optionally followed by query parameters and a
-    fragment, e.g. <code>"/blog/post?sort=new#comments"</code>, but not a full URL. Used by
-    <code>Router.tryRoutingTo</code>, for example.</li>
-  <li><code>PATH_ONLY</code>: just a path within the site, e.g. <code>"/blog/post"</code>, without query parameters or a
-    fragment.</li>
-</ul>
-This applies to annotated parameters as well as annotated properties, e.g. <code>ctx.route.path == "/blog/post"</code>.
+Reports routes that aren't in the format expected where they're used.
+<p>
+Some places that take a route only accept part of a URL. For example, <code>Router.tryRoutingTo</code> only accepts a
+path within the site (optionally followed by query parameters and a fragment), not a full URL. Similarly,
+<code>ctx.route.path</code> only ever holds a path, so comparing it against a route with query parameters is never
+true.
 <pre><code>
 // OK
 router.tryRoutingTo("/blog/post?sort=new")
-// Not OK: not a path within the site.
+// Not OK: not a path within the site
 router.tryRoutingTo("https://example.com/blog")
 
-// User code can use the annotation as well
-fun Breadcrumb(@RoutePath(RoutePathType.PATH_ONLY) path: String)
-// OK
-Breadcrumb("/blog/post")
-// Not OK: accepts paths only, no fragments or query parameters
-Breadcrumb("/blog/post#comments")
-
-// Not OK: ctx.route.path will never include query parameters,
-// so this check is never true
+// Not OK: ctx.route.path never includes query parameters, so this is never true
 if (ctx.route.path == "/blog/post?sort=new") { ... }
 </code></pre>
 <!-- tooltip end -->

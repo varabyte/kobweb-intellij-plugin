@@ -3,10 +3,6 @@
 Reports routes that don't lead to any page or public resource, which are usually typos or links to pages that were
 moved or deleted.
 <p>
-This inspection applies to parameters that are annotated by Kobweb with <code>@RoutePath</code> (excluding ones where
-<code>mustExist</code> is set to <code>false</code>), such as the <code>path</code> parameter in the <code>Link</code>
-composable, as well as to properties annotated the same way.
-<p>
 Routes are checked after any redirects in the site's <code>.kobweb/conf.yaml</code>, so a link to an old page that's
 redirected to a new one is fine.
 <pre><code>
