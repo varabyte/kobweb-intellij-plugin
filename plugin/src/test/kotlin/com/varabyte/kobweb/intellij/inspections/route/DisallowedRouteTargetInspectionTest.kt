@@ -7,8 +7,8 @@ import com.intellij.testFramework.PsiTestUtil
 import com.varabyte.kobweb.intellij.inspections.KobwebInspectionTestBase
 import org.jetbrains.jps.model.java.JavaResourceRootType
 
-class PageRouteNotAllowedInspectionTest : KobwebInspectionTestBase() {
-    override fun produceInspection() = PageRouteNotAllowedInspection()
+class DisallowedRouteTargetInspectionTest : KobwebInspectionTestBase() {
+    override fun produceInspection() = DisallowedRouteTargetInspection()
 
     override fun setUp() {
         super.setUp()
@@ -48,6 +48,7 @@ class PageRouteNotAllowedInspectionTest : KobwebInspectionTestBase() {
 
         val resourcesRoot = myFixture.addFileToProject("resources/public/images/cat.png", "")
             .virtualFile.parent.parent.parent
+        myFixture.addFileToProject("resources/public/resume.pdf", "")
         PsiTestUtil.addSourceRoot(module, resourcesRoot, JavaResourceRootType.RESOURCE)
         Disposer.register(testRootDisposable) { PsiTestUtil.removeSourceRoot(module, resourcesRoot) }
     }
@@ -89,7 +90,47 @@ class PageRouteNotAllowedInspectionTest : KobwebInspectionTestBase() {
         )
     }
 
-    fun testPagesAreNotFlaggedWherePagesAreAllowed() {
+    fun testResourcesAreFlaggedWhereOnlyPagesAreAllowed() {
+        doTest(
+            $$"""
+            package $$TEST_GROUP.components
+
+            import com.varabyte.kobweb.navigation.Router
+
+            fun navigate(router: Router, name: String) {
+                router.tryRoutingTo("/about")
+                router.tryRoutingTo("<warning descr="This route leads to a resource, but only pages are allowed here.">/resume.pdf</warning>")
+                router.tryRoutingTo("<warning>/api/hello</warning>")
+                // Kobweb's router shows the catch-all page, even though the file exists too
+                router.tryRoutingTo("/images/cat.png")
+                // Not known until runtime
+                router.tryRoutingTo("/$name.pdf")
+            }
+            """.trimIndent(),
+        )
+    }
+
+    fun testResourcesAreFlaggedInPathsSetByRouteInterceptors() {
+        // The version of Kobweb we test against doesn't annotate `RouteInterceptorScope.path` yet, but we recognize it
+        // anyway
+        doTest(
+            """
+            package $TEST_GROUP.components
+
+            import com.varabyte.kobweb.navigation.Router
+
+            fun interceptRoutes(router: Router) {
+                router.addRouteInterceptor {
+                    if (path == "/old/resume") {
+                        path = "<warning>/resume.pdf</warning>"
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+    }
+
+    fun testPagesAndResourcesAreNotFlaggedWhereBothAreAllowed() {
         doTest(
             """
             package $TEST_GROUP.components
@@ -100,6 +141,7 @@ class PageRouteNotAllowedInspectionTest : KobwebInspectionTestBase() {
             @Composable
             fun Nav() {
                 Link("/about")
+                Link("/resume.pdf")
             }
             """.trimIndent(),
         )

@@ -4,6 +4,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiReferenceBase
 import com.intellij.psi.impl.source.resolve.ResolveCache
 import com.varabyte.kobweb.intellij.util.kobweb.route.LinkPath
+import com.varabyte.kobweb.intellij.util.kobweb.route.allowsPages
 import com.varabyte.kobweb.intellij.util.kobweb.route.findLedToBy
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPages
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPublicResource
@@ -54,7 +55,7 @@ class RouteReference(element: KtStringTemplateExpression) : PsiReferenceBase<KtS
         // Where pages aren't allowed (e.g. an image's source), the browser loads the path from the server, which serves
         // public files without ever routing to a page. So a path that leads to a file doesn't lead to a page, even one
         // whose route it matches (e.g. "/images/cat.png" and a page at "/images/{...rest}").
-        if (!target.allowPages && element.findPublicResource(path.redirectedBy(redirects)) != null) return null
+        if (!target.allowsPages && element.findPublicResource(path.redirectedBy(redirects)) != null) return null
 
         return element.findPages().findLedToBy(path, redirects)?.function
     }

@@ -89,6 +89,15 @@ fun KaAnnotation.readBooleanArgument(name: String, default: Boolean): Boolean {
 }
 
 /**
+ * Returns the value of the enum argument with this name, as the entry of [E] with the same name, or [default] if it
+ * wasn't passed in explicitly (or has a value [E] doesn't have, e.g. one added by a newer version of Kobweb).
+ */
+inline fun <reified E : Enum<E>> KaAnnotation.readEnumArgument(name: String, default: E): E {
+    val entryName = (findArgument(name) as? KaAnnotationValue.EnumEntryValue)?.callableId?.callableName?.asString()
+    return enumValues<E>().firstOrNull { it.name == entryName } ?: default
+}
+
+/**
  * Returns the expression this string is compared against, if any, e.g. `ctx.route.path` for the `"/blog"` in
  * `ctx.route.path == "/blog"` or in `when (ctx.route.path) { "/blog" -> ... }`.
  */

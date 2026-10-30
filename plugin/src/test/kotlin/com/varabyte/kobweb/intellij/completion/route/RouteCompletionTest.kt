@@ -208,6 +208,30 @@ class RouteCompletionTest : KobwebApplicationTestCase() {
         ).inOrder()
     }
 
+    fun testPublicFilesAreNotSuggestedWhereOnlyPagesAreAllowed() {
+        val resourcesRoot = myFixture.addFileToProject("resources/public/resume.pdf", "").virtualFile.parent.parent
+        PsiTestUtil.addSourceRoot(module, resourcesRoot, JavaResourceRootType.RESOURCE)
+        Disposer.register(testRootDisposable) { PsiTestUtil.removeSourceRoot(module, resourcesRoot) }
+
+        assertThat(
+            complete(
+                """
+                package $TEST_GROUP.components
+
+                import com.varabyte.kobweb.navigation.Router
+
+                fun navigate(router: Router) {
+                    router.tryRoutingTo("<caret>")
+                }
+                """.trimIndent()
+            )!!
+        ).containsExactly(
+            "/blog/",
+            "/blog/post",
+            "/users/{user}/posts",
+        ).inOrder()
+    }
+
     fun testPagesAreNotSuggestedWherePagesArentAllowed() {
         val resourcesRoot = myFixture.addFileToProject("resources/public/blog/banner.png", "")
             .virtualFile.parent.parent.parent

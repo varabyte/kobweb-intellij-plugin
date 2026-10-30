@@ -1,0 +1,15 @@
+<html lang="en">
+<body>
+Reports routes that lead to a page where a resource is expected instead, or to a resource where only a page will work.
+<pre><code>
+// pages/About.kt is served at "/about"
+// resources/public/images/cat.png is served at "/images/cat.png"
+Image("/images/cat.png")               // OK
+Image("/about")                        // Not OK -- leads to a page
+
+router.tryRoutingTo("/about")          // OK
+router.tryRoutingTo("/images/cat.png") // Not OK -- Kobweb's router can only navigate to pages
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>

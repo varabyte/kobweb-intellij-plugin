@@ -9,6 +9,7 @@ import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiReferenceBase
 import com.intellij.psi.impl.source.resolve.ResolveCache
 import com.varabyte.kobweb.intellij.util.kobweb.route.LinkPath
+import com.varabyte.kobweb.intellij.util.kobweb.route.allowsPages
 import com.varabyte.kobweb.intellij.util.kobweb.route.findLedToBy
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPages
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPublicFolders
@@ -62,7 +63,7 @@ class PublicFileReference(
         if (path.redirectedBy(redirects) !== path) return null
         // Kobweb's router shows a page instead, if one matches, except where pages aren't allowed (e.g. an image's
         // source), as the browser loads those from the server, which serves public files without routing to pages
-        if (target.allowPages && element.findPages().findLedToBy(path, redirects) != null) return null
+        if (target.allowsPages && element.findPages().findLedToBy(path, redirects) != null) return null
 
         val file = element.findPublicResource(path.segments.take(segmentIndex + 1)) ?: return null
         val psiManager = PsiManager.getInstance(element.project)

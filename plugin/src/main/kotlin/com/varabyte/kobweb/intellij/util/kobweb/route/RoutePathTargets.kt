@@ -1,7 +1,6 @@
 package com.varabyte.kobweb.intellij.util.kobweb.route
 
 import org.jetbrains.kotlin.analysis.api.KaSession
-import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationValue
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
@@ -24,13 +23,12 @@ private val ROUTE_PATH_CLASS_ID = ClassId(KOBWEB_CORE_PACKAGE, Name.identifier("
  * @property type What the target accepts, from `@RoutePath(type = ...)`.
  * @property mustExist Whether the route should lead to a page (or another resource the site serves). False for targets
  *   marked `@RoutePath(mustExist = false)`, e.g. parameters that build links to pages that may not exist yet.
- * @property allowPages Whether the route may lead to a page. False for targets marked `@RoutePath(allowPages = false)`,
- *   e.g. `Image`'s `src`, which should lead to a file (or something else that isn't a page, like an API endpoint).
+ * @property target What the route is allowed to lead to, from `@RoutePath(target = ...)`.
  */
 class RoutePathTarget(
     val type: Type,
     override val mustExist: Boolean,
-    val allowPages: Boolean = true,
+    val target: Target = Target.PAGES_AND_RESOURCES,
 ) : PathTarget {
     /**
      * What sort of route format is accepted.
@@ -47,7 +45,33 @@ class RoutePathTarget(
         /** Just a path, e.g. "/blog/post". */
         PATH_ONLY,
     }
+
+    /**
+     * What a route may lead to, where a resource is anything the server responds to directly that isn't a page, e.g. a
+     * public file or an API endpoint.
+     *
+     * Mirrors `RoutePathTarget` in Kobweb, whose entries have the same names.
+     */
+    enum class Target {
+        /** A page or a resource, e.g. `Link`'s `path`. */
+        PAGES_AND_RESOURCES,
+
+        /** Only a page, e.g. `Router.tryRoutingTo`'s path, as Kobweb's client router only knows about pages. */
+        PAGES_ONLY,
+
+        /**
+         * Only a resource, e.g. `Image`'s `src`, as the browser loads it from the server, which serves resources
+         * without ever routing to pages.
+         */
+        RESOURCES_ONLY,
+    }
 }
+
+/** True if this route may lead to a page (see [RoutePathTarget.Target]). */
+val RoutePathTarget.allowsPages: Boolean get() = target != RoutePathTarget.Target.RESOURCES_ONLY
+
+/** True if this route may lead to a resource, e.g. a public file (see [RoutePathTarget.Target]). */
+val RoutePathTarget.allowsResources: Boolean get() = target != RoutePathTarget.Target.PAGES_ONLY
 
 /**
  * Hardcoded list of parameters that take a route in versions of Kobweb from before it annotated them with `@RoutePath`,
@@ -62,10 +86,22 @@ private val LEGACY_ROUTE_PARAMETERS = mapOf(
     CallableId(KOBWEB_NAVIGATION_PACKAGE, FqName("Router"), Name.identifier("navigateTo"))
         to ("pathQueryAndFragment" to RoutePathTarget(RoutePathTarget.Type.URL, mustExist = true)),
     CallableId(KOBWEB_NAVIGATION_PACKAGE, FqName("Router"), Name.identifier("tryRoutingTo"))
-        to ("pathQueryAndFragment" to RoutePathTarget(RoutePathTarget.Type.PATH_QUERY_AND_FRAGMENT, mustExist = true)),
+        to (
+            "pathQueryAndFragment" to RoutePathTarget(
+                RoutePathTarget.Type.PATH_QUERY_AND_FRAGMENT,
+                mustExist = true,
+                target = RoutePathTarget.Target.PAGES_ONLY,
+            )
+        ),
     // Can also load images from other sites
     CallableId(FqName("com.varabyte.kobweb.silk.components.graphics"), Name.identifier("Image"))
-        to ("src" to RoutePathTarget(RoutePathTarget.Type.URL, mustExist = true, allowPages = false)),
+        to (
+            "src" to RoutePathTarget(
+                RoutePathTarget.Type.URL,
+                mustExist = true,
+                target = RoutePathTarget.Target.RESOURCES_ONLY,
+            )
+        ),
 )
 
 /**
@@ -102,9 +138,13 @@ private val LEGACY_ROUTE_GETTERS = buildMap {
  * `@RoutePath`, i.e. what strings assigned to them should look like.
  */
 private val LEGACY_ROUTE_SETTERS = mapOf(
-    // Route interceptors redirect to the path they set, so it should lead somewhere
+    // Route interceptors redirect Kobweb's client router to the path they set, so it should lead to a page
     CallableId(KOBWEB_NAVIGATION_PACKAGE, FqName("RouteInterceptorScope"), Name.identifier("path"))
-        to RoutePathTarget(RoutePathTarget.Type.PATH_ONLY, mustExist = true),
+        to RoutePathTarget(
+            RoutePathTarget.Type.PATH_ONLY,
+            mustExist = true,
+            target = RoutePathTarget.Target.PAGES_ONLY,
+        ),
 )
 
 /**
@@ -113,14 +153,10 @@ private val LEGACY_ROUTE_SETTERS = mapOf(
 private val ROUTE_PATH_ANNOTATION = PathAnnotation(
     ROUTE_PATH_CLASS_ID,
     toPathTarget = { routePath ->
-        val type = (routePath.findArgument("type") as? KaAnnotationValue.EnumEntryValue)
-            ?.callableId?.callableName?.asString()
-            ?.let { typeName -> RoutePathTarget.Type.entries.firstOrNull { it.name == typeName } }
-            ?: RoutePathTarget.Type.URL
         RoutePathTarget(
-            type,
+            routePath.readEnumArgument("type", default = RoutePathTarget.Type.URL),
             mustExist = routePath.readBooleanArgument("mustExist", default = true),
-            allowPages = routePath.readBooleanArgument("allowPages", default = true),
+            target = routePath.readEnumArgument("target", default = RoutePathTarget.Target.PAGES_AND_RESOURCES),
         )
     },
     legacyParameters = LEGACY_ROUTE_PARAMETERS,

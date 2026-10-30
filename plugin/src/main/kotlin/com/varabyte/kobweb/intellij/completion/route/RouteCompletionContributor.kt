@@ -16,6 +16,8 @@ import com.intellij.util.ProcessingContext
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.route.PageDefinition
 import com.varabyte.kobweb.intellij.util.kobweb.route.RoutePathTarget
+import com.varabyte.kobweb.intellij.util.kobweb.route.allowsPages
+import com.varabyte.kobweb.intellij.util.kobweb.route.allowsResources
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPages
 import com.varabyte.kobweb.intellij.util.kobweb.route.findPublicFolders
 import com.varabyte.kobweb.intellij.util.kobweb.route.findRoutePathTarget
@@ -28,7 +30,8 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
  * Suggests the routes of pages, as well as public files, inside strings used with something that holds a route (see
  * [findRoutePathTarget]), e.g. "/blog/post" while typing `Link("/bl")` or `ctx.route.path == "/bl"`.
  *
- * Pages are left out where they aren't allowed (see [RoutePathTarget.allowPages]), e.g. in `Image("/")`.
+ * A subset of completions will be left out where they aren't allowed (e.g. pages in `Image("/")` and public files in
+ * `router.tryRoutingTo("/")`). See [RoutePathTarget.Target] for more information.
  *
  * Routes with dynamic segments (e.g. "/users/{user}/posts") are inserted as a template, so that the value of each
  * dynamic segment can be typed in turn.
@@ -71,7 +74,7 @@ private object RouteCompletionProvider : CompletionProvider<CompletionParameters
 
         // Match against everything typed so far in the string, not just the text after the last slash
         val routeResult = result.withPrefixMatcher(prefix)
-        val pages = if (target.allowPages) {
+        val pages = if (target.allowsPages) {
             originalStringExpr.findPages().sortedBy { page -> page.route.value }
         } else {
             emptyList()
@@ -82,7 +85,8 @@ private object RouteCompletionProvider : CompletionProvider<CompletionParameters
 
         // Public files come after pages, as sites can have lots of them (e.g. images)
         val routes = pages.mapTo(mutableSetOf()) { page -> page.route.value }
-        for (folder in originalStringExpr.findPublicFolders()) {
+        val publicFolders = if (target.allowsResources) originalStringExpr.findPublicFolders() else emptyList()
+        for (folder in publicFolders) {
             // Kobweb can generate lots of files under "_kobweb" (e.g. when self-hosting), which people rarely link to
             // by hand, so leave them out (although links to them are still valid)
             val kobwebFolder = folder.findChild(KOBWEB_PUBLIC_FOLDER)
