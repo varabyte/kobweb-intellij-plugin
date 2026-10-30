@@ -23,12 +23,12 @@ private val ROUTE_PATH_CLASS_ID = ClassId(KOBWEB_CORE_PACKAGE, Name.identifier("
  * @property type What the target accepts, from `@RoutePath(type = ...)`.
  * @property mustExist Whether the route should lead to a page (or another resource the site serves). False for targets
  *   marked `@RoutePath(mustExist = false)`, e.g. parameters that build links to pages that may not exist yet.
- * @property target What the route is allowed to lead to, from `@RoutePath(target = ...)`.
+ * @property destination What the route is allowed to lead to, from `@RoutePath(destination = ...)`.
  */
 class RoutePathTarget(
     val type: Type,
     override val mustExist: Boolean,
-    val target: Target = Target.PAGES_AND_RESOURCES,
+    val destination: Destination = Destination.PAGES_AND_RESOURCES,
 ) : PathTarget {
     /**
      * What sort of route format is accepted.
@@ -50,9 +50,9 @@ class RoutePathTarget(
      * What a route may lead to, where a resource is anything the server responds to directly that isn't a page, e.g. a
      * public file or an API endpoint.
      *
-     * Mirrors `RoutePathTarget` in Kobweb, whose entries have the same names.
+     * Mirrors `RoutePathDestination` in Kobweb, whose entries have the same names.
      */
-    enum class Target {
+    enum class Destination {
         /** A page or a resource, e.g. `Link`'s `path`. */
         PAGES_AND_RESOURCES,
 
@@ -67,11 +67,11 @@ class RoutePathTarget(
     }
 }
 
-/** True if this route may lead to a page (see [RoutePathTarget.Target]). */
-val RoutePathTarget.allowsPages: Boolean get() = target != RoutePathTarget.Target.RESOURCES_ONLY
+/** True if this route may lead to a page (see [RoutePathTarget.Destination]). */
+val RoutePathTarget.allowsPages: Boolean get() = destination != RoutePathTarget.Destination.RESOURCES_ONLY
 
-/** True if this route may lead to a resource, e.g. a public file (see [RoutePathTarget.Target]). */
-val RoutePathTarget.allowsResources: Boolean get() = target != RoutePathTarget.Target.PAGES_ONLY
+/** True if this route may lead to a resource, e.g. a public file (see [RoutePathTarget.Destination]). */
+val RoutePathTarget.allowsResources: Boolean get() = destination != RoutePathTarget.Destination.PAGES_ONLY
 
 /**
  * Hardcoded list of parameters that take a route in versions of Kobweb from before it annotated them with `@RoutePath`,
@@ -90,7 +90,7 @@ private val LEGACY_ROUTE_PARAMETERS = mapOf(
             "pathQueryAndFragment" to RoutePathTarget(
                 RoutePathTarget.Type.PATH_QUERY_AND_FRAGMENT,
                 mustExist = true,
-                target = RoutePathTarget.Target.PAGES_ONLY,
+                destination = RoutePathTarget.Destination.PAGES_ONLY,
             )
         ),
     // Can also load images from other sites
@@ -99,7 +99,7 @@ private val LEGACY_ROUTE_PARAMETERS = mapOf(
             "src" to RoutePathTarget(
                 RoutePathTarget.Type.URL,
                 mustExist = true,
-                target = RoutePathTarget.Target.RESOURCES_ONLY,
+                destination = RoutePathTarget.Destination.RESOURCES_ONLY,
             )
         ),
 )
@@ -143,7 +143,7 @@ private val LEGACY_ROUTE_SETTERS = mapOf(
         to RoutePathTarget(
             RoutePathTarget.Type.PATH_ONLY,
             mustExist = true,
-            target = RoutePathTarget.Target.PAGES_ONLY,
+            destination = RoutePathTarget.Destination.PAGES_ONLY,
         ),
 )
 
@@ -156,7 +156,10 @@ private val ROUTE_PATH_ANNOTATION = PathAnnotation(
         RoutePathTarget(
             routePath.readEnumArgument("type", default = RoutePathTarget.Type.URL),
             mustExist = routePath.readBooleanArgument("mustExist", default = true),
-            target = routePath.readEnumArgument("target", default = RoutePathTarget.Target.PAGES_AND_RESOURCES),
+            destination = routePath.readEnumArgument(
+                "destination",
+                default = RoutePathTarget.Destination.PAGES_AND_RESOURCES,
+            ),
         )
     },
     legacyParameters = LEGACY_ROUTE_PARAMETERS,

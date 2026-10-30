@@ -31,7 +31,7 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
  * [findRoutePathTarget]), e.g. "/blog/post" while typing `Link("/bl")` or `ctx.route.path == "/bl"`.
  *
  * A subset of completions will be left out where they aren't allowed (e.g. pages in `Image("/")` and public files in
- * `router.tryRoutingTo("/")`). See [RoutePathTarget.Target] for more information.
+ * `router.tryRoutingTo("/")`). See [RoutePathTarget.Destination] for more information.
  *
  * Routes with dynamic segments (e.g. "/users/{user}/posts") are inserted as a template, so that the value of each
  * dynamic segment can be typed in turn.

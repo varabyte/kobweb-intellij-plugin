@@ -7,8 +7,8 @@ import com.intellij.testFramework.PsiTestUtil
 import com.varabyte.kobweb.intellij.inspections.KobwebInspectionTestBase
 import org.jetbrains.jps.model.java.JavaResourceRootType
 
-class DisallowedRouteTargetInspectionTest : KobwebInspectionTestBase() {
-    override fun produceInspection() = DisallowedRouteTargetInspection()
+class DisallowedRouteDestinationInspectionTest : KobwebInspectionTestBase() {
+    override fun produceInspection() = DisallowedRouteDestinationInspection()
 
     override fun setUp() {
         super.setUp()
@@ -63,7 +63,7 @@ class DisallowedRouteTargetInspectionTest : KobwebInspectionTestBase() {
 
             @Composable
             fun Pictures() {
-                Image("<warning descr="This route leads to a page, but pages aren't allowed here.">/about</warning>")
+                Image("<warning descr="This route leads to a page, which isn't allowed here.">/about</warning>")
                 // Only the catch-all page matches
                 Image("<warning>/images/dog.png</warning>")
             }
@@ -99,7 +99,7 @@ class DisallowedRouteTargetInspectionTest : KobwebInspectionTestBase() {
 
             fun navigate(router: Router, name: String) {
                 router.tryRoutingTo("/about")
-                router.tryRoutingTo("<warning descr="This route leads to a resource, but only pages are allowed here.">/resume.pdf</warning>")
+                router.tryRoutingTo("<warning descr="This route leads to a resource, which isn't allowed here.">/resume.pdf</warning>")
                 router.tryRoutingTo("<warning>/api/hello</warning>")
                 // Kobweb's router shows the catch-all page, even though the file exists too
                 router.tryRoutingTo("/images/cat.png")

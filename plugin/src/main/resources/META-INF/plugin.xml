@@ -165,10 +165,10 @@
         <localInspection
                 language="kotlin"
                 groupKey="kobweb.name"
-                key="inspection.disallowed.route.target.display.name"
+                key="inspection.disallowed.route.destination.display.name"
                 enabledByDefault="true"
                 level="WARNING"
-                implementationClass="com.varabyte.kobweb.intellij.inspections.route.DisallowedRouteTargetInspection"/>
+                implementationClass="com.varabyte.kobweb.intellij.inspections.route.DisallowedRouteDestinationInspection"/>
         <localInspection
                 language="kotlin"
                 groupKey="kobweb.name"

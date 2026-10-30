@@ -23,10 +23,10 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.KtVisitorVoid
 
 /**
- * Reports routes that lead to something they aren't allowed to (see [RoutePathTarget.Target]), e.g. a page in
+ * Reports routes that lead to something they aren't allowed to (see [RoutePathTarget.Destination]), e.g. a page in
  * `Image("/about")`, or a public file in `router.tryRoutingTo("/resume.pdf")`.
  */
-class DisallowedRouteTargetInspection : LocalInspectionTool() {
+class DisallowedRouteDestinationInspection : LocalInspectionTool() {
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
         if (!holder.file.isInWritableKobwebProject()) return KtVisitorVoid.EMPTY_VISITOR
 
@@ -56,9 +56,10 @@ class DisallowedRouteTargetInspection : LocalInspectionTool() {
                 // Checked last, as it's the most expensive check
                 val target = analyze(expression) { expression.findRoutePathTarget() } ?: return
                 val messageKey = when {
-                    mayBeDisallowedPage && !target.allowsPages -> "inspection.disallowed.route.target.page.display.text"
+                    mayBeDisallowedPage && !target.allowsPages ->
+                        "inspection.disallowed.route.destination.page.display.text"
                     mayBeDisallowedResource && !target.allowsResources ->
-                        "inspection.disallowed.route.target.resource.display.text"
+                        "inspection.disallowed.route.destination.resource.display.text"
                     else -> return
                 }
 
