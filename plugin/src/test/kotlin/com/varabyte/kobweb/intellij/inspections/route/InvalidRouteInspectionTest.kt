@@ -560,7 +560,7 @@ class InvalidRouteInspectionTest : KobwebInspectionTestBase() {
         doTest(
             fileName = "PackageMapping.kt",
             """
-            @file:PackageMapping(<error descr="Package mappings can't be blank. To change the route of a package's pages, move them to a different package instead.">""</error>)
+            @file:PackageMapping(<error descr="Package mappings can't be blank. To remove a package from routes, move its files into the parent package instead.">""</error>)
 
             package $TEST_GROUP.pages.blog
 

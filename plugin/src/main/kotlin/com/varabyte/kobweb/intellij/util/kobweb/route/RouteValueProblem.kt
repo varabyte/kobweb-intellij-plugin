@@ -3,7 +3,8 @@ package com.varabyte.kobweb.intellij.util.kobweb.route
 import com.intellij.openapi.util.TextRange
 
 /**
- * A problem with a value that Kobweb builds routes from, i.e. a `@Page` route override or a `@file:PackageMapping`.
+ * A problem with a value that Kobweb builds routes from, i.e. a route override (e.g. in `@Page` or `@Api`) or a
+ * `@file:PackageMapping`.
  *
  * @property range Where the problem is, within the value.
  */

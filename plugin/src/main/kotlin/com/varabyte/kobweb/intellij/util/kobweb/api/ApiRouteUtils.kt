@@ -3,6 +3,7 @@ package com.varabyte.kobweb.intellij.util.kobweb.api
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.roots.ProjectRootModificationTracker
 import com.intellij.openapi.util.io.FileUtilRt
+import com.intellij.psi.PsiElement
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiModificationTracker
@@ -49,12 +50,21 @@ private fun Module.findApiRouteResolver(): RouteResolver? {
 }
 
 /**
- * Returns the route that Kobweb serves this declaration at, relative to "/api", using its `@Api` annotation's route
- * override if it has one.
+ * Returns the resolver for routes of API endpoints in this element's module, or null if it isn't in a Kobweb project
+ * (or we can't tell where its API endpoints live).
+ */
+fun PsiElement.findApiRouteResolver(): RouteResolver? = module?.findApiRouteResolver()
+
+/**
+ * Returns the route that Kobweb would serve this declaration at, relative to "/api", using its `@Api` annotation's
+ * route override if it has one.
+ *
+ * Unlike [findApiRoute] and [findApiStreamRoute], this doesn't check that the declaration is something Kobweb
+ * registers, or (for streams) that its route has no dynamic segments.
  *
  * @return null if Kobweb rejects it (or we can't tell its route).
  */
-private fun KtCallableDeclaration.resolveApiRoute(): ApiRoute? {
+fun KtCallableDeclaration.resolveApiRoute(): ApiRoute? {
     val apiAnnotation = annotationEntries.firstOrNull { it.isAnnotationOfType(API_FQN) }
     val routeOverride = if (apiAnnotation == null || apiAnnotation.valueArguments.isEmpty()) null else {
         apiAnnotation.routeValue ?: return null
@@ -82,13 +92,34 @@ fun KtNamedFunction.findApiRoute(): ApiRoute? {
  * @return null if this property isn't an `ApiStream` that Kobweb registers (i.e. a public, top-level property whose
  *   type is exactly `ApiStream`, e.g. `val chat = object : ApiStream() { ... }`), or if Kobweb rejects its route.
  */
-context(kaSession: KaSession)
-fun KtProperty.findApiStreamRoute(): ApiRoute? = with(kaSession) {
+context(_: KaSession)
+fun KtProperty.findApiStreamRoute(): ApiRoute? {
     if (!isTopLevel || !isPublic) return null
     val route = resolveApiRoute() ?: return null
     // Kobweb doesn't currently allow dynamic segments in stream routes
     if (route.hasDynamicSegments) return null
     // Checked last, as it's the only check that needs analysis
-    if ((returnType as? KaClassType)?.classId != API_STREAM_CLASS_ID) return null
+    if (!isRegisteredApiStream()) return null
     return route
+}
+
+/**
+ * False if this property clearly isn't an `ApiStream`, without needing analysis (unlike [isRegisteredApiStream]), as
+ * it never mentions the class by name.
+ *
+ * This is how streams are found in the first place (by searching for files that mention `ApiStream`), so it's a cheap
+ * way to skip most properties before checking them for real.
+ */
+val KtProperty.mightBeApiStream: Boolean
+    get() = API_STREAM_CLASS_ID.shortClassName.asString() in text
+
+/**
+ * True if this property is an `ApiStream` that Kobweb registers, i.e. a public, top-level property whose type is
+ * exactly `ApiStream`, wherever it lives and whatever its route.
+ *
+ * This method must be called inside an `analyze` block.
+ */
+context(kaSession: KaSession)
+fun KtProperty.isRegisteredApiStream(): Boolean = with(kaSession) {
+    isTopLevel && isPublic && (returnType as? KaClassType)?.classId == API_STREAM_CLASS_ID
 }

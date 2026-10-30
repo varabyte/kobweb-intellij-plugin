@@ -4,10 +4,10 @@ import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElementVisitor
-import com.varabyte.kobweb.intellij.util.kobweb.api.API_STREAM_CLASS_ID
 import com.varabyte.kobweb.intellij.util.kobweb.api.findApiDefinitions
 import com.varabyte.kobweb.intellij.util.kobweb.api.findApiRoute
 import com.varabyte.kobweb.intellij.util.kobweb.api.findApiStreamRoute
+import com.varabyte.kobweb.intellij.util.kobweb.api.mightBeApiStream
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.route.PageRoute
 import com.varabyte.kobweb.intellij.util.kobweb.route.RouteDefinition
@@ -53,9 +53,8 @@ class ConflictingRoutesInspection : LocalInspectionTool() {
 
             override fun visitProperty(property: KtProperty) {
                 super.visitProperty(property)
-                // Analysis is expensive, so skip properties that obviously aren't streams. This matches how streams are
-                // found in the first place (by searching for files that mention `ApiStream`).
-                if (!property.isTopLevel || API_STREAM_CLASS_ID.shortClassName.asString() !in property.text) return
+                // Analysis is expensive, so skip properties that obviously aren't streams
+                if (!property.isTopLevel || !property.mightBeApiStream) return
                 val route = analyze(property) { property.findApiStreamRoute() } ?: return
 
                 property.reportAnyDuplicates(
