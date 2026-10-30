@@ -154,7 +154,6 @@ class ConflictingRoutesInspection : LocalInspectionTool() {
                         route.displayValue,
                         "`${shadowing.fqn}`",
                         shadowing.route.displayValue,
-                        lastSegment.replace("?}", "}"),
                     ),
                 )
             }

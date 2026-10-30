@@ -168,7 +168,7 @@ class ConflictingRoutesInspectionTest : KobwebFullStackTestCase() {
 
             @Page("{name}/settings")
             @Composable
-            fun <error descr="This page's route (\"/users/{name}/settings\") uses \"{name}\" where the route of `$TEST_GROUP.pages.users.ProfilePage` (\"/users/{id}\") uses \"{id}\", which will fail the build, as only one dynamic segment can be registered in the same position. Please use the same dynamic segment in both.">SettingsPage</error>() {
+            fun <error descr="This page's route (\"/users/{name}/settings\") uses \"{name}\" where the route of `$TEST_GROUP.pages.users.ProfilePage` (\"/users/{id}\") uses \"{id}\". Please use the same dynamic segment in both.">SettingsPage</error>() {
             }
             """.trimIndent()
         )
@@ -228,7 +228,7 @@ class ConflictingRoutesInspectionTest : KobwebFullStackTestCase() {
             import com.varabyte.kobweb.api.ApiContext
 
             @Api("{...path}")
-            suspend fun <error descr="This API endpoint's route (\"/api/users/{...path}\") uses \"{...path}\" where the route of `$TEST_GROUP.api.users.user` (\"/api/users/{id}\") uses \"{id}\", which will fail the build, as only one dynamic segment can be registered in the same position. Please use the same dynamic segment in both.">avatar</error>(ctx: ApiContext) {
+            suspend fun <error descr="This API endpoint's route (\"/api/users/{...path}\") uses \"{...path}\" where the route of `$TEST_GROUP.api.users.user` (\"/api/users/{id}\") uses \"{id}\". Please use the same dynamic segment in both.">avatar</error>(ctx: ApiContext) {
             }
             """.trimIndent()
         )
@@ -263,7 +263,7 @@ class ConflictingRoutesInspectionTest : KobwebFullStackTestCase() {
 
             @Page("{post?}")
             @Composable
-            fun <error descr="This page's route (\"/blog/{post?}\") ends with an optional segment, but `$TEST_GROUP.pages.blog.BlogPage` is registered at \"/blog/\", which always takes precedence when the segment is empty. This will fail the build, so please make the segment required instead, i.e. \"{post}\".">PostPage</error>() {
+            fun <error descr="This page's route (\"/blog/{post?}\") ends with an optional segment that can never be empty, as `$TEST_GROUP.pages.blog.BlogPage` is registered at \"/blog/\".">PostPage</error>() {
             }
 
             // Nothing is registered at "/drafts/", so the segment can be empty
