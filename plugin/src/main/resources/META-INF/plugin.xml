@@ -165,6 +165,13 @@
         <localInspection
                 language="kotlin"
                 groupKey="kobweb.name"
+                key="inspection.conflicting.routes.display.name"
+                enabledByDefault="true"
+                level="ERROR"
+                implementationClass="com.varabyte.kobweb.intellij.inspections.route.ConflictingRoutesInspection"/>
+        <localInspection
+                language="kotlin"
+                groupKey="kobweb.name"
                 key="inspection.disallowed.route.destination.display.name"
                 enabledByDefault="true"
                 level="WARNING"

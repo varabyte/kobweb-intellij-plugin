@@ -11,6 +11,7 @@ import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiModificationTracker
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.readKobwebBackendMetadata
+import com.varabyte.kobweb.intellij.util.kobweb.route.RouteDefinition
 import com.varabyte.kobweb.intellij.util.psi.isAnnotationOfType
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.idea.base.util.module
@@ -31,7 +32,11 @@ import org.jetbrains.kotlin.psi.KtProperty
  * @property declaration The endpoint's declaration. This can be null if a library advertises an endpoint that we
  *   couldn't find a declaration for.
  */
-class ApiDefinition(val fqn: String, val route: ApiRoute, val declaration: KtCallableDeclaration?)
+class ApiDefinition(
+    override val fqn: String,
+    override val route: ApiRoute,
+    val declaration: KtCallableDeclaration?,
+) : RouteDefinition
 
 /**
  * The API endpoints of a Kobweb project.

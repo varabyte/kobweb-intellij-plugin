@@ -24,7 +24,11 @@ import org.jetbrains.kotlin.psi.KtNamedFunction
  * @property function The page function's declaration. This can be null if a library advertises a page that we couldn't
  *   find a declaration for.
  */
-class PageDefinition(val fqn: String, val route: PageRoute, val function: KtNamedFunction?)
+class PageDefinition(
+    override val fqn: String,
+    override val route: PageRoute,
+    val function: KtNamedFunction?,
+) : RouteDefinition
 
 private fun Module.collectPages(): List<PageDefinition> {
     // Kobweb includes the pages of any Kobweb modules this one depends on (e.g. a library in the same project)

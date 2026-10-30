@@ -14,6 +14,17 @@ interface Route {
 }
 
 /**
+ * A declaration that Kobweb registers at some route, e.g. a page or an API endpoint.
+ *
+ * @property fqn The fully qualified name of the declaration, e.g. "com.example.pages.blog.PostPage".
+ * @property route The route the declaration is registered at.
+ */
+interface RouteDefinition {
+    val fqn: String
+    val route: Route
+}
+
+/**
  * The segments of this route, e.g. ["users", "{user}"] for "/users/{user}".
  *
  * Note that a trailing slash leaves an empty last segment, e.g. "/blog/" is ["blog", ""] (and "/" is [""]).

@@ -1,0 +1,19 @@
+<html lang="en">
+<body>
+Reports pages, API endpoints, and API streams whose routes conflict with existing ones.
+<p>
+Two pages, two API endpoints, or two API streams at the same route will fail the build. A page at the same route as a
+public file still builds, but you should be aware that visiting the URL directly will show the file, while navigating to
+it from within the site (e.g. clicking a link) will show the page.
+<pre><code>
+// pages/About.kt
+@Page fun AboutPage() { ... }
+// pages/Company.kt
+@Page("/about") fun CompanyPage() { ... }  // Not OK -- AboutPage is also served at "/about"
+
+// pages/Resume.kt, next to resources/public/resume
+@Page fun ResumePage() { ... }             // Not OK -- the public file is also served at "/resume"
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>
