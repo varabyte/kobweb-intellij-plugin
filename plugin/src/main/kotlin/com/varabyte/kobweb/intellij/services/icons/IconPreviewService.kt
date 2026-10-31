@@ -46,7 +46,10 @@ fun List<IconPreview>.findRenderedBy(call: SilkIconCall): IconPreview? =
     (call.styleArgument as? SilkIconCall.StyleArgument.Direct)?.let { arg -> find { it.style == arg.style } }
         ?: firstOrNull()
 
-private const val DATA_URL = "https://raw.githubusercontent.com/varabyte/data/main/kobweb-intellij-plugin/icon-previews"
+// The data lives in a folder per format version, so older versions of this plugin can keep using data in the format
+// they understand
+private const val DATA_URL =
+    "https://raw.githubusercontent.com/varabyte/data/main/kobweb-intellij-plugin/icon-previews/v${IconPreviewFormat.VERSION}"
 private const val NETWORK_TIMEOUT_MS = 5000
 
 /**
@@ -79,7 +82,8 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
     // For iterating on the data locally, e.g. `./gradlew :plugin:runIde -PlocalIconPreviews`, which points this at the
     // output of `:tools:icon-previews-generator:generate`. If set, the network and the cache are skipped entirely.
     private val localDataDir: Path? = System.getProperty("kobweb.iconPreviews.dir")?.let { Path.of(it) }
-    private val cacheDir: Path = PathManager.getSystemDir().resolve("kobweb/icon-previews")
+    private val cacheDir: Path =
+        PathManager.getSystemDir().resolve("kobweb/icon-previews/v${IconPreviewFormat.VERSION}")
 
     // Icon set ID -> entry, or null if the remote manifest is unavailable (e.g. offline) or in a format we don't
     // support
@@ -163,8 +167,8 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
             val root = ObjectMapper().readTree(createRequest("$DATA_URL/manifest.json").readString())
             val formatVersion = root.path("formatVersion").asInt()
             if (formatVersion != IconPreviewFormat.VERSION) {
-                // Probably an older version of this plugin, while newer ones moved on to a new format
-                logger.info("Unsupported icon preview format version $formatVersion")
+                // This shouldn't happen unless we (the Kobweb maintainers) screwed up
+                logger.warn("Unexpected icon preview format version $formatVersion in $DATA_URL")
                 return null
             }
             root.path("sets").properties().associate { (id, set: JsonNode) ->
