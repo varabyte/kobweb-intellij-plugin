@@ -204,6 +204,14 @@
                 enabledByDefault="true"
                 level="WARNING"
                 implementationClass="com.varabyte.kobweb.intellij.inspections.route.UnknownRouteInspection"/>
+        <localInspection
+                language="kotlin"
+                groupKey="kobweb.name"
+                key="inspection.outdated.import.display.name"
+                enabledByDefault="true"
+                level="WARNING"
+                cleanupTool="true"
+                implementationClass="com.varabyte.kobweb.intellij.inspections.imports.OutdatedImportInspection"/>
         <intentionAction>
             <className>com.varabyte.kobweb.intellij.intentions.style.ExtractCssStyleIntention</className>
             <categoryKey>kobweb.name</categoryKey>

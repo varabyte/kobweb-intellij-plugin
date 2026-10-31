@@ -254,3 +254,14 @@ if (providers.gradleProperty("localIconPreviews").isPresent) {
         })
     }
 }
+
+// By default, import migrations are downloaded from the varabyte/data repo. Pass `-PlocalImportMigrations=<path>` to use
+// a local copy of the file instead, e.g. to check changes to it before publishing them.
+providers.gradleProperty("localImportMigrations").orNull?.let { importMigrationsPath ->
+    tasks.withType<RunIdeTask>().configureEach {
+        val importMigrationsFile = file(importMigrationsPath)
+        jvmArgumentProviders.add(CommandLineArgumentProvider {
+            listOf("-Dkobweb.importMigrations.file=$importMigrationsFile")
+        })
+    }
+}

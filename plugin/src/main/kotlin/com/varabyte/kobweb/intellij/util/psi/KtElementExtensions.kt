@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtCallExpression
@@ -207,6 +208,19 @@ fun KtFile.removeImportIfUnused(fqn: FqName) {
     import.delete()
     // If that was the last import, also remove the blank line that separated the imports from the code above them
     importList?.takeIf { it.imports.isEmpty() }?.let { (it.prevSibling as? PsiWhiteSpace)?.delete() }
+}
+
+/**
+ * Changes this import to import [newFqName] instead, keeping its alias (if any).
+ *
+ * The new import is placed according to the user's Kotlin import layout settings. If the file already has that exact
+ * import, this one is simply deleted, to avoid a duplicate.
+ */
+fun KtImportDirective.replaceImportedFqName(newFqName: FqName) {
+    val file = containingKtFile
+    val alias = aliasName?.let(Name::identifier)
+    delete()
+    file.addImport(newFqName, alias = alias)
 }
 
 /**

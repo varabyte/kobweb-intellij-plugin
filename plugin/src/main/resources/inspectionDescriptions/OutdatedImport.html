@@ -1,0 +1,13 @@
+<html lang="en">
+<body>
+Reports imports of Kobweb declarations that have moved to a new package.
+<p>
+Kotlin's deprecation quick fixes struggle on imports like these (especially for extension functions) so we provide our
+own custom inspection that does it instead.
+<pre><code>
+import com.varabyte.kobweb.browser.api  // Moved to com.varabyte.kobweb.api.api
+import com.varabyte.kobweb.api.api      // OK
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>
