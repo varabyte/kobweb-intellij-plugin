@@ -10,30 +10,26 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.util.Disposer
-import com.intellij.util.io.HttpRequests
 import com.varabyte.kobweb.intellij.iconpreviews.IconPreviewFormat
 import com.varabyte.kobweb.intellij.iconpreviews.IconSet
 import com.varabyte.kobweb.intellij.iconpreviews.IconShape
+import com.varabyte.kobweb.intellij.util.io.writeBytesAtomically
 import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconCall
 import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconSet
 import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconStyle
+import com.varabyte.kobweb.intellij.util.network.RemoteFile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import org.jetbrains.annotations.TestOnly
-import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.io.path.createDirectories
-import kotlin.io.path.deleteIfExists
 import kotlin.io.path.exists
 import kotlin.io.path.inputStream
 import kotlin.io.path.readBytes
-import kotlin.io.path.writeBytes
 
 class IconPreview(val shape: IconShape, val iconSet: SilkIconSet, val style: SilkIconStyle)
 
@@ -50,7 +46,6 @@ fun List<IconPreview>.findRenderedBy(call: SilkIconCall): IconPreview? =
 // they understand
 private const val DATA_URL =
     "https://raw.githubusercontent.com/varabyte/data/main/kobweb-intellij-plugin/icon-previews/v${IconPreviewFormat.VERSION}"
-private const val NETWORK_TIMEOUT_MS = 5000
 
 /**
  * Provides outlines for Kobweb's silk icons, for previewing them in the editor.
@@ -144,17 +139,9 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
         return try {
             if (cachedFile.exists() && cachedFile.readBytes().sha256() == entry.sha256) return cachedFile
 
-            val bytes = createRequest("$DATA_URL/${entry.file}").readBytes(null)
+            val bytes = RemoteFile("$DATA_URL/${entry.file}").download() ?: return cachedFile.takeIf { it.exists() }
             check(bytes.sha256() == entry.sha256) { "Checksum mismatch for ${entry.file}" }
-            cacheDir.createDirectories()
-            val tempFile = Files.createTempFile(cacheDir, iconSet.id, ".tmp")
-            try {
-                tempFile.writeBytes(bytes)
-                Files.move(tempFile, cachedFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
-            } finally {
-                // Don't leave partial files behind if writing or moving failed (a no-op if the move succeeded)
-                tempFile.deleteIfExists()
-            }
+            cachedFile.writeBytesAtomically(bytes)
             cachedFile
         } catch (e: Exception) {
             logger.info("Could not update icon previews for ${iconSet.id}", e)
@@ -164,7 +151,8 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
 
     private fun fetchManifest(): Map<String, ManifestEntry>? {
         return try {
-            val root = ObjectMapper().readTree(createRequest("$DATA_URL/manifest.json").readString())
+            val manifestBytes = RemoteFile("$DATA_URL/manifest.json").download() ?: return null
+            val root = ObjectMapper().readTree(manifestBytes)
             val formatVersion = root.path("formatVersion").asInt()
             if (formatVersion != IconPreviewFormat.VERSION) {
                 // This shouldn't happen unless we (the Kobweb maintainers) screwed up
@@ -211,9 +199,5 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
         }
     }
 }
-
-private fun createRequest(url: String) = HttpRequests.request(url)
-    .connectTimeout(NETWORK_TIMEOUT_MS)
-    .readTimeout(NETWORK_TIMEOUT_MS)
 
 private fun ByteArray.sha256(): String = MessageDigest.getInstance("SHA-256").digest(this).toHexString()

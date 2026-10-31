@@ -8,33 +8,24 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.util.Disposer
-import com.intellij.util.io.HttpRequests
+import com.varabyte.kobweb.intellij.util.io.writeBytesAtomically
 import com.varabyte.kobweb.intellij.util.kobweb.imports.ImportMigrations
+import com.varabyte.kobweb.intellij.util.network.RemoteFile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.annotations.TestOnly
 import java.io.IOException
-import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardCopyOption
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.io.path.createDirectories
-import kotlin.io.path.deleteIfExists
 import kotlin.io.path.exists
 import kotlin.io.path.readText
-import kotlin.io.path.writeText
-import kotlin.time.Duration.Companion.milliseconds
 
 // Bump this (and publish the file under a new version folder) if the format ever changes in a way that older versions
 // of this plugin can't handle, so that they can keep using the old file
 private const val FORMAT_VERSION = 1
 private const val DATA_URL =
     "https://raw.githubusercontent.com/varabyte/data/main/kobweb-intellij-plugin/import-migrations/v$FORMAT_VERSION/migrations.txt"
-private const val NETWORK_TIMEOUT_MS = 5000
-private const val INITIAL_RETRY_DELAY_MS = 30_000L
-private const val MAX_RETRY_DELAY_MS = 60 * 60 * 1000L
 
 /**
  * Provides the list of declarations that have moved in Kobweb and related libraries, so that imports still using their
@@ -57,6 +48,7 @@ class ImportMigrationService(private val coroutineScope: CoroutineScope) {
     // `./gradlew :plugin:runIde -PlocalImportMigrations=/path/to/migrations.txt`. If set, the network and the cache are
     // skipped entirely.
     private val localFile: Path? = System.getProperty("kobweb.importMigrations.file")?.let { Path.of(it) }
+    private val remoteFile = RemoteFile(DATA_URL)
     private val cachedFile: Path =
         PathManager.getSystemDir().resolve("kobweb/import-migrations/v$FORMAT_VERSION/migrations.txt")
 
@@ -85,13 +77,18 @@ class ImportMigrationService(private val coroutineScope: CoroutineScope) {
             val cachedText = readText(cachedFile)
             cachedText?.let { parse(it, source = cachedFile.toString()) }?.let(::publish)
 
-            val downloadedText = downloadWithRetries()
+            val downloadedBytes = remoteFile.downloadWithRetries()
+            val downloadedText = downloadedBytes.decodeToString()
             if (downloadedText == cachedText) return@launch
             // If the published file is broken, keep using the cached copy (if any) rather than caching the broken one.
             // Retrying won't help here, but a fixed file will be picked up after a restart.
             val downloaded = parse(downloadedText, source = DATA_URL) ?: return@launch
             publish(downloaded)
-            writeCache(downloadedText)
+            try {
+                cachedFile.writeBytesAtomically(downloadedBytes)
+            } catch (e: IOException) {
+                logger.info("Could not cache import migrations", e)
+            }
         }
     }
 
@@ -118,49 +115,6 @@ class ImportMigrationService(private val coroutineScope: CoroutineScope) {
         } catch (e: Exception) {
             logger.warn("Could not read import migrations from $file", e)
             null
-        }
-    }
-
-    /**
-     * Keep trying to download the file until it succeeds, waiting longer after each failure.
-     *
-     * This covers the IDE starting up while offline (e.g. before reconnecting to Wi-Fi), so users don't have to restart
-     * it to get the latest list. Retries stop when the IDE shuts down, as that cancels the service's coroutine scope.
-     */
-    private suspend fun downloadWithRetries(): String {
-        var retryDelayMs = INITIAL_RETRY_DELAY_MS
-        while (true) {
-            download()?.let { return it }
-            delay(retryDelayMs.milliseconds)
-            retryDelayMs = (retryDelayMs * 2).coerceAtMost(MAX_RETRY_DELAY_MS)
-        }
-    }
-
-    private fun download(): String? {
-        return try {
-            HttpRequests.request(DATA_URL)
-                .connectTimeout(NETWORK_TIMEOUT_MS)
-                .readTimeout(NETWORK_TIMEOUT_MS)
-                .readString()
-        } catch (e: IOException) {
-            logger.info("Could not download import migrations: ${e.message}")
-            null
-        }
-    }
-
-    private fun writeCache(text: String) {
-        try {
-            cachedFile.parent.createDirectories()
-            val tempFile = Files.createTempFile(cachedFile.parent, "migrations", ".tmp")
-            try {
-                tempFile.writeText(text)
-                Files.move(tempFile, cachedFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
-            } finally {
-                // Don't leave partial files behind if writing or moving failed (a no-op if the move succeeded)
-                tempFile.deleteIfExists()
-            }
-        } catch (e: Exception) {
-            logger.info("Could not cache import migrations", e)
         }
     }
 
