@@ -12,8 +12,10 @@ import com.varabyte.kobweb.intellij.util.kobweb.modifier.isModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.resolvesToModifier
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
+import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.KtBlockExpression
+import org.jetbrains.kotlin.psi.KtFunctionLiteral
 import org.jetbrains.kotlin.psi.KtVisitorVoid
 
 class DanglingModifierInspection : LocalInspectionTool() {
@@ -35,7 +37,15 @@ class DanglingModifierInspection : LocalInspectionTool() {
                 analyze(expression) {
                     for ((index, statement) in statements.withIndex()) {
                         val isLastStatement = index == statements.lastIndex
-                        if (isLastStatement && statement.expectedType.isModifierType()) continue
+                        if (isLastStatement) {
+                            // The last statement is used if it's the block's value, e.g. a lambda's return value or
+                            // the value of an `if` or `when` branch, which its expected type tells us. However, the
+                            // last statement of an annotated lambda (e.g. `@Composable { ... }`) has no expected type,
+                            // probably due to a Kotlin bug, so in that case, check what the lambda returns directly.
+                            // See also: https://youtrack.jetbrains.com/issue/KTIJ-40730
+                            val expectedType = statement.expectedType
+                            if (expectedType?.isModifierType() ?: expression.isBodyOfLambdaReturningModifier()) continue
+                        }
 
                         if (statement.resolvesToModifier()) {
                             val insideStyleBlockWithoutBaseBlock =
@@ -60,4 +70,14 @@ class DanglingModifierInspection : LocalInspectionTool() {
             }
         }
     }
+}
+
+/**
+ * Returns true if this block is the body of a lambda that returns a `Modifier`, in which case its last statement is
+ * that return value.
+ */
+context(kaSession: KaSession)
+private fun KtBlockExpression.isBodyOfLambdaReturningModifier(): Boolean = with(kaSession) {
+    val functionLiteral = parent as? KtFunctionLiteral ?: return@with false
+    functionLiteral.symbol.returnType.isModifierType()
 }
