@@ -24,6 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import org.jetbrains.annotations.TestOnly
+import java.io.IOException
 import java.nio.file.Path
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
@@ -55,7 +56,7 @@ private const val DATA_URL =
  * nothing, and once it's ready, open editors are re-highlighted so their previews show up.
  *
  * The remote manifest is checked once per IDE session, and only files whose checksums changed are downloaded again.
- * When offline, previously cached files are used as is.
+ * When offline, previously cached files are used while downloads are retried in the background.
  */
 @Service(Service.Level.APP)
 class IconPreviewService(private val coroutineScope: CoroutineScope) {
@@ -80,8 +81,8 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
     private val cacheDir: Path =
         PathManager.getSystemDir().resolve("kobweb/icon-previews/v${IconPreviewFormat.VERSION}")
 
-    // Icon set ID -> entry, or null if the remote manifest is unavailable (e.g. offline) or in a format we don't
-    // support
+    // Icon set ID -> entry, or null if the remote manifest is broken. Waits until the manifest can be downloaded (e.g.
+    // while offline).
     private val remoteManifest = coroutineScope.async(Dispatchers.IO, start = CoroutineStart.LAZY) { fetchManifest() }
 
     private val requestedIconSets = ConcurrentHashMap.newKeySet<SilkIconSet>()
@@ -108,50 +109,54 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
     }
 
     private fun requestLoad(iconSet: SilkIconSet) {
-        // Only try once per session. If we fail (say, offline with nothing cached), we'll try again after a restart.
+        // Only load once per session (download failures are retried inside the load itself)
         if (!requestedIconSets.add(iconSet)) return
 
         coroutineScope.launch(Dispatchers.IO) {
-            val file = localDataDir?.resolve("${iconSet.id}.bin")
-                ?: findOrDownload(iconSet, remoteManifest.await())
-                ?: return@launch
-            val loaded = load(iconSet, file) ?: return@launch
-            loadedIconSets[iconSet] = loaded
-            ProjectManager.getInstance().openProjects
-                .filter { !it.isDisposed }
-                .forEach { DaemonCodeAnalyzer.getInstance(it).restart("Silk icon previews loaded") }
+            if (localDataDir != null) {
+                load(iconSet, localDataDir.resolve("${iconSet.id}.bin"))?.let { publish(iconSet, it) }
+                return@launch
+            }
+
+            // Use the cached copy right away, as the network may be slow (or unavailable). If the format changed,
+            // `load` will reject it.
+            val cachedFile = cacheDir.resolve("${iconSet.id}.bin")
+            if (cachedFile.exists()) load(iconSet, cachedFile)?.let { publish(iconSet, it) }
+            if (updateCache(iconSet, cachedFile)) load(iconSet, cachedFile)?.let { publish(iconSet, it) }
         }
+    }
+
+    private fun publish(iconSet: SilkIconSet, loaded: LoadedIconSet) {
+        loadedIconSets[iconSet] = loaded
+        ProjectManager.getInstance().openProjects
+            .filter { !it.isDisposed }
+            .forEach { DaemonCodeAnalyzer.getInstance(it).restart("Silk icon previews loaded") }
     }
 
     /**
-     * Returns the cached file for the icon set, downloading it first if it's missing or out of date.
+     * Downloads the icon set into [cachedFile] if it's missing or out of date, returning true if it did.
      *
-     * This blocks on file and network I/O, so it should only be called off the EDT (e.g. on [Dispatchers.IO]).
-     *
-     * @param manifest The remote manifest, or null if it's unavailable.
+     * This waits until the remote manifest and the icon set can be downloaded, e.g. while offline.
      */
-    private fun findOrDownload(iconSet: SilkIconSet, manifest: Map<String, ManifestEntry>?): Path? {
-        val cachedFile = cacheDir.resolve("${iconSet.id}.bin")
-        val entry = manifest?.get(iconSet.id)
-            // Remote data is unavailable, so use whatever we have. If the format changed, `load` will reject it.
-            ?: return cachedFile.takeIf { it.exists() }
-
+    private suspend fun updateCache(iconSet: SilkIconSet, cachedFile: Path): Boolean {
+        val entry = remoteManifest.await()?.get(iconSet.id) ?: return false
         return try {
-            if (cachedFile.exists() && cachedFile.readBytes().sha256() == entry.sha256) return cachedFile
+            if (cachedFile.exists() && cachedFile.readBytes().sha256() == entry.sha256) return false
 
-            val bytes = RemoteFile("$DATA_URL/${entry.file}").download() ?: return cachedFile.takeIf { it.exists() }
-            check(bytes.sha256() == entry.sha256) { "Checksum mismatch for ${entry.file}" }
+            val bytes = RemoteFile("$DATA_URL/${entry.file}").downloadWithRetries { it.sha256() == entry.sha256 }
+                // The manifest is probably out of date, so keep using the cached copy (if any)
+                ?: return false
             cachedFile.writeBytesAtomically(bytes)
-            cachedFile
-        } catch (e: Exception) {
+            true
+        } catch (e: IOException) {
             logger.info("Could not update icon previews for ${iconSet.id}", e)
-            cachedFile.takeIf { it.exists() }
+            false
         }
     }
 
-    private fun fetchManifest(): Map<String, ManifestEntry>? {
+    private suspend fun fetchManifest(): Map<String, ManifestEntry>? {
+        val manifestBytes = RemoteFile("$DATA_URL/manifest.json").downloadWithRetries()
         return try {
-            val manifestBytes = RemoteFile("$DATA_URL/manifest.json").download() ?: return null
             val root = ObjectMapper().readTree(manifestBytes)
             val formatVersion = root.path("formatVersion").asInt()
             if (formatVersion != IconPreviewFormat.VERSION) {
@@ -163,7 +168,7 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
                 id to ManifestEntry(file = set.path("file").asText(), sha256 = set.path("sha256").asText())
             }
         } catch (e: Exception) {
-            logger.info("Could not fetch icon preview manifest", e)
+            logger.warn("Could not parse icon preview manifest", e)
             null
         }
     }
