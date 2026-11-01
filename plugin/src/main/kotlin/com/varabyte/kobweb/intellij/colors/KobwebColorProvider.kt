@@ -351,20 +351,24 @@ private fun KtCallExpression.tryParseKobwebColorFunctionColor(): Color? {
             ?.callableId
             ?.takeIf { it in ColorFunctions.entries }
             ?: return@analyze
-        val functionArgs = ktExpression.resolveToCall()?.successfulFunctionCallOrNull()?.argumentMapping
-            ?: return@analyze
+        val call = ktExpression.resolveToCall()?.successfulFunctionCallOrNull() ?: return@analyze
+        // Put arguments in parameter order, since named arguments can be written in any order
+        val parameters = call.partiallyAppliedSymbol.signature.valueParameters.map { it.symbol }
+        val functionArgs = call.argumentMapping.entries
+            .sortedBy { (_, parameter) -> parameters.indexOf(parameter.symbol) }
+            .map { (argument, _) -> argument }
 
         when (callableId) {
             ColorFunctions.rgb -> when (functionArgs.size) {
                 1 -> {
-                    val constantValue = functionArgs.entries.single().key.evaluate()
+                    val constantValue = functionArgs.single().evaluate()
                     val rgb = constantValue?.asIntOrNull() ?: constantValue?.asLongOrNull()?.toInt() ?: return@analyze
                     return tryCreateRgbColor(rgb)
                 }
 
                 3 -> {
                     val (r, g, b) = functionArgs.mapNotNull {
-                        val constantValue = it.key.evaluate()
+                        val constantValue = it.evaluate()
                         constantValue?.asIntOrNull() ?: constantValue?.asFloatOrNull()?.toColorInt()
                     }.takeIf { it.size == 3 } ?: return@analyze
                     return tryCreateRgbColor(r, g, b)
@@ -373,14 +377,14 @@ private fun KtCallExpression.tryParseKobwebColorFunctionColor(): Color? {
 
             ColorFunctions.rgba -> when (functionArgs.size) {
                 1 -> {
-                    val constantValue = functionArgs.entries.single().key.evaluate()
+                    val constantValue = functionArgs.single().evaluate()
                     val rgb = constantValue?.asIntOrNull() ?: constantValue?.asLongOrNull()?.toInt() ?: return@analyze
                     return tryCreateRgbColor(rgb shr 8)
                 }
 
                 4 -> {
-                    val (r, g, b) = functionArgs.entries.take(3).mapNotNull {
-                        val constantValue = it.key.evaluate()
+                    val (r, g, b) = functionArgs.take(3).mapNotNull {
+                        val constantValue = it.evaluate()
                         constantValue?.asIntOrNull() ?: constantValue?.asFloatOrNull()?.toColorInt()
                     }.takeIf { it.size == 3 } ?: return@analyze
                     return tryCreateRgbColor(r, g, b)
@@ -389,14 +393,14 @@ private fun KtCallExpression.tryParseKobwebColorFunctionColor(): Color? {
 
             ColorFunctions.argb -> when (functionArgs.size) {
                 1 -> {
-                    val constantValue = functionArgs.entries.single().key.evaluate()
+                    val constantValue = functionArgs.single().evaluate()
                     val rgb = constantValue?.asIntOrNull() ?: constantValue?.asLongOrNull()?.toInt() ?: return@analyze
                     return tryCreateRgbColor(rgb and 0x00_FF_FF_FF)
                 }
 
                 4 -> {
-                    val (r, g, b) = functionArgs.entries.drop(1).mapNotNull {
-                        val constantValue = it.key.evaluate()
+                    val (r, g, b) = functionArgs.drop(1).mapNotNull {
+                        val constantValue = it.evaluate()
                         constantValue?.asIntOrNull() ?: constantValue?.asFloatOrNull()?.toColorInt()
                     }.takeIf { it.size == 3 } ?: return@analyze
                     return tryCreateRgbColor(r, g, b)
@@ -404,22 +408,22 @@ private fun KtCallExpression.tryParseKobwebColorFunctionColor(): Color? {
             }
 
             ColorFunctions.hsl -> {
-                val h = functionArgs.entries.first().key.evaluate()
+                val h = functionArgs.first().evaluate()
                     .let { it?.asIntOrNull() ?: it?.asFloatOrNull()?.roundToInt() }
                     ?: return@analyze
-                val (s, l) = functionArgs.entries.drop(1)
-                    .mapNotNull { it.key.evaluate()?.asFloatOrNull() }
+                val (s, l) = functionArgs.drop(1)
+                    .mapNotNull { it.evaluate()?.asFloatOrNull() }
                     .takeIf { it.size == 2 }
                     ?: return@analyze
                 return tryCreateHslColor(h, s, l)
             }
 
             ColorFunctions.hsla -> {
-                val h = functionArgs.entries.first().key.evaluate()
+                val h = functionArgs.first().evaluate()
                     .let { it?.asIntOrNull() ?: it?.asFloatOrNull()?.roundToInt() }
                     ?: return@analyze
-                val (s, l) = functionArgs.entries.drop(1).dropLast(1)
-                    .mapNotNull { it.key.evaluate()?.asFloatOrNull() }
+                val (s, l) = functionArgs.drop(1).dropLast(1)
+                    .mapNotNull { it.evaluate()?.asFloatOrNull() }
                     .takeIf { it.size == 2 }
                     ?: return@analyze
                 return tryCreateHslColor(h, s, l)

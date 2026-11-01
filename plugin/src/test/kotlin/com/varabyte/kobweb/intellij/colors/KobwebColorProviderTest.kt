@@ -81,4 +81,22 @@ class KobwebColorProviderTest : KobwebLineMarkerTestBase() {
             }
         )
     }
+
+    fun testColorWithNamedArgumentsOutOfOrder() {
+        doTest(
+            """
+            import com.varabyte.kobweb.compose.ui.graphics.Color
+
+            private val BLUE_RGB = Color.rgb(b = 255, g = 0, r = 0) $GUTTER_TAG
+            private val BLUE_RGBA = Color.rgba(a = 255, r = 0, g = 0, b = 255) $GUTTER_TAG
+            private val BLUE_ARGB = Color.argb(r = 0, g = 0, b = 255, a = 255) $GUTTER_TAG
+            private val BLUE_HSL = Color.hsl(l = 0.5f, s = 1f, h = 240) $GUTTER_TAG
+            private val BLUE_HSLA = Color.hsla(a = 1f, l = 0.5f, s = 1f, h = 240) $GUTTER_TAG
+            """.trimIndent(),
+            acceptLineMarker = { it.icon is ColorIcon },
+            assertLineMarker = { _, info ->
+                assertThat((info.icon as ColorIcon).iconColor).isEqualTo(Color(0x0000FF))
+            }
+        )
+    }
 }
