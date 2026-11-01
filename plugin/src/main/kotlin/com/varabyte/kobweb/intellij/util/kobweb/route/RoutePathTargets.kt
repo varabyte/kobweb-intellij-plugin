@@ -1,11 +1,19 @@
 package com.varabyte.kobweb.intellij.util.kobweb.route
 
 import org.jetbrains.kotlin.analysis.api.KaSession
+import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
+import org.jetbrains.kotlin.analysis.api.resolution.symbol
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.psi.KtCallElement
+import org.jetbrains.kotlin.psi.KtCallExpression
+import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
+import org.jetbrains.kotlin.psi.KtValueArgument
+import org.jetbrains.kotlin.psi.psiUtil.getQualifiedExpressionForSelectorOrThis
+import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 
 private val KOBWEB_CORE_PACKAGE = FqName("com.varabyte.kobweb.core")
 private val KOBWEB_NAVIGATION_PACKAGE = FqName("com.varabyte.kobweb.navigation")
@@ -159,6 +167,68 @@ private val IMPLICIT_ROUTE_SETTERS = mapOf(
 )
 
 /**
+ * Hardcoded list of parameters that take a route which their function returns again with something added, by the
+ * function they belong to, e.g. `BasePath.prependTo`'s `path`, as it returns the route with the site's base path in
+ * front of it.
+ *
+ * So strings passed into them inherit the target of wherever the result is used, e.g. the `"/images/cat.png"` in
+ * `url(BasePath.prependTo("/images/cat.png"))` should lead to a resource, as `url` requires.
+ *
+ * Their own targets are like those of [IMPLICIT_ROUTE_PARAMETERS], for versions of Kobweb from before it annotated
+ * them with `@RoutePath`.
+ */
+private val INHERITING_ROUTE_PARAMETERS = buildMap {
+    // `BasePath.prependTo(...)` calls the companion object's override
+    for (basePath in listOf(FqName("BasePath"), FqName("BasePath.Companion"))) {
+        put(
+            CallableId(KOBWEB_NAVIGATION_PACKAGE, basePath, Name.identifier("prependTo")),
+            "path" to RoutePathTarget(RoutePathTarget.Type.PATH_QUERY_AND_FRAGMENT, mustExist = false),
+        )
+    }
+    put(
+        CallableId(KOBWEB_NAVIGATION_PACKAGE, Name.identifier("prependIf")),
+        "path" to RoutePathTarget(RoutePathTarget.Type.PATH_QUERY_AND_FRAGMENT, mustExist = false),
+    )
+}
+
+/**
+ * Returns a target that only accepts routes that both this target and [other] accept, e.g. for a route that's used
+ * with both of them.
+ *
+ * (If they allow different destinations, e.g. pages only and resources only, no route could satisfy both, so this one's
+ * destination is kept.)
+ */
+private fun RoutePathTarget.intersect(other: RoutePathTarget): RoutePathTarget {
+    val types = setOf(type, other.type)
+    return RoutePathTarget(
+        when {
+            RoutePathTarget.Type.PATH_ONLY in types -> RoutePathTarget.Type.PATH_ONLY
+            RoutePathTarget.Type.PATH_QUERY_AND_FRAGMENT in types -> RoutePathTarget.Type.PATH_QUERY_AND_FRAGMENT
+            else -> RoutePathTarget.Type.URL
+        },
+        mustExist = mustExist || other.mustExist,
+        destination = when (destination) {
+            RoutePathTarget.Destination.PAGES_AND_RESOURCES -> other.destination
+            else -> destination
+        },
+    )
+}
+
+/**
+ * Returns the call whose result this expression inherits the target of (see [INHERITING_ROUTE_PARAMETERS]), if any,
+ * e.g. `BasePath.prependTo("/blog")` for the `"/blog"` in it.
+ */
+context(kaSession: KaSession)
+private fun KtExpression.findInheritingCall(): KtExpression? = with(kaSession) {
+    val argument = parent as? KtValueArgument ?: return null
+    val callElement = argument.getStrictParentOfType<KtCallElement>() as? KtCallExpression ?: return null
+    val call = callElement.resolveToCall()?.singleFunctionCallOrNull() ?: return null
+    val (parameterName, _) = INHERITING_ROUTE_PARAMETERS[call.symbol.callableId] ?: return null
+    if (call.argumentMapping[this@findInheritingCall]?.symbol?.name?.asString() != parameterName) return null
+    return callElement.getQualifiedExpressionForSelectorOrThis()
+}
+
+/**
  * Kobweb's `@RoutePath` annotation, along with the declarations older versions of Kobweb didn't annotate yet.
  */
 private val ROUTE_PATH_ANNOTATION = PathAnnotation(
@@ -173,25 +243,33 @@ private val ROUTE_PATH_ANNOTATION = PathAnnotation(
             ),
         )
     },
-    implicitParameters = IMPLICIT_ROUTE_PARAMETERS,
+    implicitParameters = IMPLICIT_ROUTE_PARAMETERS + INHERITING_ROUTE_PARAMETERS,
     implicitGetters = IMPLICIT_ROUTE_GETTERS,
     implicitSetters = IMPLICIT_ROUTE_SETTERS,
 )
 
 /**
- * Returns what this string is used with if that holds a route (see [RoutePathTarget]), e.g. `Link`'s `path` parameter
- * for the `"/blog"` in `Link("/blog")`.
+ * Returns what this expression (usually a string) is used with if that holds a route (see [RoutePathTarget]), e.g.
+ * `Link`'s `path` parameter for the `"/blog"` in `Link("/blog")`.
  *
  * Such parameters and properties are annotated with Kobweb's `@RoutePath` (which also lets users mark their own),
  * although older versions of Kobweb didn't have it, so we also recognize the declarations it was later added to, e.g.
  * `ctx.route.path`.
+ *
+ * If this string is passed through a call that returns the same route with something added (e.g. `BasePath.prependTo`),
+ * the target also includes whatever the call's result is used with, e.g. `url`'s for the `"/images/cat.png"` in
+ * `url(BasePath.prependTo("/images/cat.png"))` (see [INHERITING_ROUTE_PARAMETERS]).
  *
  * Call [mayHavePathTarget] first to skip strings that can't have one without running analysis.
  *
  * This method must be called inside an `analyze` block.
  */
 context(_: KaSession)
-fun KtStringTemplateExpression.findRoutePathTarget(): RoutePathTarget? = findPathTarget(ROUTE_PATH_ANNOTATION)
+fun KtExpression.findRoutePathTarget(): RoutePathTarget? {
+    val target = findPathTarget(ROUTE_PATH_ANNOTATION)
+    val inheritedTarget = findInheritingCall()?.findRoutePathTarget() ?: return target
+    return target?.intersect(inheritedTarget) ?: inheritedTarget
+}
 
 /**
  * Returns true if this string is used with something that holds a route (see [findRoutePathTarget]).

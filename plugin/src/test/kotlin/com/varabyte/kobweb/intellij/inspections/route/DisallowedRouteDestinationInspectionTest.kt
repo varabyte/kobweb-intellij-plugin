@@ -71,6 +71,24 @@ class DisallowedRouteDestinationInspectionTest : KobwebInspectionTestBase() {
         )
     }
 
+    fun testPagesAreFlaggedWhenPassedThroughBasePathWherePagesArentAllowed() {
+        doTest(
+            """
+            package $TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.navigation.BasePath
+            import com.varabyte.kobweb.silk.components.graphics.Image
+
+            @Composable
+            fun Pictures() {
+                Image(BasePath.prependTo("<warning descr="This route leads to a page, which isn't allowed here.">/about</warning>"))
+                Image(BasePath.prependTo("/images/cat.png"))
+            }
+            """.trimIndent(),
+        )
+    }
+
     fun testPublicFilesWinOverPagesWherePagesArentAllowed() {
         doTest(
             $$"""

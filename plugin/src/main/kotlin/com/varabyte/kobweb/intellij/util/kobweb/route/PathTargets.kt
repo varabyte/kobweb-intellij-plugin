@@ -99,10 +99,10 @@ inline fun <reified E : Enum<E>> KaAnnotation.readEnumArgument(name: String, def
 }
 
 /**
- * Returns the expression this string is compared against, if any, e.g. `ctx.route.path` for the `"/blog"` in
+ * Returns what this expression is compared against, if any, e.g. `ctx.route.path` for the `"/blog"` in
  * `ctx.route.path == "/blog"` or in `when (ctx.route.path) { "/blog" -> ... }`.
  */
-private fun KtStringTemplateExpression.findComparedExpression(): KtExpression? {
+private fun KtExpression.findComparedExpression(): KtExpression? {
     return when (val parent = parent) {
         is KtBinaryExpression -> {
             if (parent.operationToken != KtTokens.EQEQ && parent.operationToken != KtTokens.EXCLEQ) return null
@@ -119,19 +119,19 @@ private fun KtStringTemplateExpression.findComparedExpression(): KtExpression? {
 }
 
 /**
- * Returns the expression this string is assigned to, if any, e.g. `path` for the `"/blog"` in `path = "/blog"`.
+ * Returns the expression this expression is assigned to, if any, e.g. `path` for the `"/blog"` in `path = "/blog"`.
  */
-private fun KtStringTemplateExpression.findAssignedExpression(): KtExpression? {
+private fun KtExpression.findAssignedExpression(): KtExpression? {
     val assignment = parent as? KtBinaryExpression ?: return null
     if (assignment.operationToken != KtTokens.EQ || assignment.right != this) return null
     return assignment.left
 }
 
 /**
- * Returns the declaration this string is the initial value of, if any, e.g. the `home` property for the `"/blog"` in
- * `val home = "/blog"`, or the default `path` parameter for the `"/blog"` in `fun NavItem(path: String = "/blog")`.
+ * Returns the declaration this expression is the initial value of, if any, e.g. the `home` property for the `"/blog"`
+ * in `val home = "/blog"`, or the default `path` parameter for the `"/blog"` in `fun NavItem(path: String = "/blog")`.
  */
-private fun KtStringTemplateExpression.findInitializedDeclaration(): KtCallableDeclaration? {
+private fun KtExpression.findInitializedDeclaration(): KtCallableDeclaration? {
     return when (val parent = parent) {
         is KtProperty -> parent.takeIf { it.initializer == this }
         is KtParameter -> parent.takeIf { it.defaultValue == this }
@@ -222,11 +222,11 @@ private fun <T : PathTarget> KaAnnotated.findPathTarget(annotation: PathAnnotati
 }
 
 /**
- * Returns the target of the parameter that this string is passed into, if that parameter is marked with
+ * Returns the target of the parameter that this expression is passed into, if that parameter is marked with
  * [annotation] (or is one of its implicit target parameters).
  */
 context(kaSession: KaSession)
-private fun <T : PathTarget> KtStringTemplateExpression.findParameterPathTarget(annotation: PathAnnotation<T>): T? =
+private fun <T : PathTarget> KtExpression.findParameterPathTarget(annotation: PathAnnotation<T>): T? =
     with(kaSession) {
         val argument = parent as? KtValueArgument ?: return null
         val callElement = argument.getStrictParentOfType<KtCallElement>() ?: return null
@@ -252,11 +252,11 @@ private fun KtExpression.resolveToProperty(): KaPropertySymbol? = with(kaSession
 }
 
 /**
- * Returns the target of the property that this string is compared against, if that property is marked with
+ * Returns the target of the property that this expression is compared against, if that property is marked with
  * [annotation] (or its getter is, which takes priority, as that's what describes the value being compared).
  */
 context(_: KaSession)
-private fun <T : PathTarget> KtStringTemplateExpression.findComparedPathTarget(annotation: PathAnnotation<T>): T? {
+private fun <T : PathTarget> KtExpression.findComparedPathTarget(annotation: PathAnnotation<T>): T? {
     val property = findComparedExpression()?.resolveToProperty() ?: return null
     return property.getter?.findPathTarget(annotation)
         ?: property.findPathTarget(annotation)
@@ -264,11 +264,11 @@ private fun <T : PathTarget> KtStringTemplateExpression.findComparedPathTarget(a
 }
 
 /**
- * Returns the target of the property that this string is assigned to, if that property is marked with [annotation]
+ * Returns the target of the property that this expression is assigned to, if that property is marked with [annotation]
  * (or its setter is, which takes priority, as that's what describes the value being assigned).
  */
 context(_: KaSession)
-private fun <T : PathTarget> KtStringTemplateExpression.findAssignedPathTarget(annotation: PathAnnotation<T>): T? {
+private fun <T : PathTarget> KtExpression.findAssignedPathTarget(annotation: PathAnnotation<T>): T? {
     val property = findAssignedExpression()?.resolveToProperty() ?: return null
     return property.setter?.findPathTarget(annotation)
         ?: property.findPathTarget(annotation)
@@ -289,14 +289,14 @@ private fun <T : PathTarget> KaPropertySymbol.findInitialValuePathTarget(annotat
 }
 
 /**
- * Returns the target of the declaration that this string is the initial value of, if that declaration is marked with
- * [annotation], e.g. `@RoutePath val home = "/blog"` or `fun NavItem(@RoutePath path: String = "/blog")`.
+ * Returns the target of the declaration that this expression is the initial value of, if that declaration is marked
+ * with [annotation], e.g. `@RoutePath val home = "/blog"` or `fun NavItem(@RoutePath path: String = "/blog")`.
  *
  * The default value of a constructor property (e.g. `class Nav(@property:RoutePath val path: String = "/blog")`) is
  * also the property's initial value, so its annotations count too.
  */
 context(kaSession: KaSession)
-private fun <T : PathTarget> KtStringTemplateExpression.findInitializedPathTarget(annotation: PathAnnotation<T>): T? =
+private fun <T : PathTarget> KtExpression.findInitializedPathTarget(annotation: PathAnnotation<T>): T? =
     with(kaSession) {
         return when (val declaration = findInitializedDeclaration()) {
             is KtParameter -> {
@@ -312,15 +312,18 @@ private fun <T : PathTarget> KtStringTemplateExpression.findInitializedPathTarge
     }
 
 /**
- * Returns what this string is used with, if that's marked with [annotation], e.g. `Link`'s `path` parameter (marked
+ * Returns what this expression is used with, if that's marked with [annotation], e.g. `Link`'s `path` parameter (marked
  * with `@RoutePath`) for the `"/blog"` in `Link("/blog")`.
  *
- * Call [mayHavePathTarget] first to skip strings that can't have one without running analysis.
+ * This is usually a string, but can also be a call that returns one, e.g. `BasePath.prependTo("/blog")` in
+ * `Link(BasePath.prependTo("/blog"))`.
+ *
+ * For strings, call [mayHavePathTarget] first to skip strings that can't have one without running analysis.
  *
  * This method must be called inside an `analyze` block.
  */
 context(_: KaSession)
-fun <T : PathTarget> KtStringTemplateExpression.findPathTarget(annotation: PathAnnotation<T>): T? {
+fun <T : PathTarget> KtExpression.findPathTarget(annotation: PathAnnotation<T>): T? {
     return findParameterPathTarget(annotation)
         ?: findComparedPathTarget(annotation)
         ?: findAssignedPathTarget(annotation)

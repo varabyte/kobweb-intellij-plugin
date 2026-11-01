@@ -136,6 +136,30 @@ class UnknownRouteInspectionTest : KobwebInspectionTestBase() {
         )
     }
 
+    fun testRoutesPassedThroughBasePathAreCheckedWhereTheResultIsUsed() {
+        val resourcesRoot = myFixture.addFileToProject("resources/public/images/cat.png", "")
+            .virtualFile.parent.parent.parent
+        PsiTestUtil.addSourceRoot(module, resourcesRoot, JavaResourceRootType.RESOURCE)
+        Disposer.register(testRootDisposable) { PsiTestUtil.removeSourceRoot(module, resourcesRoot) }
+
+        doTest(
+            """
+            package $TEST_GROUP.components
+
+            import com.varabyte.kobweb.compose.css.functions.url
+            import com.varabyte.kobweb.navigation.BasePath
+            import com.varabyte.kobweb.navigation.prependIf
+
+            val CatUrl = url(BasePath.prependTo("/images/cat.png"))
+            val DogUrl = url(BasePath.prependTo("<warning>/images/dog.png</warning>"))
+            fun dogUrl(prepend: Boolean) = url(BasePath.prependIf(prepend, "<warning>/images/dog.png</warning>"))
+
+            // BasePath doesn't care whether the route exists
+            val DogPath = BasePath.prependTo("/images/dog.png")
+            """.trimIndent(),
+        )
+    }
+
     fun testRoutesAreCheckedWhereTheirRedirectsLead() {
         myFixture.addFileToProject(
             ".kobweb/conf.yaml",
