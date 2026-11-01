@@ -1,5 +1,5 @@
 [versions]
-kobweb-ide-plugin="0.2.7-SNAPSHOT"
+kobweb-ide-plugin="0.8.0-SNAPSHOT"
 # The Kobweb version tests run against. It's not urgent to keep it up to date (unless IDE features specifically target
 # features from newer versions), but we'll try to keep it current over time.
 # * If a new Kobweb release updated workers, consider regenerating worker golden files (see testData/worker/README.md)
