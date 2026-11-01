@@ -429,8 +429,9 @@ private fun KtCallExpression.tryParseKobwebColorFunctionColor(): Color? {
     return null
 }
 
+// Out-of-range channels are clamped, as browsers do, e.g. `rgb(300, 0, 0)` is red
 private fun tryCreateRgbColor(r: Int, g: Int, b: Int) =
-    runCatching { Color(r, g, b) }.getOrNull()
+    Color(r.coerceIn(0, 255), g.coerceIn(0, 255), b.coerceIn(0, 255))
 
 private fun tryCreateRgbColor(rgb: Int) =
     runCatching { Color(rgb) }.getOrNull()
@@ -440,10 +441,18 @@ private fun tryCreateRgbColor(rgb: Int) =
 //   saturation: 0-1
 //   lightness: 0-1
 private fun tryCreateHslColor(hue: Int, saturation: Float, lightness: Float): Color? {
+    // Hue is an angle, so e.g. -90 is the same as 270
+    @Suppress("NAME_SHADOWING")
+    val hue = hue.mod(360)
+    @Suppress("NAME_SHADOWING")
+    val saturation = saturation.coerceIn(0f, 1f)
+    @Suppress("NAME_SHADOWING")
+    val lightness = lightness.coerceIn(0f, 1f)
+
     // https://en.wikipedia.org/wiki/HSL_and_HSV#Color_conversion_formulae
     val chroma = (1 - abs(2 * lightness - 1)) * saturation
     val intermediateValue = chroma * (1 - abs(((hue / 60f) % 2) - 1))
-    val hueSection = (hue % 360) / 60
+    val hueSection = hue / 60
     val r: Float
     val g: Float
     val b: Float
