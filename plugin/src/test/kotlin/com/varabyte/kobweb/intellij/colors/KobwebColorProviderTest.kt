@@ -18,11 +18,12 @@ class KobwebColorProviderTest : KobwebLineMarkerTestBase() {
             """.trimIndent(),
             acceptLineMarker = { it.icon is ColorIcon },
             assertLineMarker = { index, info ->
-                val colorIcon = info.icon as ColorIcon
-                when (index) {
-                    0 -> colorIcon.iconColor.rgb == 0x00FF00
-                    2 -> colorIcon.iconColor.rgb == 0x0000FF
+                val expected = when (index) {
+                    // Note that CSS's "green" is a darker green than #00FF00 (which CSS calls "lime")
+                    0 -> Color(0x008000)
+                    else -> Color(0x0000FF)
                 }
+                assertThat((info.icon as ColorIcon).iconColor).isEqualTo(expected)
             }
         )
     }
