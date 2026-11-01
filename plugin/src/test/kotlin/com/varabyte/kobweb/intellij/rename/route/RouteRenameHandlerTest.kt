@@ -7,8 +7,10 @@ import com.intellij.openapi.editor.ex.util.EditorUtil
 import com.intellij.openapi.util.Disposer
 import com.intellij.refactoring.rename.RenameHandler
 import com.intellij.refactoring.rename.RenameHandlerRegistry
+import com.intellij.refactoring.rename.inplace.VariableInplaceRenameHandler
 import com.intellij.refactoring.util.CommonRefactoringUtil.RefactoringErrorHintException
 import com.intellij.testFramework.PsiTestUtil
+import com.intellij.testFramework.fixtures.CodeInsightTestUtil
 import com.varabyte.kobweb.intellij.test.fixtures.KobwebFullStackTestCase
 import com.varabyte.truthish.assertThat
 import org.jetbrains.jps.model.java.JavaResourceRootType
@@ -186,6 +188,90 @@ class RouteRenameHandlerTest : KobwebFullStackTestCase() {
         )
 
         assertThat(renameHandlerAtCaret()::class).isNotEqualTo(RouteRenameHandler::class)
+    }
+
+    fun testRenamingVariableInsideRouteIsUnaffected() {
+        configureByText(
+            Platform.Js,
+            "PostLink.kt",
+            // language=kotlin
+            $$"""
+            package $$TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.navigation.Link
+
+            @Composable
+            fun PostLink(postId: String) {
+                Link("/posts/$post<caret>Id")
+            }
+            """.trimIndent()
+        )
+
+        val handler = renameHandlerAtCaret()
+        assertThat(handler::class).isNotEqualTo(RouteRenameHandler::class)
+
+        // Shift+F6 on a local variable renames it in place (editing the text under the caret live)
+        allowAnalysisOnEdt {
+            CodeInsightTestUtil.doInlineRename(handler as VariableInplaceRenameHandler, "id", myFixture)
+        }
+
+        myFixture.checkResult(
+            // language=kotlin
+            $$"""
+            package $$TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.navigation.Link
+
+            @Composable
+            fun PostLink(id: String) {
+                Link("/posts/$id")
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testRenamingVariableAtEndOfRouteIsUnaffected() {
+        configureByText(
+            Platform.Js,
+            "PostLink.kt",
+            // language=kotlin
+            $$"""
+            package $$TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.navigation.Link
+
+            @Composable
+            fun PostLink(postId: String) {
+                Link("/posts/$postId<caret>")
+            }
+            """.trimIndent()
+        )
+
+        val handler = renameHandlerAtCaret()
+        assertThat(handler::class).isNotEqualTo(RouteRenameHandler::class)
+
+        // Shift+F6 on a local variable renames it in place (editing the text under the caret live)
+        allowAnalysisOnEdt {
+            CodeInsightTestUtil.doInlineRename(handler as VariableInplaceRenameHandler, "id", myFixture)
+        }
+
+        myFixture.checkResult(
+            // language=kotlin
+            $$"""
+            package $$TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.navigation.Link
+
+            @Composable
+            fun PostLink(id: String) {
+                Link("/posts/$id")
+            }
+            """.trimIndent()
+        )
     }
 
     fun testRenamingFromPublicFilePathIsUnaffected() {

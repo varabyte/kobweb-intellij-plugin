@@ -14,6 +14,8 @@ import com.varabyte.kobweb.intellij.references.api.ApiPathReference
 import com.varabyte.kobweb.intellij.references.route.RouteReference
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
+import org.jetbrains.kotlin.psi.KtSimpleNameExpression
+import org.jetbrains.kotlin.psi.KtStringTemplateEntryWithExpression
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
 /**
@@ -43,9 +45,19 @@ class RouteRenameHandler : RenameHandler {
         val editor = getData(CommonDataKeys.EDITOR) ?: return null
         val file = getData(CommonDataKeys.PSI_FILE) ?: return null
         val target = getData(CommonDataKeys.PSI_ELEMENT) as? KtCallableDeclaration ?: return null
-        val stringExpr = file.findElementAt(editor.caretModel.offset)
-            ?.parentOfType<KtStringTemplateExpression>(withSelf = true)
+        val offset = editor.caretModel.offset
+        val stringExpr = file.findElementAt(offset)?.parentOfType<KtStringTemplateExpression>(withSelf = true)
             ?: return null
+
+        // Names in the string's template expressions (e.g. `id` in "/posts/$id") refer to other code, which is renamed
+        // as usual. Like IntelliJ, also check just before the caret, in case it's at the end of the name
+        val isRenamingTemplateName = listOf(offset, offset - 1).any { nameOffset ->
+            val name = file.findElementAt(nameOffset)?.parentOfType<KtSimpleNameExpression>(withSelf = true)
+                ?: return@any false
+            name.parentOfType<KtStringTemplateEntryWithExpression>() != null && name.getReferencedName() == target.name
+        }
+        if (isRenamingTemplateName) return null
+
         return target.takeIf { stringExpr.references.any { it is RouteReference || it is ApiPathReference } }
     }
 
