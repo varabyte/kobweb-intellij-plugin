@@ -63,6 +63,7 @@
                 implementationClass="com.varabyte.kobweb.intellij.lineMarkers.icons.SilkIconLineMarkerProvider" />
 
         <lang.inspectionSuppressor language="kotlin" implementationClass="com.varabyte.kobweb.intellij.inspections.supressors.FunctionNameInspectionSuppressor"/>
+        <lang.inspectionSuppressor language="kotlin" implementationClass="com.varabyte.kobweb.intellij.inspections.supressors.ObjectPropertyNameInspectionSuppressor"/>
         <lang.inspectionSuppressor language="kotlin" implementationClass="com.varabyte.kobweb.intellij.inspections.supressors.UnusedInspectionSuppressor"/>
         <customUsageSearcher implementation="com.varabyte.kobweb.intellij.findUsages.api.ApiRouteUsageSearcher"/>
         <customUsageSearcher implementation="com.varabyte.kobweb.intellij.findUsages.route.PageRouteUsageSearcher"/>
