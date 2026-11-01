@@ -1,4 +1,4 @@
-@file:Suppress("FunctionName")
+@file:Suppress("FunctionName", "LocalVariableName")
 
 package com.varabyte.kobweb.intellij.inspections.route
 
@@ -108,6 +108,30 @@ class UnknownRouteInspectionTest : KobwebInspectionTestBase() {
                 Image("/$name")
                 Image("<warning>/imgs/$name</warning>")
             }
+            """.trimIndent(),
+        )
+    }
+
+    fun testCssUrlsAreChecked() {
+        val resourcesRoot = myFixture.addFileToProject("resources/public/images/cat.png", "")
+            .virtualFile.parent.parent.parent
+        PsiTestUtil.addSourceRoot(module, resourcesRoot, JavaResourceRootType.RESOURCE)
+        Disposer.register(testRootDisposable) { PsiTestUtil.removeSourceRoot(module, resourcesRoot) }
+
+        doTest(
+            """
+            package $TEST_GROUP.components
+
+            import com.varabyte.kobweb.compose.css.functions.url
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.backgroundImage
+
+            val CatModifier = Modifier.backgroundImage(url("/images/cat.png"))
+            val DogModifier = Modifier.backgroundImage(url("<warning>/images/dog.png</warning>"))
+
+            // Not routes
+            val SvgFilterUrl = url("#blur")
+            val DataUrl = url("data:image/png;base64,AAAA")
             """.trimIndent(),
         )
     }

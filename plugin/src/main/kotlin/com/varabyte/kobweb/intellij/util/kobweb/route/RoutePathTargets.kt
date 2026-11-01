@@ -74,8 +74,8 @@ val RoutePathTarget.allowsPages: Boolean get() = destination != RoutePathTarget.
 val RoutePathTarget.allowsResources: Boolean get() = destination != RoutePathTarget.Destination.PAGES_ONLY
 
 /**
- * Hardcoded list of parameters that take a route in versions of Kobweb from before it annotated them with `@RoutePath`,
- * by the function they belong to.
+ * Hardcoded list of parameters that take a route in versions of Kobweb from before it annotated them with `@RoutePath`
+ * (or that Kobweb can't annotate, as they live in modules that don't depend on it), by the function they belong to.
  */
 private val IMPLICIT_ROUTE_PARAMETERS = mapOf(
     CallableId(FqName("com.varabyte.kobweb.silk.components.navigation"), Name.identifier("Link"))
@@ -97,6 +97,17 @@ private val IMPLICIT_ROUTE_PARAMETERS = mapOf(
     CallableId(FqName("com.varabyte.kobweb.silk.components.graphics"), Name.identifier("Image"))
         to (
             "src" to RoutePathTarget(
+                RoutePathTarget.Type.URL,
+                mustExist = true,
+                destination = RoutePathTarget.Destination.RESOURCES_ONLY,
+            )
+        ),
+    // CSS's `url()`, e.g. `Modifier.backgroundImage(url("/images/cat.png"))`, which the browser loads from the server.
+    // It lives in compose-html-ext, which doesn't depend on Kobweb core, so annotating it with `@RoutePath` is never
+    // possible.
+    CallableId(FqName("com.varabyte.kobweb.compose.css.functions"), Name.identifier("url"))
+        to (
+            "value" to RoutePathTarget(
                 RoutePathTarget.Type.URL,
                 mustExist = true,
                 destination = RoutePathTarget.Destination.RESOURCES_ONLY,
