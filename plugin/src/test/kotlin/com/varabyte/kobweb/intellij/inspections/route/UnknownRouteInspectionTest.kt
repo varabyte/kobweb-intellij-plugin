@@ -248,6 +248,34 @@ class UnknownRouteInspectionTest : KobwebInspectionTestBase() {
         )
     }
 
+    fun testDotSegmentsInPublicResourcesAreResolvedLikeBrowsersDo() {
+        val resourcesRoot = myFixture.addFileToProject("resources/public/resume.pdf", "")
+            .virtualFile.parent.parent
+        myFixture.addFileToProject("resources/secret.txt", "")
+        PsiTestUtil.addSourceRoot(module, resourcesRoot, JavaResourceRootType.RESOURCE)
+        Disposer.register(testRootDisposable) { PsiTestUtil.removeSourceRoot(module, resourcesRoot) }
+
+        doTest(
+            """
+            package $TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.navigation.Link
+
+            @Composable
+            fun Nav() {
+                Link("/./resume.pdf")
+                // Browsers drop "missing/.." before requesting the file, so "missing" doesn't need to exist
+                Link("/missing/../resume.pdf")
+                // Browsers can't go above the root, so this is "/resume.pdf"
+                Link("/../resume.pdf")
+                // ...and this is "/secret.txt", which isn't in the public folder
+                Link("<warning>/../secret.txt</warning>")
+            }
+            """.trimIndent(),
+        )
+    }
+
     fun testCustomPublicPathIsUsed() {
         registerKobwebProject(publicPath = "static")
         val resourcesRoot = myFixture.addFileToProject("resources/static/resume.pdf", "")
