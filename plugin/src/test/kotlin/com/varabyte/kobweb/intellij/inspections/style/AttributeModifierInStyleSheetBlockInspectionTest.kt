@@ -1,3 +1,5 @@
+@file:Suppress("LocalVariableName")
+
 package com.varabyte.kobweb.intellij.inspections.style
 
 import com.varabyte.kobweb.intellij.inspections.KobwebInspectionTestBase
@@ -56,6 +58,37 @@ class AttributeModifierInStyleSheetBlockInspectionTest : KobwebInspectionTestBas
             import com.varabyte.kobweb.silk.style.*
 
             val TestStyle = CssStyle(extraModifier = { Modifier.tabIndex(0).id("id") }) {
+                base {
+                    Modifier
+                        .fillMaxWidth()
+                }
+            }
+            """.trimIndent())
+        )
+    }
+
+    fun testMoveToExtraModifierQuickFixWithEmptyArgumentList() {
+        doTest(
+            """
+            import com.varabyte.kobweb.compose.ui.*
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.silk.style.*
+
+            val TestStyle = CssStyle() {
+                base {
+                    Modifier
+                        .<error>tabIndex(0)</error>
+                        .fillMaxWidth()
+                }
+            }
+            """.trimIndent(),
+            thenFixWith<MoveAttrModifierToExtraModifierQuickFix>(
+            """
+            import com.varabyte.kobweb.compose.ui.*
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.silk.style.*
+
+            val TestStyle = CssStyle(extraModifier = { Modifier.tabIndex(0) }) {
                 base {
                     Modifier
                         .fillMaxWidth()

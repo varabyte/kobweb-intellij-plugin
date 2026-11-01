@@ -50,15 +50,20 @@ class MoveAttrModifierToExtraModifierQuickFix(private val attrModifierName: Stri
             val targetCallExpression = cssStyleBlock.extraModifierFunc
 
             val extraModifierArg = psiFactory.createArgument("extraModifier = { Modifier.${callExpression.text} }")
-            val callArgument = psiFactory.createCallArguments("(${extraModifierArg.text})")
 
-            // If it's CssStyle<T>, then CssStyle<T>(extraModifier = ...)
-            // Else, if it's just CssStyle, then CssStyle(extraModifier = ...)
-            val anchor = targetCallExpression.typeArgumentList
-                ?: targetCallExpression.calleeExpression
-                ?: return
+            val argumentList = targetCallExpression.valueArgumentList
+            if (argumentList != null) {
+                // e.g. CssStyle() { ... }
+                argumentList.addArgument(extraModifierArg)
+            } else {
+                // If it's CssStyle<T>, then CssStyle<T>(extraModifier = ...)
+                // Else, if it's just CssStyle, then CssStyle(extraModifier = ...)
+                val anchor = targetCallExpression.typeArgumentList
+                    ?: targetCallExpression.calleeExpression
+                    ?: return
 
-            targetCallExpression.addAfter(callArgument, anchor)
+                targetCallExpression.addAfter(psiFactory.createCallArguments("(${extraModifierArg.text})"), anchor)
+            }
         }
 
         // At this point we've made a copy of the original attribute modifier, so it is now safe to delete it.
