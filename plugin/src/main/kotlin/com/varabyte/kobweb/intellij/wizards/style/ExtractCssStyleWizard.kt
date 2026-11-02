@@ -84,10 +84,16 @@ class ModifierChainInfo(val entries: List<Entry>, val chainTerminator: KtCallExp
             val isVararg: Boolean, // If true, `value.text` will look like `"10, 20, 30"`
         ) {
             class Value(
-                val isNamed: Boolean,
-                val text: String,
+                /** The source arguments, which usually means one, but a vararg parameter may have several */
+                val arguments: List<KtValueArgument>,
+                /** True if the value references anything tied to the local scope, e.g. a local variable or `this` */
                 val isLocallyBound: Boolean,
-            )
+            ) {
+                // A named vararg can only ever be passed a single (spread) argument, so checking the first argument is
+                // sufficient
+                val isNamed: Boolean get() = arguments.first().isNamed()
+                val text: String get() = arguments.joinToString(", ") { it.valueText }
+            }
 
             class Type(
                 /**
@@ -100,13 +106,6 @@ class ModifierChainInfo(val entries: List<Entry>, val chainTerminator: KtCallExp
                 val rendered: String,
             )
 
-            /**
-             * If true, it means this parameter is bound to a variable or method tied to the local scope.
-             *
-             * For example, this means if we refactor out a style modifier whose value is tied to a local variable, we
-             * will need to create an accompanying StyleVariable with it, as a way to pass that value from the local
-             * scope over to the CssStyle.
-             */
             fun isLocallyBound() = value != null && value.isLocallyBound
         }
 
@@ -115,13 +114,6 @@ class ModifierChainInfo(val entries: List<Entry>, val chainTerminator: KtCallExp
          */
         fun hasLocallyBoundParameter(): Boolean {
             return parameters.any { it.isLocallyBound() }
-        }
-
-        /**
-         * Test if this entry has at least one *vararg* parameter that is tied to local scope.
-         */
-        fun hasLocallyBoundVarargParameter(): Boolean {
-            return parameters.any { it.isLocallyBound() && it.isVararg }
         }
     }
 }
@@ -164,217 +156,18 @@ fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaS
                     .map { it.key }
 
                 val paramValue = if (argValueExprs.isEmpty()) null else {
-                    fun KtExpression.getReferencedSimpleNames(): List<KtSimpleNameExpression> {
-                        return PsiTreeUtil.findChildrenOfAnyType(this, /*strict = */false, KtSimpleNameExpression::class.java).toList()
-                    }
-
-                    context(kaSession: KaSession)
-                    fun KtSimpleNameExpression.isColorModeReference(): Boolean = with(kaSession) {
-                        val symbol = mainReference.resolveToSymbol() ?: return false
-                        val self = this@isColorModeReference
-
-                        // Check direct property reference to ColorMode.current, ColorMode.currentState, or
-                        // ColorMode.currentState.value.
-                        if (symbol is KaPropertySymbol) {
-                            (symbol.containingSymbol as? KaNamedClassSymbol)?.let { containingSymbol ->
-                                if (
-                                    containingSymbol.classId == COLOR_MODE_COMPANION_CLASS_ID &&
-                                    symbol.name.asString().let { it == "currentState" || it == "current" }
-                                ) {
-                                    return true
-                                } else if (containingSymbol.classId == MUTABLE_STATE_CLASS_ID && symbol.name.asString() == "value") {
-                                    // If here, check specifically only for "ColorMode.currentState.value"; we don't
-                                    // want to accidentally replace something that shouldn't be substituted
-                                    val colorModeCurrentStateExpr = (self.parent as? KtDotQualifiedExpression)
-                                        // Verify we are looking at a dot qualified expr like `currentState.value`, not
-                                        // `value.isDark`
-                                        ?.takeIf { it.selectorExpression == self }
-                                        // should be `ColorMode.currentState`
-                                        ?.receiverExpression as? KtDotQualifiedExpression
-                                        ?: return false
-                                    // `ColorMode.currentState` -> `currentState`
-                                    val currentStateExpr = (colorModeCurrentStateExpr.selectorExpression) as? KtSimpleNameExpression ?: return false
-                                    if (currentStateExpr.getReferencedName() != "currentState") return false
-                                    // `ColorMode.currentState` -> `ColorMode`
-                                    val colorModeExpr = colorModeCurrentStateExpr.receiverExpression
-                                    return colorModeExpr.resolvedClassId == COLOR_MODE_COMPANION_CLASS_ID
-                                }
-                            }
-                        }
-
-                        // Check variable assigned to / delegate property bound to ColorMode.current / by ColorMode.currentState
-                        if (symbol is KaLocalVariableSymbol && symbol.returnType.expandedSymbol?.classId == COLOR_MODE_CLASS_ID) {
-                            val property = symbol.psi as? KtProperty ?: return false
-
-                            // A plain `var` could be reassigned to some other value later (while
-                            // `var by ColorMode.currentState` is bound to a color mode reference for its lifetime.)
-                            if (property.isVar && property.delegateExpression == null) return false
-
-                            // The whole expression must *be* a color mode reference, not just contain one somewhere. In other words,
-                            // `val c = ColorMode.current` but not `val c = if (cond) ColorMode.current else ColorMode.LIGHT.
-                            val rhsExpr = (property.delegateExpression ?: property.initializer)
-                                ?.let { KtPsiUtil.safeDeparenthesize(it) }
-                                ?: return false
-
-                            // `ColorMode.current` -> `current`, `ColorMode.currentState.value` -> `value`, `current` -> `current`
-                            val lastName =
-                                (((rhsExpr as? KtDotQualifiedExpression)?.selectorExpression ?: rhsExpr) as? KtSimpleNameExpression)
-                                    ?: return false
-                            return lastName.isColorModeReference()
-                        }
-                        return false
-                    }
-
-                    /**
-                     * Find all inner expressions that reference the ColorMode class.
-                     *
-                     * This is useful because we can intercep these references and shortcut them to the
-                     * `CssStyle.colorMode` property.
-                     */
-                    context(_: KaSession)
-                    fun KtExpression.findColorModeReferences(): List<KtSimpleNameExpression> {
-                        return childrenDfsSequence().filterIsInstance<KtSimpleNameExpression>().filter { it.isColorModeReference() }.toList()
-                    }
-
-                    // Check if all references in an argument are global. If all method arguments are global, we will be
-                    // able to move the function call to a top-level CssStyle trivially.
-                    fun List<KtSimpleNameExpression>.areAllGlobal(excludedReferences: Set<KtSimpleNameExpression>): Boolean = this.all { ref ->
-                        if (excludedReferences.contains(ref)) return@all true
-
-                        // "this" and "super" always refer to a local scope and should never be extracted to a CssStyle,
-                        // where `this` would mean something else and `super` would be nonsense in that context.
-                        if (ref.parent is KtThisExpression || ref.parent is KtSuperExpression) return@all false
-
-                        // Literals or unresolved names (e.g. '100', 'true') have no symbol
-                        val refSymbol = ref.mainReference.resolveToSymbol() ?: return@all true
-                        if (refSymbol is KaDeclarationSymbol && refSymbol.isTopLevel) return@all true
-
-                        // Figure out if this reference is the `member` part of a `receiver.member` expression. For
-                        // properties, the reference itself sits after the dot (`receiver.member`), but for method
-                        // calls, what sits after the dot is the whole call, not just its name (`receiver.member()` is
-                        // `receiver` + `member()`), so step up to the call first.
-                        val selector = (ref.parent as? KtCallExpression)?.takeIf { it.calleeExpression == ref } ?: ref
-                        val qualifiedReceiver = selector.getQualifiedExpressionForSelector()?.receiverExpression
-                        // For `receiver.member`, `member` is only as global as `receiver` is. Every name inside
-                        // `receiver` is also in this list and is checked on its own, so if any of them is local, the
-                        // overall check already failed there.
-                        if (qualifiedReceiver != null) return@all true
-
-                        var containerSymbol: KaSymbol? = refSymbol.containingSymbol
-
-                        while (containerSymbol != null) {
-                            when (containerSymbol) {
-                                is KaPackageSymbol -> return@all true
-                                is KaNamedClassSymbol -> {
-                                    // Companion objects are always global, so we can abort early
-                                    if (containerSymbol.classKind == KaClassKind.COMPANION_OBJECT) return@all true
-                                    // Enums too
-                                    if (containerSymbol.classKind == KaClassKind.ENUM_CLASS) return@all true
-                                    // Objects are global only if they are top level or nested in outer objects
-                                    if (containerSymbol.classKind == KaClassKind.OBJECT && containerSymbol.isTopLevel) return@all true
-
-                                    if (containerSymbol.isLocal) return@all false
-                                    // If we're a nested class, we must also verify parent containers
-                                    containerSymbol = containerSymbol.containingSymbol
-                                }
-
-                                // Any local variables, local functions, or inner classes bounded to an instance/local context
-                                else -> return@all false
-                            }
-                        }
-                        true
-                    }
-
-                    // CssStyle blocks are not themselves composable, so we cannot port over anything that requires
-                    // a composable context to call it.
-                    // The kinds of expressions that arguments might contain that are composable are...
-                    // 1) property getters, e.g. @get:Composable val MODIFIER_VALUE = ...
-                    // 2) function calls, e.g. produceColor() where `@Composable fun produceColor() ...``
-                    context(kaSession: KaSession)
-                    fun KtValueArgument.includesComposableReference(skip: Set<KtExpression>): Boolean {
-                        val self = this.getArgumentExpression() ?: return false
-                        with(kaSession) {
-                            fun KaAnnotated.hasComposableAnnotation(): Boolean {
-                                return annotations.contains(COMPOSABLE_CLASS_ID)
-                            }
-
-                            fun <T : KtExpression> Iterable<T>.removeSkipped(): Iterable<T> =
-                                if (skip.isEmpty()) this else this.filter { !skip.contains(it) }
-
-                            val calls = PsiTreeUtil.findChildrenOfAnyType(
-                                self, /* strict = */ false, KtCallExpression::class.java
-                            )
-                            for (call in calls.removeSkipped()) {
-                                val functionSymbol = call.resolveToCall()
-                                    ?.singleFunctionCallOrNull()
-                                    ?.symbol as? KaNamedFunctionSymbol ?: continue
-
-                                if (functionSymbol.hasComposableAnnotation()) {
-                                    return true
-                                }
-                            }
-
-                            val nameExprs = PsiTreeUtil.findChildrenOfAnyType(
-                                self, /* strict = */ false, KtSimpleNameExpression::class.java
-                            )
-                            for (nameExpr in nameExprs.removeSkipped()) {
-                                val symbol = nameExpr.mainReference.resolveToSymbol() ?: continue
-                                if (symbol is KaPropertySymbol && symbol.getter?.hasComposableAnnotation() == true)
-                                    return true
-                            }
-                        }
-
-                        return false
-                    }
-
-                    // e.g. "current" -> "ColorMode.current"
-                    fun Set<KtSimpleNameExpression>.toQualifiedNames(): Set<String> =
-                        this.map { nameExpr ->
-                            var topQualifiedExpr: KtExpression = nameExpr
-                            while (topQualifiedExpr.parent is KtDotQualifiedExpression &&
-                                (topQualifiedExpr.parent as KtDotQualifiedExpression).selectorExpression == topQualifiedExpr) {
-                                topQualifiedExpr = topQualifiedExpr.parent as KtDotQualifiedExpression
-                            }
-
-                            topQualifiedExpr.text
-                        }.toSet()
-
-                    class ArgResult(val text: String, val isLocallyBound: Boolean)
-
                     // A KtValueArgument includes the full expression, e.g. not just "10" but "value = 10" if the user
                     // included the parameter name explicitly
                     val valueArguments = argValueExprs.map { it.findParentOfType<KtValueArgument>()!! }
-
-                    val argResults = argValueExprs.zip(valueArguments).map { (argValueExpr, valueArgument) ->
-                        val references = argValueExpr.getReferencedSimpleNames()
-                        val colorModeReferences = argValueExpr.findColorModeReferences().toSet()
-                        // colorModeReferences that we find would normally be bound to local scope -- but we plan
-                        // to intercept and rewrite them using the provided CssStyle.colorMode instead, thereby
-                        // cutting the ties to the local scope.
-                        val isGlobal = references.areAllGlobal(colorModeReferences)
-
-                        // The argument expression excludes the spread operator (e.g. `arr` in `*arr`), so we need
-                        // to add it back in ourselves.
-                        val spread = if (valueArgument.getSpreadElement() != null) "*" else ""
-
-                        ArgResult(
-                            text = spread + argValueExpr.text.replaceAll(colorModeReferences.toQualifiedNames(), "colorMode"),
-                            isLocallyBound = !isGlobal || valueArgument.includesComposableReference(colorModeReferences),
-                        )
-                    }
-
                     ModifierChainInfo.Entry.Parameter.Value(
-                        // A named vararg can only ever be passed a single (spread) argument, so checking the first
-                        // argument is sufficient
-                        valueArguments.first().isNamed(),
-                        argResults.joinToString(", ") { it.text },
-                        argResults.any { it.isLocallyBound },
+                        arguments = valueArguments,
+                        isLocallyBound = argValueExprs.any { !it.getReferencedSimpleNames().areAllGlobal(emptySet()) },
                     )
                 }
 
                 @OptIn(KaExperimentalApi::class)
                 val paramType = if (paramSymbol.returnType.symbol != null) {
-                    // Even if the parameter itself is nullable, we just want the underlying non-nulllable type, since
+                    // Even if the parameter itself is nullable, we just want the underlying non-nullable type, since
                     // we may want to import it, use its type with StyleVariable, etc.
                     val paramSymbolReturnType = paramSymbol.returnType.withNullability(isMarkedNullable = false)
 
@@ -418,10 +211,260 @@ fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaS
     return ModifierChainInfo(entries, chainTerminator)
 }
 
+/**
+ * The argument's value without its parameter name, e.g. `Colors.Red` for `color = Colors.Red`, or `*colors` for a
+ * spread argument.
+ */
+private val KtValueArgument.valueText: String
+    get() {
+        val spread = if (getSpreadElement() != null) "*" else ""
+        return spread + getArgumentExpression()!!.text
+    }
+
+/**
+ * A modifier chain, plus what the Extract CSS Style wizard needs to know to move its values into a style block.
+ *
+ * Values are moving out of a composable function and into a style block, which can see different things. For example,
+ * when moving these modifiers:
+ *
+ * ```kotlin
+ * @Composable
+ * fun Card(accent: Color) {
+ *     Box(
+ *         Modifier
+ *             .padding(1.cssRem)
+ *             .color(if (ColorMode.current.isDark) Colors.White else Colors.Black)
+ *             .backgroundColor(accent)
+ *     )
+ * }
+ * ```
+ *
+ * into `val CardStyle = CssStyle { base { Modifier... } }`:
+ *
+ * - `1.cssRem` is written as is.
+ * - `ColorMode.current` can't be called there (the style block isn't composable), but the style block provides its own
+ *   `colorMode` property, so the value is rewritten as `if (colorMode.isDark) ...`.
+ * - `accent` doesn't exist there (it's `Card`'s parameter), so it can't move and is intentionally missing from
+ *   [styleBlockTexts]. The same goes for other values the style block can't compute, e.g. calls to other composable
+ *   functions.
+ *
+ * A value missing from [styleBlockTexts] has to be passed into the style block by some other means, such as a
+ * StyleVariable (or not at all, if the wizard leaves its modifier at the call site instead).
+ */
+class ModifierChainExtractionSupport(
+    val modifierChainInfo: ModifierChainInfo,
+    /** How each parameter value would be written inside the style block, if it can be computed there at all */
+    val styleBlockTexts: Map<ModifierChainInfo.Entry.Parameter, String>,
+)
+
+context(_: KaSession)
+fun ModifierChainInfo.toExtractionSupport() = ModifierChainExtractionSupport(this, transformValuesForStyleBlock())
+
+/** Works out how each parameter value in this chain would be written inside a style block. */
+context(_: KaSession)
+private fun ModifierChainInfo.transformValuesForStyleBlock(): Map<ModifierChainInfo.Entry.Parameter, String> {
+    val texts = mutableMapOf<ModifierChainInfo.Entry.Parameter, String>()
+    for (parameter in entries.flatMap { it.parameters }) {
+        val value = parameter.value ?: continue
+        val argTexts = value.arguments.map { valueArgument ->
+            val argExpr = valueArgument.getArgumentExpression()!!
+            // ColorMode references would normally be bound to local scope -- but we intercept and rewrite them using
+            // the style block's `colorMode` property instead, thereby cutting the ties to the local scope.
+            val colorModeReferences = argExpr.findColorModeReferences().toSet()
+            val isGlobal = argExpr.getReferencedSimpleNames().areAllGlobal(colorModeReferences)
+            if (!isGlobal || valueArgument.includesComposableReference(colorModeReferences)) return@map null
+
+            valueArgument.valueText.replaceAll(colorModeReferences.toQualifiedNames(), "colorMode")
+        }
+        if (argTexts.all { it != null }) {
+            texts[parameter] = argTexts.joinToString(", ")
+        }
+    }
+    return texts
+}
+
+private fun KtExpression.getReferencedSimpleNames(): List<KtSimpleNameExpression> {
+    return PsiTreeUtil.findChildrenOfAnyType(this, /*strict = */false, KtSimpleNameExpression::class.java).toList()
+}
+
+context(kaSession: KaSession)
+private fun KtSimpleNameExpression.isColorModeReference(): Boolean = with(kaSession) {
+    val symbol = mainReference.resolveToSymbol() ?: return false
+    val self = this@isColorModeReference
+
+    // Check direct property reference to ColorMode.current, ColorMode.currentState, or
+    // ColorMode.currentState.value.
+    if (symbol is KaPropertySymbol) {
+        (symbol.containingSymbol as? KaNamedClassSymbol)?.let { containingSymbol ->
+            if (
+                containingSymbol.classId == COLOR_MODE_COMPANION_CLASS_ID &&
+                symbol.name.asString().let { it == "currentState" || it == "current" }
+            ) {
+                return true
+            } else if (containingSymbol.classId == MUTABLE_STATE_CLASS_ID && symbol.name.asString() == "value") {
+                // If here, check specifically only for "ColorMode.currentState.value"; we don't
+                // want to accidentally replace something that shouldn't be substituted
+                val colorModeCurrentStateExpr = (self.parent as? KtDotQualifiedExpression)
+                    // Verify we are looking at a dot qualified expr like `currentState.value`, not
+                    // `value.isDark`
+                    ?.takeIf { it.selectorExpression == self }
+                    // should be `ColorMode.currentState`
+                    ?.receiverExpression as? KtDotQualifiedExpression
+                    ?: return false
+                // `ColorMode.currentState` -> `currentState`
+                val currentStateExpr = (colorModeCurrentStateExpr.selectorExpression) as? KtSimpleNameExpression ?: return false
+                if (currentStateExpr.getReferencedName() != "currentState") return false
+                // `ColorMode.currentState` -> `ColorMode`
+                val colorModeExpr = colorModeCurrentStateExpr.receiverExpression
+                return colorModeExpr.resolvedClassId == COLOR_MODE_COMPANION_CLASS_ID
+            }
+        }
+    }
+
+    // Check variable assigned to / delegate property bound to ColorMode.current / by ColorMode.currentState
+    if (symbol is KaLocalVariableSymbol && symbol.returnType.expandedSymbol?.classId == COLOR_MODE_CLASS_ID) {
+        val property = symbol.psi as? KtProperty ?: return false
+
+        // A plain `var` could be reassigned to some other value later (while
+        // `var by ColorMode.currentState` is bound to a color mode reference for its lifetime.)
+        if (property.isVar && property.delegateExpression == null) return false
+
+        // The whole expression must *be* a color mode reference, not just contain one somewhere. In other words,
+        // `val c = ColorMode.current` but not `val c = if (cond) ColorMode.current else ColorMode.LIGHT.
+        val rhsExpr = (property.delegateExpression ?: property.initializer)
+            ?.let { KtPsiUtil.safeDeparenthesize(it) }
+            ?: return false
+
+        // `ColorMode.current` -> `current`, `ColorMode.currentState.value` -> `value`, `current` -> `current`
+        val lastName =
+            (((rhsExpr as? KtDotQualifiedExpression)?.selectorExpression ?: rhsExpr) as? KtSimpleNameExpression)
+                ?: return false
+        return lastName.isColorModeReference()
+    }
+    return false
+}
+
+/**
+ * Find all inner expressions that reference the ColorMode class.
+ *
+ * This is useful because we can intercep these references and shortcut them to the
+ * `CssStyle.colorMode` property.
+ */
+context(_: KaSession)
+private fun KtExpression.findColorModeReferences(): List<KtSimpleNameExpression> {
+    return childrenDfsSequence().filterIsInstance<KtSimpleNameExpression>().filter { it.isColorModeReference() }.toList()
+}
+
+// Check if all references in an argument are global. If all method arguments are global, we will be
+// able to move the function call to a top-level CssStyle trivially.
+context(kaSession: KaSession)
+private fun List<KtSimpleNameExpression>.areAllGlobal(excludedReferences: Set<KtSimpleNameExpression>): Boolean = with(kaSession) {
+    this@areAllGlobal.all { ref ->
+        if (excludedReferences.contains(ref)) return@all true
+
+        // "this" and "super" always refer to a local scope and should never be extracted to a CssStyle,
+        // where `this` would mean something else and `super` would be nonsense in that context.
+        if (ref.parent is KtThisExpression || ref.parent is KtSuperExpression) return@all false
+
+        // Literals or unresolved names (e.g. '100', 'true') have no symbol
+        val refSymbol = ref.mainReference.resolveToSymbol() ?: return@all true
+        if (refSymbol is KaDeclarationSymbol && refSymbol.isTopLevel) return@all true
+
+        // Figure out if this reference is the `member` part of a `receiver.member` expression. For
+        // properties, the reference itself sits after the dot (`receiver.member`), but for method
+        // calls, what sits after the dot is the whole call, not just its name (`receiver.member()` is
+        // `receiver` + `member()`), so step up to the call first.
+        val selector = (ref.parent as? KtCallExpression)?.takeIf { it.calleeExpression == ref } ?: ref
+        val qualifiedReceiver = selector.getQualifiedExpressionForSelector()?.receiverExpression
+        // For `receiver.member`, `member` is only as global as `receiver` is. Every name inside
+        // `receiver` is also in this list and is checked on its own, so if any of them is local, the
+        // overall check already failed there.
+        if (qualifiedReceiver != null) return@all true
+
+        var containerSymbol: KaSymbol? = refSymbol.containingSymbol
+
+        while (containerSymbol != null) {
+            when (containerSymbol) {
+                is KaPackageSymbol -> return@all true
+                is KaNamedClassSymbol -> {
+                    // Companion objects are always global, so we can abort early
+                    if (containerSymbol.classKind == KaClassKind.COMPANION_OBJECT) return@all true
+                    // Enums too
+                    if (containerSymbol.classKind == KaClassKind.ENUM_CLASS) return@all true
+                    // Objects are global only if they are top level or nested in outer objects
+                    if (containerSymbol.classKind == KaClassKind.OBJECT && containerSymbol.isTopLevel) return@all true
+
+                    if (containerSymbol.isLocal) return@all false
+                    // If we're a nested class, we must also verify parent containers
+                    containerSymbol = containerSymbol.containingSymbol
+                }
+
+                // Any local variables, local functions, or inner classes bounded to an instance/local context
+                else -> return@all false
+            }
+        }
+        true
+    }
+}
+
+// CssStyle blocks are not themselves composable, so we cannot port over anything that requires
+// a composable context to call it.
+// The kinds of expressions that arguments might contain that are composable are...
+// 1) property getters, e.g. @get:Composable val MODIFIER_VALUE = ...
+// 2) function calls, e.g. produceColor() where `@Composable fun produceColor() ...``
+context(kaSession: KaSession)
+private fun KtValueArgument.includesComposableReference(skip: Set<KtExpression>): Boolean {
+    val self = this.getArgumentExpression() ?: return false
+    with(kaSession) {
+        fun KaAnnotated.hasComposableAnnotation(): Boolean {
+            return annotations.contains(COMPOSABLE_CLASS_ID)
+        }
+
+        fun <T : KtExpression> Iterable<T>.removeSkipped(): Iterable<T> =
+            if (skip.isEmpty()) this else this.filter { !skip.contains(it) }
+
+        val calls = PsiTreeUtil.findChildrenOfAnyType(
+            self, /* strict = */ false, KtCallExpression::class.java
+        )
+        for (call in calls.removeSkipped()) {
+            val functionSymbol = call.resolveToCall()
+                ?.singleFunctionCallOrNull()
+                ?.symbol as? KaNamedFunctionSymbol ?: continue
+
+            if (functionSymbol.hasComposableAnnotation()) {
+                return true
+            }
+        }
+
+        val nameExprs = PsiTreeUtil.findChildrenOfAnyType(
+            self, /* strict = */ false, KtSimpleNameExpression::class.java
+        )
+        for (nameExpr in nameExprs.removeSkipped()) {
+            val symbol = nameExpr.mainReference.resolveToSymbol() ?: continue
+            if (symbol is KaPropertySymbol && symbol.getter?.hasComposableAnnotation() == true)
+                return true
+        }
+    }
+
+    return false
+}
+
+// e.g. "current" -> "ColorMode.current"
+private fun Set<KtSimpleNameExpression>.toQualifiedNames(): Set<String> =
+    this.map { nameExpr ->
+        var topQualifiedExpr: KtExpression = nameExpr
+        while (topQualifiedExpr.parent is KtDotQualifiedExpression &&
+            (topQualifiedExpr.parent as KtDotQualifiedExpression).selectorExpression == topQualifiedExpr) {
+            topQualifiedExpr = topQualifiedExpr.parent as KtDotQualifiedExpression
+        }
+
+        topQualifiedExpr.text
+    }.toSet()
+
 
 private object Keys {
     val STYLE_NAME by key<String>()
-    val MODIFIER_CHAIN_INFO by key<ModifierChainInfo>()
+    val EXTRACTION_SUPPORT by key<ModifierChainExtractionSupport>()
     val USE_CONCISE_SYNTAX by key<Boolean>()
     val EXTRACT_ATTRIBUTES by key<Boolean>()
 
@@ -448,7 +491,7 @@ class ExtractCssStyleWizard(
 
     interface Result {
         val styleName: String
-        val modifierChainInfo: ModifierChainInfo
+        val extractionSupport: ModifierChainExtractionSupport
         val extractAttributes: Boolean
         val useConciseSyntax: Boolean
     }
@@ -456,7 +499,7 @@ class ExtractCssStyleWizard(
     private fun Data.toResult(): Result {
         return object : Result {
             override val styleName = getUserData(Keys.STYLE_NAME)!!
-            override val modifierChainInfo = getUserData(Keys.MODIFIER_CHAIN_INFO)!!
+            override val extractionSupport = getUserData(Keys.EXTRACTION_SUPPORT)!!
             override val extractAttributes = getUserData(Keys.EXTRACT_ATTRIBUTES)!!
             override val useConciseSyntax = getUserData(Keys.USE_CONCISE_SYNTAX)!!
         }
@@ -552,13 +595,13 @@ class ExtractCssStyleWizard(
                     // to this step and then pressed OK again. We could actually have calculated this IMMEDIATELY but we
                     // decided to wait until the user confirmed their style name first, so we don't do unnecessary work
                     // that might take a while.
-                    if (ctx.data.getUserData(Keys.MODIFIER_CHAIN_INFO) == null) {
-                        val modifierChainInfo = runWithModalProgressBlocking(project, "Analyzing user code...") {
+                    if (ctx.data.getUserData(Keys.EXTRACTION_SUPPORT) == null) {
+                        val extractionSupport = runWithModalProgressBlocking(project, "Analyzing user code...") {
                             readAction { analyze(input.modifierChainStart) {
-                                input.modifierChainStart.toModifierChainInfo()
+                                input.modifierChainStart.toModifierChainInfo().toExtractionSupport()
                             } }
                         }
-                        ctx.data.putUserData(Keys.MODIFIER_CHAIN_INFO, modifierChainInfo)
+                        ctx.data.putUserData(Keys.EXTRACTION_SUPPORT, extractionSupport)
                     }
                 }
             },
@@ -630,9 +673,12 @@ class ExtractCssStyleWizard(
                 override fun shouldShow(): Boolean {
                     if (!appSettings.extractCssStyle.showStyleVariableInfo) return false
 
-                    val modifierChainInfo = ctx.data.getUserData(Keys.MODIFIER_CHAIN_INFO) ?: return false
+                    val extractionSupport = ctx.data.getUserData(Keys.EXTRACTION_SUPPORT) ?: return false
 
-                    return (modifierChainInfo.entries.any { it.webModifierType == WebModifierType.STYLE && it.hasLocallyBoundParameter() })
+                    return (extractionSupport.modifierChainInfo.entries.any { entry ->
+                        entry.webModifierType == WebModifierType.STYLE &&
+                            entry.parameters.any { extractionSupport.needsStyleVariable(it) }
+                    })
                 }
 
                 override fun produceComponent(): JComponent {
@@ -687,10 +733,10 @@ class ExtractCssStyleWizard(
                 override fun shouldShow(): Boolean {
                     if (!appSettings.extractCssStyle.showStyleWarning) return false
 
-                    val modifierChainInfo = ctx.data.getUserData(Keys.MODIFIER_CHAIN_INFO) ?: return false
+                    val extractionSupport = ctx.data.getUserData(Keys.EXTRACTION_SUPPORT) ?: return false
 
-                    return (modifierChainInfo.entries.any { entry ->
-                        entry.webModifierType == WebModifierType.STYLE && entry.hasLocallyBoundVarargParameter()
+                    return (extractionSupport.modifierChainInfo.entries.any { entry ->
+                        entry.webModifierType == WebModifierType.STYLE && !extractionSupport.canExtract(entry)
                     })
                 }
 
@@ -769,8 +815,8 @@ class ExtractCssStyleWizard(
                 override fun shouldShow(): Boolean {
                     if (appSettings.extractCssStyle.attributeModifiersStrategy != KobwebAppSettingsService.ExtractCssStyle.AttributeModifiersStrategy.ASK_ME) return false
 
-                    val modifierChainInfo = ctx.data.getUserData(Keys.MODIFIER_CHAIN_INFO) ?: return false
-                    return modifierChainInfo.entries.any { it.webModifierType == WebModifierType.ATTRS }
+                    val extractionSupport = ctx.data.getUserData(Keys.EXTRACTION_SUPPORT) ?: return false
+                    return extractionSupport.modifierChainInfo.entries.any { it.webModifierType == WebModifierType.ATTRS }
                 }
 
                 override fun produceComponent(): JComponent {
@@ -812,10 +858,12 @@ class ExtractCssStyleWizard(
                 override fun shouldShow(): Boolean {
                     if (!appSettings.extractCssStyle.showAttributeWarning) return false
 
-                    val modifierChainInfo = ctx.data.getUserData(Keys.MODIFIER_CHAIN_INFO) ?: return false
+                    val extractionSupport = ctx.data.getUserData(Keys.EXTRACTION_SUPPORT) ?: return false
                     val extractAttrModifiers = ctx.data.getUserData(Keys.EXTRACT_ATTRIBUTES) ?: return false
 
-                    return (extractAttrModifiers && modifierChainInfo.entries.any { it.webModifierType == WebModifierType.ATTRS && it.hasLocallyBoundParameter() })
+                    return (extractAttrModifiers && extractionSupport.modifierChainInfo.entries.any { entry ->
+                        entry.webModifierType == WebModifierType.ATTRS && !extractionSupport.canExtract(entry)
+                    })
                 }
 
                 override fun produceComponent(): JComponent {
@@ -886,13 +934,24 @@ class ExtractCssStyleWizard(
     }
 }
 
-private fun List<ModifierChainInfo.Entry>.targetedForExtraction(extractAttributes: Boolean): List<ModifierChainInfo.Entry> {
-    return this.filter {
-        when (it.webModifierType) {
-            WebModifierType.ATTRS -> extractAttributes && !it.hasLocallyBoundParameter()
-            WebModifierType.STYLE -> !it.hasLocallyBoundVarargParameter()
-            else -> false
-        }
+/** True if this parameter's value can't be computed in the style block, so it needs a StyleVariable to pass it in */
+private fun ModifierChainExtractionSupport.needsStyleVariable(parameter: ModifierChainInfo.Entry.Parameter): Boolean {
+    return parameter.value != null && parameter !in styleBlockTexts
+}
+
+/** True if this modifier can be moved out of the call site, into the style block or `extraModifier` */
+private fun ModifierChainExtractionSupport.canExtract(entry: ModifierChainInfo.Entry): Boolean {
+    return when (entry.webModifierType) {
+        // A StyleVariable can't hold the values of a vararg parameter
+        WebModifierType.STYLE -> entry.parameters.none { it.isVararg && needsStyleVariable(it) }
+        WebModifierType.ATTRS -> !entry.hasLocallyBoundParameter() && entry.parameters.none { needsStyleVariable(it) }
+        else -> false
+    }
+}
+
+private fun ExtractCssStyleWizard.Result.modifiersToExtract(): List<ModifierChainInfo.Entry> {
+    return extractionSupport.modifierChainInfo.entries.filter { entry ->
+        (entry.webModifierType != WebModifierType.ATTRS || extractAttributes) && extractionSupport.canExtract(entry)
     }
 }
 
@@ -901,12 +960,12 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
     // they are bound to a local value from the original scope). If no entry is found for the target parameter,
     // there is no declared style variable for it, and it should just copy its contents over as is.
     private fun ModifierChainInfo.Entry.associatedStyleVariableNames(): Map<ModifierChainInfo.Entry.Parameter, String> {
-        if (this.webModifierType != WebModifierType.STYLE || this.hasLocallyBoundVarargParameter()) return emptyMap()
+        if (this.webModifierType != WebModifierType.STYLE || !result.extractionSupport.canExtract(this)) return emptyMap()
 
         // e.g. `Modifier.backgroundColor(colorVar)` + `val MyStyle = CssStyle { ... }`
         //      --> MyStyle_BackgroundColorVar
         val multiParameterModifier = parameters.size > 1
-        return parameters.filter { it.isLocallyBound() }.associateWith { param ->
+        return parameters.filter { result.extractionSupport.needsStyleVariable(it) }.associateWith { param ->
             buildString {
                 append(result.styleName)
                 append('_')
@@ -919,10 +978,9 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
         }
     }
 
-    private fun ModifierChainInfo.extractStyleVariables(): Map<ModifierChainInfo.Entry.Parameter, String> {
-        val self = this
+    private fun extractStyleVariables(): Map<ModifierChainInfo.Entry.Parameter, String> {
         return mutableMapOf<ModifierChainInfo.Entry.Parameter, String>().apply {
-            self.entries.targetedForExtraction(result.extractAttributes)
+            result.modifiersToExtract()
                 .filter { it.webModifierType == WebModifierType.STYLE }
                 .forEach { entry ->
                     this.putAll(entry.associatedStyleVariableNames())
@@ -930,7 +988,11 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
         }
     }
 
-    private fun ModifierChainInfo.Entry.toText() = buildString {
+    /**
+     * @param inStyleBlock Whether the text goes inside the style block, where values are written as
+     *   [ModifierChainExtractionSupport] describes them.
+     */
+    private fun ModifierChainInfo.Entry.toText(inStyleBlock: Boolean) = buildString {
         val varNames = associatedStyleVariableNames()
         fun ModifierChainInfo.Entry.Parameter.toText(): String {
             val param = this
@@ -941,7 +1003,12 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
                 if (paramValue.isNamed) {
                     append("$name = ")
                 }
-                append(varNames[param]?.let { varName -> "${varName}.value()" } ?: paramValue.text)
+                val varName = varNames[param]
+                append(when {
+                    varName != null -> "${varName}.value()"
+                    inStyleBlock -> result.extractionSupport.styleBlockTexts.getValue(param)
+                    else -> paramValue.text
+                })
             }
         }
 
@@ -971,7 +1038,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
         if (useConciseSyntax) {
             importsBuilder.add("com.varabyte.kobweb.silk.style.base")
         }
-        val styleVariables = modifierChainInfo.extractStyleVariables()
+        val styleVariables = extractStyleVariables()
         if (styleVariables.isNotEmpty()) {
             importsBuilder.add("com.varabyte.kobweb.compose.css.StyleVariable")
             importsBuilder.add("com.varabyte.kobweb.compose.ui.modifiers.setVariable")
@@ -991,7 +1058,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
     }
 
     fun cssStyleLines(): List<String> = with(result) {
-        val webModifiersToExtract = modifierChainInfo.entries.targetedForExtraction(extractAttributes)
+        val webModifiersToExtract = modifiersToExtract()
         val (attrModifiersToExtract, styleModifiersToExtract) = webModifiersToExtract.partition { it.webModifierType == WebModifierType.ATTRS }
 
         fun createModifier(indent: String) = buildString {
@@ -1012,7 +1079,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
                         append('\t')
                     }
                     append('.')
-                    append(modifierEntry.toText())
+                    append(modifierEntry.toText(inStyleBlock = true))
                     modifierEntry.attachedComments.trailing?.let { append(' '); append(it.text) }
                 }
         }
@@ -1024,7 +1091,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
                     append("extraModifier = { Modifier")
                     attrModifiersToExtract.forEach { modifierEntry ->
                         append('.')
-                        append(modifierEntry.toText())
+                        append(modifierEntry.toText(inStyleBlock = false))
                     }
                     append(" }")
                 } else {
@@ -1037,7 +1104,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
                         }
                         append("\t\t")
                         append('.')
-                        append(modifierEntry.toText())
+                        append(modifierEntry.toText(inStyleBlock = false))
                         modifierEntry.attachedComments.trailing?.let { append(' '); append(it.text) }
                         appendLine()
                     }
@@ -1047,7 +1114,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
         } else null
 
         return buildString {
-            modifierChainInfo.extractStyleVariables().forEach { (parameter, varName) ->
+            extractStyleVariables().forEach { (parameter, varName) ->
                 appendLine("private val $varName by StyleVariable<${parameter.type.rendered}>()")
             }
             append("val $styleName = CssStyle")
@@ -1070,13 +1137,13 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
 
     fun inlineModifierLines(): List<String> = with(result) {
         val inlineModifiers = run {
-            val extractedModifiers = modifierChainInfo.entries.targetedForExtraction(extractAttributes).toSet()
-            modifierChainInfo.entries.filter { !extractedModifiers.contains(it) }
+            val extractedModifiers = modifiersToExtract().toSet()
+            extractionSupport.modifierChainInfo.entries.filter { !extractedModifiers.contains(it) }
         }
 
         val chainedCalls = buildList {
-            inlineModifiers.forEach { modifierEntry -> add(modifierEntry.toText()) }
-            modifierChainInfo.extractStyleVariables().forEach { (parameter, varName) ->
+            inlineModifiers.forEach { modifierEntry -> add(modifierEntry.toText(inStyleBlock = false)) }
+            extractStyleVariables().forEach { (parameter, varName) ->
                 add(buildString {
                     append("setVariable(")
                     append(varName)
@@ -1085,7 +1152,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
                     append(')')
                 })
             }
-            modifierChainInfo.chainTerminator?.let { chainTerminator -> add(chainTerminator.text) }
+            extractionSupport.modifierChainInfo.chainTerminator?.let { chainTerminator -> add(chainTerminator.text) }
         }
 
         return buildString {
@@ -1166,8 +1233,7 @@ fun ExtractCssStyleWizard.Result.performRefactoring(
                 // the CssStyle block, delete it from here so it won't be duplicated in two places
                 val trailingComment = origInlineModifierExpr.findAttachedComments().trailing
                     ?.takeIf { psiComment ->
-                        psiComment == modifierChainInfo.entries.targetedForExtraction(extractAttributes)
-                            .lastOrNull()?.attachedComments?.trailing
+                        psiComment == modifiersToExtract().lastOrNull()?.attachedComments?.trailing
                     }
 
                 SmartPointerManager.getInstance(project).createSmartPsiElementPointer(

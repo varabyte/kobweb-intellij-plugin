@@ -18,13 +18,11 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         extractAttributes: Boolean = false,
     ): ExtractCssStyleWizard.Result {
         val ktDotExpr = this
-        val modifierChainInfo = analyzeOnEdt(ktDotExpr) {
-            ktDotExpr.toModifierChainInfo()
-        }
+        val extractionSupport = analyzeOnEdt(ktDotExpr) { ktDotExpr.toModifierChainInfo().toExtractionSupport() }
 
         return object : ExtractCssStyleWizard.Result {
             override val styleName = styleName
-            override val modifierChainInfo = modifierChainInfo
+            override val extractionSupport = extractionSupport
             override val extractAttributes = extractAttributes
             override val useConciseSyntax = useConciseSyntax
         }
@@ -769,6 +767,96 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
                 MyStyle.toModifier()
                     .setVariable(MyStyle_ColorVar, color)
                     .setVariable(MyStyle_BackgroundColorVar, colorModeOrLight.toColor())
+            }
+            """.trimIndent(),
+        )
+    }
+
+    // `colorMode` only exists inside the style block, so values set at the call site must keep their ColorMode
+    // references as written
+    fun testColorModeReferencesAreKeptInStyleVariableValues() {
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = true) },
+            // Before
+            """
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.theme.colors.ColorMode
+            import org.jetbrains.compose.web.css.CSSColorValue
+
+            @Composable
+            fun SomePage() {
+                val darkColor = Colors.Red
+                M<caret>odifier.color(if (ColorMode.current.isDark) darkColor else Colors.Blue)
+            }
+            """.trimIndent(),
+            // After
+            """
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.theme.colors.ColorMode
+            import org.jetbrains.compose.web.css.CSSColorValue
+            import com.varabyte.kobweb.compose.css.StyleVariable
+            import com.varabyte.kobweb.compose.ui.modifiers.setVariable
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.base
+            import com.varabyte.kobweb.silk.style.toModifier
+
+            private val MyStyle_ColorVar by StyleVariable<CSSColorValue>()
+            val MyStyle = CssStyle.base {
+                Modifier.color(MyStyle_ColorVar.value())
+            }
+
+            @Composable
+            fun SomePage() {
+                val darkColor = Colors.Red
+                MyStyle.toModifier().setVariable(MyStyle_ColorVar, if (ColorMode.current.isDark) darkColor else Colors.Blue)
+            }
+            """.trimIndent(),
+        )
+    }
+
+    // `colorMode` doesn't exist in `extraModifier`, so attribute modifiers that use a local ColorMode stay inline
+    fun testAttributesThatReferenceLocalColorModeAreNotExtracted() {
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = true, extractAttributes = true) },
+            // Before
+            """
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.silk.theme.colors.ColorMode
+            import org.jetbrains.compose.web.css.percent
+
+            @Composable
+            fun SomePage() {
+                val colorMode = ColorMode.current
+                M<caret>odifier.id(if (colorMode.isDark) "dark" else "light").width(50.percent)
+            }
+            """.trimIndent(),
+            // After
+            """
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.silk.theme.colors.ColorMode
+            import org.jetbrains.compose.web.css.percent
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.base
+            import com.varabyte.kobweb.silk.style.toModifier
+
+            val MyStyle = CssStyle.base {
+                Modifier.width(50.percent)
+            }
+
+            @Composable
+            fun SomePage() {
+                val colorMode = ColorMode.current
+                MyStyle.toModifier().id(if (colorMode.isDark) "dark" else "light")
             }
             """.trimIndent(),
         )
