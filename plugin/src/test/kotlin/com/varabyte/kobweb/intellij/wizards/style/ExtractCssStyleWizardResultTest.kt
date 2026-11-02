@@ -1,3 +1,5 @@
+@file:Suppress("FunctionName", "LocalVariableName")
+
 package com.varabyte.kobweb.intellij.wizards.style
 
 import com.varabyte.kobweb.intellij.test.fixtures.KobwebApplicationTestCase
@@ -523,7 +525,7 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         //   .setVariable(MyStyle_FontFamily1Var, font1)
         //   .setVariable(MyStyle_FontFamily2Var, font2)
         // ```
-        // but that will add a fair amount of complexity to our code gen code and it's probably not something anyone
+        // but that will add a fair amount of complexity to our code gen code, and it's probably not something anyone
         // will actually do in practice. So for now we just refuse to extract it.
         //
         // No matter what, we will never be able to extract the spread operator version, as we can't set StyleProperty
