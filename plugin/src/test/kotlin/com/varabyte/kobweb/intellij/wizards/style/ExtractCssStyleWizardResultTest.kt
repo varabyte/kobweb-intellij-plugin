@@ -424,6 +424,56 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         )
     }
 
+    fun testAttributesWithComposableValuesAreExtracted() {
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = true, extractAttributes = true) },
+            // Before
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.silk.theme.colors.ColorMode
+            import org.jetbrains.compose.web.css.percent
+
+            @Composable
+            fun produceId() = "hi"
+
+            @Composable
+            fun SomePage() {
+                M<caret>odifier
+                    .id(produceId())
+                    .title(if (ColorMode.current.isDark) "Dark" else "Light")
+                    .width(50.percent)
+            }
+            """.trimIndent(),
+            // After
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.silk.theme.colors.ColorMode
+            import org.jetbrains.compose.web.css.percent
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.base
+            import com.varabyte.kobweb.silk.style.toModifier
+
+            @Composable
+            fun produceId() = "hi"
+
+            val MyStyle = CssStyle.base(extraModifier = {
+                Modifier.id(produceId()).title(if (ColorMode.current.isDark) "Dark" else "Light")
+            }) {
+                Modifier.width(50.percent)
+            }
+
+            @Composable
+            fun SomePage() {
+                MyStyle.toModifier()
+            }
+            """.trimIndent()
+        )
+    }
+
     fun testExtractModifierWithDefaultValues() {
         doTest(
             produceResult = { createResult("MyStyle", useConciseSyntax = true) },

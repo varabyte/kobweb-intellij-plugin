@@ -944,7 +944,7 @@ private fun ModifierChainExtractionSupport.canExtract(entry: ModifierChainInfo.E
     return when (entry.webModifierType) {
         // A StyleVariable can't hold the values of a vararg parameter
         WebModifierType.STYLE -> entry.parameters.none { it.isVararg && needsStyleVariable(it) }
-        WebModifierType.ATTRS -> !entry.hasLocallyBoundParameter() && entry.parameters.none { needsStyleVariable(it) }
+        WebModifierType.ATTRS -> !entry.hasLocallyBoundParameter()
         else -> false
     }
 }
