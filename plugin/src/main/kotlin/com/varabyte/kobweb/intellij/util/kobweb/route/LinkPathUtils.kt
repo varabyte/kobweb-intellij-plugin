@@ -35,12 +35,12 @@ private val KtStringTemplateExpression.linkPathParts: List<LinkPath.Part>
 
 /**
  * Returns the path in this string (see [LinkPath.parse]), e.g. "/users/bob" for `Link("/users/bob")`, or "/users/bob"
- * for `window.api.get("users/bob")` (with [allowRelativePath]).
+ * for `window.api.get("users/bob")` (with [treatRelativeAsAbsolute]).
  *
- * @param allowRelativePath See [LinkPath.parse].
+ * @param treatRelativeAsAbsolute See [LinkPath.parse].
  */
-fun KtStringTemplateExpression.parseLinkPath(allowRelativePath: Boolean = false): LinkPath? =
-    LinkPath.parse(linkPathParts, allowRelativePath)
+fun KtStringTemplateExpression.parseLinkPath(treatRelativeAsAbsolute: Boolean = false): LinkPath? =
+    LinkPath.parse(linkPathParts, treatRelativeAsAbsolute)
 
 /**
  * Returns the range of the path inside this string, i.e. without any query parameters or fragment.

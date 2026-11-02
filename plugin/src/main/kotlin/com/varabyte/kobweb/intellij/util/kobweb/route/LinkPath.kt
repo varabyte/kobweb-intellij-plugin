@@ -163,49 +163,51 @@ class LinkPath private constructor(val segments: List<Segment>) {
          *
          * By default, the path must be absolute (e.g. "/users/bob"), as a relative one (e.g. "users/bob") could lead
          * almost anywhere, depending on the current page. Some paths are always relative to a fixed root, though, e.g.
-         * API paths, which are relative to "/api/". Pass [allowRelativePath] for those, to parse them as if they were
-         * written from that root, e.g. "users/bob" as "/users/bob".
+         * API paths, which are relative to "/api/". Pass [treatRelativeAsAbsolute] for those, to parse them as if they
+         * were written from that root, e.g. "users/bob" as "/users/bob".
          *
          * Any query parameters and fragment are ignored.
          *
          * @param parts The pieces of the URL's string literal, in order.
-         * @param allowRelativePath Whether the path may be relative. For example, API paths are always relative to a
-         *   fixed root ("/api/"), so `window.api.get("users/bob")` and `window.api.get("/users/bob")` both lead to
-         *   "/api/users/bob". In other words, Kobweb treats such paths the same whether or not they start with a
-         *   slash. For the same reason, they may start with a template expression, as it doesn't matter whether its
-         *   value (which we don't know yet) starts with a slash.
+         * @param treatRelativeAsAbsolute Whether a path without a leading slash is parsed as if it had one. For
+         *   example, API paths are always relative to a fixed root ("/api/"), so `window.api.get("users/bob")` and
+         *   `window.api.get("/users/bob")` both lead to "/api/users/bob". In other words, Kobweb treats such paths the
+         *   same whether or not they start with a slash. For the same reason, they may start with a template
+         *   expression, as it doesn't matter whether its value (which we don't know yet) starts with a slash.
          */
-        fun parse(parts: List<Part>, allowRelativePath: Boolean = false): LinkPath? {
+        fun parse(parts: List<Part>, treatRelativeAsAbsolute: Boolean = false): LinkPath? {
             val first = parts.firstOrNull()?.text
             if (parts.isEmpty() || first?.startsWith("//") == true) return null
 
             val hasLeadingSlash = first?.startsWith('/') == true
-            if (!allowRelativePath && !hasLeadingSlash) return null
+            if (!treatRelativeAsAbsolute && !hasLeadingSlash) return null
 
             // A leading slash leaves an empty first segment behind
             val segments = parseSegments(parts).let { segments -> if (hasLeadingSlash) segments.drop(1) else segments }
-            return LinkPath(segments.removeDotSegments(rejectEscapingRoot = allowRelativePath) ?: return null)
+            // If the caller says a relative path can be treated as absolute, it's because the path will always be
+            // appended to a containing folder. In that case, ".." shouldn't let it escape that folder.
+            return LinkPath(segments.removeDotSegments(clampToRoot = !treatRelativeAsAbsolute) ?: return null)
         }
 
         /**
-         * Resolves `"."` and `".."` segments the way browsers do before requesting a URL, so a path never leads above
-         * the root, e.g. `"/../a/./b"` becomes `"/a/b"`. Nobody is likely to write these, but browsers (and Kobweb's
-         * router) accept them, so we resolve them too.
+         * Resolves `"."` and `".."` segments the way browsers do before requesting a URL, e.g. `"/a/../b/./c"` becomes
+         * `"/b/c"`. With [clampToRoot], a path never leads above the root, e.g. `"/../a"` becomes `"/a"`, as in
+         * browsers. Nobody is likely to write these, but browsers (and Kobweb's router) accept them, so we resolve them
+         * too.
          *
          * Returns null if we can't tell where the path leads, i.e. if `".."` follows an unknown segment (which could
-         * hold several segments). Also returns null if `".."` would go above the root and [rejectEscapingRoot] is set,
-         * e.g. for API paths, whose root is `"/api/"` and which can't lead anywhere else.
+         * hold several segments), or if `".."` would go above the root without [clampToRoot].
          *
          * See also RFC 3986, section 5.2.4, which this function name is modeled after.
          */
-        private fun List<Segment>.removeDotSegments(rejectEscapingRoot: Boolean): List<Segment>? {
+        private fun List<Segment>.removeDotSegments(clampToRoot: Boolean): List<Segment>? {
             val resolved = mutableListOf<Segment>()
             for ((i, segment) in this.withIndex()) {
                 when (segment.text) {
                     "." -> {}
                     ".." -> {
                         val removed = resolved.removeLastOrNull()
-                        if (removed == null && rejectEscapingRoot) return null
+                        if (removed == null && !clampToRoot) return null
                         if (removed != null && removed.text == null) return null
                     }
                     else -> {

@@ -56,7 +56,7 @@ class ApiPathReference(element: KtStringTemplateExpression) : PsiReferenceBase<K
 
         return when (target.kind) {
             ApiPathTarget.Kind.API -> {
-                val path = element.parseLinkPath(allowRelativePath = true) ?: return null
+                val path = element.parseLinkPath(treatRelativeAsAbsolute = true) ?: return null
                 definitions.apis
                     .filter { api -> path.matches(api.route) }
                     .pickMostSpecific { api -> api.route }

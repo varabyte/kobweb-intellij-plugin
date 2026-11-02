@@ -11,10 +11,11 @@ class LinkPathTest {
     /**
      * @param path A path written as text, where "$" marks a template expression, e.g. "/posts/$" for "/posts/$id"
      */
-    private fun path(path: String, allowRelativePath: Boolean = false): LinkPath? = LinkPath.parse(parts(path), allowRelativePath)
+    private fun path(path: String, treatRelativeAsAbsolute: Boolean = false): LinkPath? =
+        LinkPath.parse(parts(path), treatRelativeAsAbsolute)
 
-    /** Like [path], but the path may be relative (see [LinkPath.parse] with `allowRelativePath`). */
-    private fun pathAllowingRelative(path: String): LinkPath? = path(path, allowRelativePath = true)
+    /** Like [path], but a path without a leading slash is parsed as if it had one (see [LinkPath.parse]). */
+    private fun pathTreatingRelativeAsAbsolute(path: String): LinkPath? = path(path, treatRelativeAsAbsolute = true)
 
     private fun parts(path: String): List<LinkPath.Part> {
         val parts = path.split('$').flatMapIndexed { i, part -> if (i == 0) listOf(part) else listOf(null, part) }
@@ -85,35 +86,35 @@ class LinkPathTest {
 
     @Test
     fun relativePathsAreParsedAsIfFromTheRoot() {
-        assertThat(pathAllowingRelative("users/bob")?.segmentTexts).isEqualTo(listOf("users", "bob"))
+        assertThat(pathTreatingRelativeAsAbsolute("users/bob")?.segmentTexts).isEqualTo(listOf("users", "bob"))
         // A leading slash makes no difference
-        assertThat(pathAllowingRelative("/users/bob")?.segmentTexts).isEqualTo(listOf("users", "bob"))
-        assertThat(pathAllowingRelative("users/bob?sort=new")?.segmentTexts).isEqualTo(listOf("users", "bob"))
+        assertThat(pathTreatingRelativeAsAbsolute("/users/bob")?.segmentTexts).isEqualTo(listOf("users", "bob"))
+        assertThat(pathTreatingRelativeAsAbsolute("users/bob?sort=new")?.segmentTexts).isEqualTo(listOf("users", "bob"))
         // Unlike an absolute path, a template expression at the start is just another unknown segment
-        assertThat(pathAllowingRelative("$/posts")?.segmentTexts).isEqualTo(listOf(null, "posts"))
+        assertThat(pathTreatingRelativeAsAbsolute("$/posts")?.segmentTexts).isEqualTo(listOf(null, "posts"))
 
-        assertThat(pathAllowingRelative("//example.com/users")).isNull()
+        assertThat(pathTreatingRelativeAsAbsolute("//example.com/users")).isNull()
     }
 
     @Test
     fun relativePathsCantLeaveTheirRoot() {
-        assertThat(pathAllowingRelative("users/../hello")?.segmentTexts).isEqualTo(listOf("hello"))
+        assertThat(pathTreatingRelativeAsAbsolute("users/../hello")?.segmentTexts).isEqualTo(listOf("hello"))
         // e.g. an API path that would leave "/api/"
-        assertThat(pathAllowingRelative("../hello")).isNull()
-        assertThat(pathAllowingRelative("/../hello")).isNull()
+        assertThat(pathTreatingRelativeAsAbsolute("../hello")).isNull()
+        assertThat(pathTreatingRelativeAsAbsolute("/../hello")).isNull()
     }
 
     @Test
     fun relativePathSegmentRangesSayWhereEachSegmentWasWritten() {
-        assertThat(pathAllowingRelative("users/bob")!!.segmentRanges).isEqualTo(listOf(0..4, 6..8))
-        assertThat(pathAllowingRelative("/users/bob")!!.segmentRanges).isEqualTo(listOf(1..5, 7..9))
+        assertThat(pathTreatingRelativeAsAbsolute("users/bob")!!.segmentRanges).isEqualTo(listOf(0..4, 6..8))
+        assertThat(pathTreatingRelativeAsAbsolute("/users/bob")!!.segmentRanges).isEqualTo(listOf(1..5, 7..9))
     }
 
     @Test
     fun relativePathsMatchRoutesFromTheRoot() {
-        assertThat(pathAllowingRelative("users/bob")!!.matches(PageRoute("/users/{user}"))).isTrue()
-        assertThat(pathAllowingRelative("users/$")!!.matches(PageRoute("/users/{user}"))).isTrue()
-        assertThat(pathAllowingRelative("users")!!.matches(PageRoute("/users/{user}"))).isFalse()
+        assertThat(pathTreatingRelativeAsAbsolute("users/bob")!!.matches(PageRoute("/users/{user}"))).isTrue()
+        assertThat(pathTreatingRelativeAsAbsolute("users/$")!!.matches(PageRoute("/users/{user}"))).isTrue()
+        assertThat(pathTreatingRelativeAsAbsolute("users")!!.matches(PageRoute("/users/{user}"))).isFalse()
     }
 
     @Test

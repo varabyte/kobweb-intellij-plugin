@@ -53,7 +53,7 @@ class UnknownApiPathInspection : LocalInspectionTool() {
             }
 
             private fun checkApiPath(expression: KtStringTemplateExpression, apis: List<ApiDefinition<ApiRoute>>) {
-                val path = expression.parseLinkPath(allowRelativePath = true) ?: return
+                val path = expression.parseLinkPath(treatRelativeAsAbsolute = true) ?: return
                 // Unknown segments could hold anything at runtime, so only report paths that can't lead to any endpoint
                 if (apis.any { api -> path.matches(api.route, UnknownSegmentsStrategy.MATCH_ANYTHING) }) return
 
