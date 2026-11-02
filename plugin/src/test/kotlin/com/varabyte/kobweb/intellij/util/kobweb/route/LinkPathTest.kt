@@ -66,6 +66,24 @@ class LinkPathTest {
     }
 
     @Test
+    fun dotSegmentsAreResolvedLikeBrowsersDo() {
+        assertThat(path("/blog/./post")?.segmentTexts).isEqualTo(listOf("blog", "post"))
+        assertThat(path("/blog/../posts/new")?.segmentTexts).isEqualTo(listOf("posts", "new"))
+        // Browsers can't go above the root
+        assertThat(path("/../blog")?.segmentTexts).isEqualTo(listOf("blog"))
+        // A dot segment at the end leaves a trailing slash
+        assertThat(path("/blog/.")?.segmentTexts).isEqualTo(listOf("blog", ""))
+        assertThat(path("/blog/post/..")?.segmentTexts).isEqualTo(listOf("blog", ""))
+        assertThat(path("/blog/..")?.segmentTexts).isEqualTo(listOf(""))
+        // The segments left keep their place in the source
+        assertThat(path("/blog/../posts")?.segmentRanges).isEqualTo(listOf(9..13))
+
+        // An unknown segment could hold several segments, so we can't tell what ".." leaves
+        assertThat(path("/posts/$/../edit")).isNull()
+        assertThat(path("/posts/$/./edit")?.segmentTexts).isEqualTo(listOf("posts", null, "edit"))
+    }
+
+    @Test
     fun relativePathsAreParsedAsIfFromTheRoot() {
         assertThat(pathAllowingRelative("users/bob")?.segmentTexts).isEqualTo(listOf("users", "bob"))
         // A leading slash makes no difference
@@ -75,6 +93,14 @@ class LinkPathTest {
         assertThat(pathAllowingRelative("$/posts")?.segmentTexts).isEqualTo(listOf(null, "posts"))
 
         assertThat(pathAllowingRelative("//example.com/users")).isNull()
+    }
+
+    @Test
+    fun relativePathsCantLeaveTheirRoot() {
+        assertThat(pathAllowingRelative("users/../hello")?.segmentTexts).isEqualTo(listOf("hello"))
+        // e.g. an API path that would leave "/api/"
+        assertThat(pathAllowingRelative("../hello")).isNull()
+        assertThat(pathAllowingRelative("/../hello")).isNull()
     }
 
     @Test

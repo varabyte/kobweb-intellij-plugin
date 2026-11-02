@@ -183,8 +183,43 @@ class LinkPath private constructor(val segments: List<Segment>) {
             if (!allowRelativePath && !hasLeadingSlash) return null
 
             // A leading slash leaves an empty first segment behind
-            val segments = parseSegments(parts)
-            return LinkPath(if (hasLeadingSlash) segments.drop(1) else segments)
+            val segments = parseSegments(parts).let { segments -> if (hasLeadingSlash) segments.drop(1) else segments }
+            return LinkPath(segments.removeDotSegments(rejectEscapingRoot = allowRelativePath) ?: return null)
+        }
+
+        /**
+         * Resolves `"."` and `".."` segments the way browsers do before requesting a URL, so a path never leads above
+         * the root, e.g. `"/../a/./b"` becomes `"/a/b"`. Nobody is likely to write these, but browsers (and Kobweb's
+         * router) accept them, so we resolve them too.
+         *
+         * Returns null if we can't tell where the path leads, i.e. if `".."` follows an unknown segment (which could
+         * hold several segments). Also returns null if `".."` would go above the root and [rejectEscapingRoot] is set,
+         * e.g. for API paths, whose root is `"/api/"` and which can't lead anywhere else.
+         *
+         * See also RFC 3986, section 5.2.4, which this function name is modeled after.
+         */
+        private fun List<Segment>.removeDotSegments(rejectEscapingRoot: Boolean): List<Segment>? {
+            val resolved = mutableListOf<Segment>()
+            for ((i, segment) in this.withIndex()) {
+                when (segment.text) {
+                    "." -> {}
+                    ".." -> {
+                        val removed = resolved.removeLastOrNull()
+                        if (removed == null && rejectEscapingRoot) return null
+                        if (removed != null && removed.text == null) return null
+                    }
+                    else -> {
+                        resolved.add(segment)
+                        continue
+                    }
+                }
+                // A dot segment at the end leaves a trailing slash, e.g. "/blog/." is "/blog/"
+                if (i == lastIndex) {
+                    val end = segment.sourceRange.last + 1
+                    resolved.add(Segment("", end until end))
+                }
+            }
+            return resolved
         }
 
         /** Splits the pieces of a path's string literal into its segments, up to any query or fragment. */

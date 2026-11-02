@@ -84,24 +84,8 @@ fun PsiElement.findPublicResource(path: LinkPath): VirtualFile? = findPublicReso
  * "/images/logo.png" leads to the folder `src/jsMain/resources/public/images`.
  */
 fun PsiElement.findPublicResource(segments: List<LinkPath.Segment>): VirtualFile? {
-    val relativePath = segments.map { segment -> segment.text ?: return null }.removeDotSegments().joinToString("/")
+    val relativePath = segments.map { segment -> segment.text ?: return null }.joinToString("/")
     return findPublicFolders().firstNotNullOfOrNull { folder -> folder.findFileByRelativePath(relativePath) }
-}
-
-/**
- * Resolves `"."` and `".."` segments the way browsers do before requesting a URL, so a path
- * never leads above the public folder, e.g. "/../a/./b" becomes "/a/b".
- *
- * See also RFC 3986, section 5.2.4, which this function name is modeled after.
- */
-private fun List<String>.removeDotSegments(): List<String> = buildList {
-    for (segment in this@removeDotSegments) {
-        when (segment) {
-            "." -> {}
-            ".." -> removeLastOrNull()
-            else -> add(segment)
-        }
-    }
 }
 
 /**

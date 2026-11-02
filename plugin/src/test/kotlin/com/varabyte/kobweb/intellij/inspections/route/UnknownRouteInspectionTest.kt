@@ -248,6 +248,25 @@ class UnknownRouteInspectionTest : KobwebInspectionTestBase() {
         )
     }
 
+    fun testDotSegmentsInPageRoutesAreResolvedLikeBrowsersDo() {
+        doTest(
+            """
+            package $TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.navigation.Link
+
+            @Composable
+            fun Nav() {
+                Link("/posts/./new")
+                Link("/blog/../posts/new")
+                Link("/../posts/new")
+                Link("<warning>/posts/../new</warning>")
+            }
+            """.trimIndent(),
+        )
+    }
+
     fun testDotSegmentsInPublicResourcesAreResolvedLikeBrowsersDo() {
         val resourcesRoot = myFixture.addFileToProject("resources/public/resume.pdf", "")
             .virtualFile.parent.parent
