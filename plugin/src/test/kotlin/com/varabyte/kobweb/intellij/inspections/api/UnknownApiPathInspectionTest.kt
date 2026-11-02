@@ -185,7 +185,7 @@ class UnknownApiPathInspectionTest : KobwebFullStackTestCase() {
         )
     }
 
-    fun testFullUrlsAreLeftToTheFormatInspection() {
+    fun testFullUrlsAreLeftToTheInvalidApiPathFormatInspection() {
         checkHighlighting(
             """
             package $TEST_GROUP.components
@@ -197,6 +197,21 @@ class UnknownApiPathInspectionTest : KobwebFullStackTestCase() {
             suspend fun fetch() {
                 window.api.get("https://example.com/api/hello")
                 ApiStream("wss://example.com/chat")
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testApiPathsThatLeaveTheApiFolderAreLeftToTheInvalidApiPathFormatInspection() {
+        checkHighlighting(
+            """
+            package $TEST_GROUP.components
+
+            import com.varabyte.kobweb.browser.api
+            import kotlinx.browser.window
+
+            suspend fun fetch() {
+                window.api.get("../hello")
             }
             """.trimIndent()
         )

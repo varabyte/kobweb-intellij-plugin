@@ -176,6 +176,31 @@ class LinkPath private constructor(val segments: List<Segment>) {
          *   expression, as it doesn't matter whether its value (which we don't know yet) starts with a slash.
          */
         fun parse(parts: List<Part>, treatRelativeAsAbsolute: Boolean = false): LinkPath? {
+            val segments = parseUnresolvedSegments(parts, treatRelativeAsAbsolute) ?: return null
+            // If the caller says a relative path can be treated as absolute, it's because the path will always be
+            // appended to a containing folder. In that case, ".." shouldn't let it escape that folder.
+            val result = segments.removeDotSegments(clampToRoot = !treatRelativeAsAbsolute)
+            return (result as? DotSegmentsResult.Resolved)?.let { resolved -> LinkPath(resolved.segments) }
+        }
+
+        /**
+         * Returns true if we can detect that the path uses `".."` to leave its root.
+         *
+         * For example, `"../users"` would return true while `"users/.."` would return false.
+         *
+         * If a `".."` follows a dynamic segment, such as in `"$id/../.."`, we return false, because we can't know what the
+         * path will resolve to.
+         */
+        fun escapesRoot(parts: List<Part>): Boolean {
+            val segments = parseUnresolvedSegments(parts, treatRelativeAsAbsolute = true) ?: return false
+            return segments.removeDotSegments(clampToRoot = false) == DotSegmentsResult.EscapesRoot
+        }
+
+        /**
+         * Returns the segments of the path in [parts], before any dot segments are resolved, or null if it isn't a
+         * path [parse] handles, e.g. a full URL.
+         */
+        private fun parseUnresolvedSegments(parts: List<Part>, treatRelativeAsAbsolute: Boolean): List<Segment>? {
             val first = parts.firstOrNull()?.text
             if (parts.isEmpty() || first?.startsWith("//") == true) return null
 
@@ -183,10 +208,17 @@ class LinkPath private constructor(val segments: List<Segment>) {
             if (!treatRelativeAsAbsolute && !hasLeadingSlash) return null
 
             // A leading slash leaves an empty first segment behind
-            val segments = parseSegments(parts).let { segments -> if (hasLeadingSlash) segments.drop(1) else segments }
-            // If the caller says a relative path can be treated as absolute, it's because the path will always be
-            // appended to a containing folder. In that case, ".." shouldn't let it escape that folder.
-            return LinkPath(segments.removeDotSegments(clampToRoot = !treatRelativeAsAbsolute) ?: return null)
+            return parseSegments(parts).let { segments -> if (hasLeadingSlash) segments.drop(1) else segments }
+        }
+
+        private sealed interface DotSegmentsResult {
+            class Resolved(val segments: List<Segment>) : DotSegmentsResult
+
+            /** A `".."` follows an unknown segment, which could hold several segments, so we can't tell what's left */
+            data object Unknown : DotSegmentsResult
+
+            /** A `".."` would lead above a root the path can't leave (see `clampToRoot`) */
+            data object EscapesRoot : DotSegmentsResult
         }
 
         /**
@@ -195,20 +227,19 @@ class LinkPath private constructor(val segments: List<Segment>) {
          * browsers. Nobody is likely to write these, but browsers (and Kobweb's router) accept them, so we resolve them
          * too.
          *
-         * Returns null if we can't tell where the path leads, i.e. if `".."` follows an unknown segment (which could
-         * hold several segments), or if `".."` would go above the root without [clampToRoot].
+         * Results other than [DotSegmentsResult.Resolved] say why the path couldn't be resolved.
          *
          * See also RFC 3986, section 5.2.4, which this function name is modeled after.
          */
-        private fun List<Segment>.removeDotSegments(clampToRoot: Boolean): List<Segment>? {
+        private fun List<Segment>.removeDotSegments(clampToRoot: Boolean): DotSegmentsResult {
             val resolved = mutableListOf<Segment>()
             for ((i, segment) in this.withIndex()) {
                 when (segment.text) {
                     "." -> {}
                     ".." -> {
                         val removed = resolved.removeLastOrNull()
-                        if (removed == null && !clampToRoot) return null
-                        if (removed != null && removed.text == null) return null
+                        if (removed == null && !clampToRoot) return DotSegmentsResult.EscapesRoot
+                        if (removed != null && removed.text == null) return DotSegmentsResult.Unknown
                     }
                     else -> {
                         resolved.add(segment)
@@ -221,7 +252,7 @@ class LinkPath private constructor(val segments: List<Segment>) {
                     resolved.add(Segment("", end until end))
                 }
             }
-            return resolved
+            return DotSegmentsResult.Resolved(resolved)
         }
 
         /** Splits the pieces of a path's string literal into its segments, up to any query or fragment. */

@@ -102,6 +102,13 @@ class LinkPathTest {
         // e.g. an API path that would leave "/api/"
         assertThat(pathTreatingRelativeAsAbsolute("../hello")).isNull()
         assertThat(pathTreatingRelativeAsAbsolute("/../hello")).isNull()
+        assertThat(pathTreatingRelativeAsAbsolute("a/../../../tricky/")).isNull()
+
+        assertThat(LinkPath.escapesRoot(parts("../hello"))).isTrue()
+        assertThat(LinkPath.escapesRoot(parts("a/../../../tricky/"))).isTrue()
+        assertThat(LinkPath.escapesRoot(parts("users/../hello"))).isFalse()
+        // An unknown segment could hold several segments, so we can't tell
+        assertThat(LinkPath.escapesRoot(parts("users/$/../../hello"))).isFalse()
     }
 
     @Test

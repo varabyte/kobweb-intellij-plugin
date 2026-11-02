@@ -3,14 +3,18 @@
 Reports API paths that aren't in the format expected by what they're used with.
 <p>
 API paths, such as those passed to <code>window.api.get</code>, are relative to <code>/api/</code>, so they can't be
-full URLs. API stream paths, such as those passed to <code>ApiStream</code>, must match a stream's path exactly, so they
-can't have query parameters or a fragment either.
+full URLs, or use <code>..</code> to leave <code>/api/</code> (use <code>window.http</code> for non-API URLs).
+<p>
+API stream paths, such as those passed to <code>ApiStream</code>, must match a stream's path exactly, so they can't have
+query parameters or a fragment either.
 <pre><code>
 // OK
 window.api.get("users?id=5")
 ApiStream("chat")
 // Not OK: not a path relative to "/api/"
 window.api.get("https://example.com/api/users")
+// Not OK: API routes are not allowed to escape containment
+window.api.get("../users")
 // Not OK: stream paths can't have query parameters
 ApiStream("chat?room=general")
 </code></pre>

@@ -37,6 +37,28 @@ class InvalidApiPathFormatInspectionTest : KobwebFullStackTestCase() {
         )
     }
 
+    fun testApiPathsThatLeaveTheApiFolderAreFlagged() {
+        checkHighlighting(
+            $$"""
+            package $$TEST_GROUP.components
+
+            import com.varabyte.kobweb.browser.api
+            import kotlinx.browser.window
+
+            suspend fun fetch(id: String) {
+                window.api.get("users/../hello")
+                window.api.get("./hello")
+                // Would fetch "/hello", outside of "/api/"
+                window.api.get("<error descr="API paths can't use \"..\" to navigate out of their root. Use window.http to fetch other URLs.">../hello</error>")
+                window.api.get("<error>/../hello</error>")
+                window.api.get("<error>a/../../../tricky/</error>")
+                // An unknown segment could hold several segments, so this might not leave "/api/"
+                window.api.get("users/$id/../../hello")
+            }
+            """.trimIndent()
+        )
+    }
+
     fun testFullUrlsAndQueriesAreFlaggedInStreamPaths() {
         checkHighlighting(
             """

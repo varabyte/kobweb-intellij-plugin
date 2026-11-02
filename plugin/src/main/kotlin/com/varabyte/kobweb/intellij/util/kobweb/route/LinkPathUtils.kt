@@ -42,6 +42,9 @@ private val KtStringTemplateExpression.linkPathParts: List<LinkPath.Part>
 fun KtStringTemplateExpression.parseLinkPath(treatRelativeAsAbsolute: Boolean = false): LinkPath? =
     LinkPath.parse(linkPathParts, treatRelativeAsAbsolute)
 
+/** Returns true if this string is a path that uses `".."` to leave its root (see [LinkPath.escapesRoot]). */
+fun KtStringTemplateExpression.linkPathEscapesRoot(): Boolean = LinkPath.escapesRoot(linkPathParts)
+
 /**
  * Returns the range of the path inside this string, i.e. without any query parameters or fragment.
  */
