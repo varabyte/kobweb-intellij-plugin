@@ -64,7 +64,9 @@ dependencies {
     implementation(project(":kobweb-model"))
     implementation(project(":shared:icon-previews-format"))
     testImplementation(libs.truthish)
-    testImplementation(kotlin("test"))
+    // IntelliJ's test framework is built on JUnit 4, which we have to add ourselves. See also:
+    // https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-dependencies-extension.html#testing
+    testImplementation(libs.junit)
     kobwebTestJsLibs(libs.kobweb.silk)
     kobwebTestJsLibs(libs.kobweb.silk.icons.fa)
     kobwebTestJsLibs(libs.kobweb.worker)
