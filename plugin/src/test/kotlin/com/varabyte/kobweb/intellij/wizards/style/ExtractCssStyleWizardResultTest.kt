@@ -474,6 +474,49 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
         )
     }
 
+    // A modifier the plugin can't trace to `styleModifier` or `attrsModifier` has an unknown type, so the wizard can't
+    // tell where it belongs and leaves it at the call site
+    fun testModifiersOfUnknownTypeAreNotExtracted() {
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = true, extractAttributes = true) },
+            // Before
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import org.jetbrains.compose.web.css.percent
+
+            fun Modifier.unchanged(): Modifier = this
+
+            @Composable
+            fun SomePage() {
+                M<caret>odifier.unchanged().width(50.percent)
+            }
+            """.trimIndent(),
+            // After
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import org.jetbrains.compose.web.css.percent
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.base
+            import com.varabyte.kobweb.silk.style.toModifier
+
+            fun Modifier.unchanged(): Modifier = this
+
+            val MyStyle = CssStyle.base {
+                Modifier.width(50.percent)
+            }
+
+            @Composable
+            fun SomePage() {
+                MyStyle.toModifier().unchanged()
+            }
+            """.trimIndent()
+        )
+    }
+
     fun testExtractModifierWithDefaultValues() {
         doTest(
             produceResult = { createResult("MyStyle", useConciseSyntax = true) },
