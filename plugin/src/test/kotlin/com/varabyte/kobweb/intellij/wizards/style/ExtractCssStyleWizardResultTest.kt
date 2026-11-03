@@ -1274,4 +1274,58 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             """.trimIndent(),
         )
     }
+
+    fun testRepeatedModifiersGetUniqueStyleVariableNames() {
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = true) },
+            // Before
+            """
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+
+            @Composable
+            fun SomePage() {
+                val a = Colors.Red
+                val b = Colors.Green
+                val c = Colors.Blue
+                M<caret>odifier.color(a).color(b).color(c)
+            }
+            """.trimIndent(),
+            // After
+            """
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.css.StyleVariable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.base
+            import com.varabyte.kobweb.silk.style.toModifier
+            import org.jetbrains.compose.web.css.CSSColorValue
+
+            private val MyStyle_ColorVar by StyleVariable<CSSColorValue>()
+            private val MyStyle_Color2Var by StyleVariable<CSSColorValue>()
+            private val MyStyle_Color3Var by StyleVariable<CSSColorValue>()
+            val MyStyle = CssStyle.base {
+                Modifier
+                    .color(MyStyle_ColorVar.value())
+                    .color(MyStyle_Color2Var.value())
+                    .color(MyStyle_Color3Var.value())
+            }
+
+            @Composable
+            fun SomePage() {
+                val a = Colors.Red
+                val b = Colors.Green
+                val c = Colors.Blue
+                MyStyle.toModifier()
+                    .setVariable(MyStyle_ColorVar, a)
+                    .setVariable(MyStyle_Color2Var, b)
+                    .setVariable(MyStyle_Color3Var, c)
+            }
+            """.trimIndent(),
+        )
+    }
 }

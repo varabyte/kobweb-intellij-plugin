@@ -962,31 +962,29 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
     // The full names of StyleVariable names that will be associated with parameters that need them (i.e., because
     // they are bound to a local value from the original scope). If no entry is found for the target parameter,
     // there is no declared style variable for it, and it should just copy its contents over as is.
-    private fun ModifierChainInfo.Entry.associatedStyleVariableNames(): Map<ModifierChainInfo.Entry.Parameter, String> {
-        if (this.webModifierType != WebModifierType.STYLE || !result.extractionSupport.canExtract(this)) return emptyMap()
-
-        // e.g. `Modifier.backgroundColor(colorVar)` + `val MyStyle = CssStyle { ... }`
-        //      --> MyStyle_BackgroundColorVar
-        val multiParameterModifier = parameters.size > 1
-        return parameters.filter { result.extractionSupport.needsStyleVariable(it) }.associateWith { param ->
-            buildString {
-                append(result.styleName)
-                append('_')
-                append(webModifier.name!!.capitalized())
-                if (multiParameterModifier) {
-                    append(param.name.capitalized())
-                }
-                append("Var")
-            }
-        }
-    }
-
-    private fun extractStyleVariables(): Map<ModifierChainInfo.Entry.Parameter, String> {
-        return mutableMapOf<ModifierChainInfo.Entry.Parameter, String>().apply {
+    //
+    // e.g. `Modifier.backgroundColor(colorVar)` + `val MyStyle = CssStyle { ... }`
+    //      --> MyStyle_BackgroundColorVar
+    // A repeated modifier gets numbered names, e.g. `.color(a).color(b)` --> MyStyle_ColorVar, MyStyle_Color2Var
+    private val styleVariableNames: Map<ModifierChainInfo.Entry.Parameter, String> by lazy {
+        val nameCounts = mutableMapOf<String, Int>()
+        buildMap {
             result.modifiersToExtract()
                 .filter { it.webModifierType == WebModifierType.STYLE }
                 .forEach { entry ->
-                    this.putAll(entry.associatedStyleVariableNames())
+                    val multiParameterModifier = entry.parameters.size > 1
+                    entry.parameters.filter { result.extractionSupport.needsStyleVariable(it) }.forEach { param ->
+                        val baseName = buildString {
+                            append(result.styleName)
+                            append('_')
+                            append(entry.webModifier.name!!.capitalized())
+                            if (multiParameterModifier) {
+                                append(param.name.capitalized())
+                            }
+                        }
+                        val count = nameCounts.merge(baseName, 1, Int::plus)!!
+                        put(param, if (count == 1) "${baseName}Var" else "${baseName}${count}Var")
+                    }
                 }
         }
     }
@@ -996,7 +994,6 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
      *   [ModifierChainExtractionSupport] describes them.
      */
     private fun ModifierChainInfo.Entry.toText(inStyleBlock: Boolean) = buildString {
-        val varNames = associatedStyleVariableNames()
         fun ModifierChainInfo.Entry.Parameter.toText(): String {
             val param = this
             // NOTE: We only call this for parameters that have their values set, i.e., not defaults
@@ -1006,7 +1003,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
                 if (paramValue.isNamed) {
                     append("$name = ")
                 }
-                val varName = varNames[param]
+                val varName = styleVariableNames[param]
                 append(when {
                     varName != null -> "${varName}.value()"
                     inStyleBlock -> result.extractionSupport.styleBlockTexts.getValue(param)
@@ -1017,7 +1014,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
 
         append(webModifier.name!!)
 
-        val nonDefaultParams = parameters.filter { varNames.containsKey(it) || it.value != null }
+        val nonDefaultParams = parameters.filter { it in styleVariableNames || it.value != null }
         val paramsToRender = nonDefaultParams.let {
             if (hasTrailingLambda) it.dropLast(1) else it
         }
@@ -1042,7 +1039,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
         if (useConciseSyntax) {
             importsBuilder.add("com.varabyte.kobweb.silk.style.base")
         }
-        if (extractStyleVariables().isNotEmpty()) {
+        if (styleVariableNames.isNotEmpty()) {
             importsBuilder.add("com.varabyte.kobweb.compose.css.StyleVariable")
             importsBuilder.add("com.varabyte.kobweb.compose.ui.modifiers.setVariable")
         }
@@ -1106,7 +1103,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
         } else null
 
         return buildString {
-            extractStyleVariables().forEach { (parameter, varName) ->
+            styleVariableNames.forEach { (parameter, varName) ->
                 appendLine("private val $varName by StyleVariable<${parameter.type}>()")
             }
             append("val $styleName = CssStyle")
@@ -1135,7 +1132,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
 
         val chainedCalls = buildList {
             inlineModifiers.forEach { modifierEntry -> add(modifierEntry.toText(inStyleBlock = false)) }
-            extractStyleVariables().forEach { (parameter, varName) ->
+            styleVariableNames.forEach { (parameter, varName) ->
                 add(buildString {
                     append("setVariable(")
                     append(varName)
