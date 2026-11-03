@@ -1,5 +1,59 @@
 # Kobweb IntelliJ Plugin
 
+## [0.8.0]
+
+This is our biggest release yet. The plugin now understands how a Kobweb site fits together: its page routes, layouts,
+public files, API endpoints, and workers. So it can complete, navigate, rename, and check them for you as you type.
+
+We've jumped from 0.2.6 straight to 0.8.0 to reflect how far the plugin has come, as Kobweb itself heads toward 1.0.
+
+### Added
+
+- **Routes.** Kobweb projects use raw route strings everywhere, like `"/blog/first-post"`. These first-class concepts
+  are now bursting with functionality:
+  - Each page shows the route it's served at as an inlay hint, taking package names, `@file:PackageMapping` mappings,
+    and route overrides into account.<br>
+    ![Page route and layout inlay hints](https://github.com/varabyte/media/raw/main/kobweb-intellij-plugin/0.8.0/page-route-layout-inlay-hints.png)
+  - Routes now get code completion for pages, public files, and API endpoints.<br>
+    ![Route completion](https://github.com/varabyte/media/raw/main/kobweb-intellij-plugin/0.8.0/page-route-completion.png)
+  - Cmd/Ctrl+click a route to jump to its page, public file, or API endpoint.
+  - "Find Usages" on a page or endpoint finds the routes that lead to it.
+  - Renaming or moving a public file updates the routes that point at it.
+  - Routes that don't lead anywhere, are malformed, conflict with each other, or are redundant are reported.<br>
+    ![Unknown route warning](https://github.com/varabyte/media/raw/main/kobweb-intellij-plugin/0.8.0/route-not-found.png)
+  - [Redirects in `.kobweb/conf.yaml`](https://kobweb.varabyte.com/docs/concepts/foundation/redirects) are followed the
+    same way Kobweb follows them.
+- **Layouts.** `@Layout` paths get code completion, Cmd/Ctrl+click navigation, and warnings for paths that don't
+  actually lead to a layout. This can help demystify one of Kobweb's more advanced concepts.
+  - Pages that use a [default layout (from `@file:Layout`)](https://kobweb.varabyte.com/docs/concepts/foundation/layouts#default-layouts)
+    show it as an inlay hint.
+  - New intentions let you change a page's layout or opt out of the default one with `@NoLayout`.<br>
+    ![Choosing a layout](https://github.com/varabyte/media/raw/main/kobweb-intellij-plugin/0.8.0/choose-layout.png)
+  - Renaming or moving a layout (or its package) updates the `@Layout` paths that point to it.
+  - Redundant and conflicting layout annotations are reported.
+- **Icon previews.** Calls like [`FaHouse()`](https://fontawesome.com/icons/house?f=classic&s=solid) or
+  [`MsRocketLaunch()`](https://fonts.google.com/icons?icon.set=Material+Symbols&icon.query=rocket_launch&selected=Material+Symbols+Outlined:rocket_launch:&icon.style=Outlined) now show the icon itself in the gutter. Font Awesome,
+  Material Design Icons, Material Symbols, Lucide icons, and SVG icons (Silk's built-in ones like [`CloseIcon()`](https://github.com/varabyte/kobweb/blob/main/frontend/silk-widgets/src/jsMain/kotlin/com/varabyte/kobweb/silk/components/icons/CloseIcon.kt) and
+  even your own, defined with [`createIcon`](https://github.com/varabyte/kobweb/blob/bc54b5c03e97a05e571342be880f7a6d15ac95d8/frontend/silk-widgets/src/jsMain/kotlin/com/varabyte/kobweb/silk/components/icons/_Icons.kt#L34)) are supported.<br>
+  ![Lucide icons in the gutter](https://github.com/varabyte/media/raw/main/kobweb-intellij-plugin/0.8.0/icons-lucide.png)
+  - Click an icon in the gutter for a popup with a larger preview and, where relevant, options for changing its style
+    (e.g. outlined vs. filled).<br>
+    ![Choosing an icon style](https://github.com/varabyte/media/raw/main/kobweb-intellij-plugin/0.8.0/icons-mdi-popup.png)
+- **Workers.** The [`Worker` class that Kobweb generates](https://kobweb.varabyte.com/docs/concepts/foundation/workers#generated-worker)
+  from your `WorkerFactory` is now available in the IDE right away, without needing to build your project first.
+  - Find Usages and Rename on a factory include its worker too.
+  - We also warn if you use `remember { MyWorker(...) }` where `rememberWorker` should be used.
+- `.kobweb/conf.yaml` files now get Kobweb's schema applied (IntelliJ 2026.3+), even when your site lives in a
+  subfolder.
+
+### Fixed
+
+- Many fixes to the Extract CSS Style wizard, which now handles more modifier chains correctly, such as ones that use
+  `colorMode`, repeat a modifier, or continue with non-`Modifier` calls (e.g. `.toAttrs()`).
+- Color previews now handle HSL colors correctly, as well as out-of-range values and named arguments in any order.
+- Modifiers returned from annotated lambdas are no longer reported as unused.
+- Fixed a crash when renaming folders in a Kobweb project.
+
 ## [0.2.6]
 
 This is the first plugin release where we've added substantial features to help highlight and resolve commonly faced
