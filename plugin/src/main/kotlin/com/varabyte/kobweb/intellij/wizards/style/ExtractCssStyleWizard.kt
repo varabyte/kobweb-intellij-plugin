@@ -56,6 +56,7 @@ import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
 import org.jetbrains.kotlin.analysis.api.symbols.*
 import org.jetbrains.kotlin.analysis.api.types.symbol
+import org.jetbrains.kotlin.idea.base.codeInsight.ShortenReferencesFacility
 import org.jetbrains.kotlin.idea.base.psi.childrenDfsSequence
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.name.FqName
@@ -80,7 +81,8 @@ class ModifierChainInfo(val entries: List<Entry>, val chainTerminator: KtCallExp
     ) {
         class Parameter(
             val name: String,
-            val type: Type,
+            /** This parameter's (non-nullable) type, written with fully qualified names, e.g. `kotlin.Number` */
+            val type: String,
             val value: Value?,
             val isVararg: Boolean, // If true, `value.text` will look like `"10, 20, 30"`
         ) {
@@ -95,17 +97,6 @@ class ModifierChainInfo(val entries: List<Entry>, val chainTerminator: KtCallExp
                 val isNamed: Boolean get() = arguments.first().isNamed()
                 val text: String get() = arguments.joinToString(", ") { it.valueText }
             }
-
-            class Type(
-                /**
-                 * All import paths needed by this type.
-                 *
-                 * This is usually a single value, but it can be multiple values if the target type is a generic value, as
-                 * some of the types represent generic parameters.
-                 */
-                val imports: Set<String>,
-                val rendered: String,
-            )
 
             fun isLocallyBound() = value != null && value.isLocallyBound
         }
@@ -169,32 +160,16 @@ fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaS
                 @OptIn(KaExperimentalApi::class)
                 val paramType = if (paramSymbol.returnType.symbol != null) {
                     // Even if the parameter itself is nullable, we just want the underlying non-nullable type, since
-                    // we may want to import it, use its type with StyleVariable, etc.
-                    val paramSymbolReturnType = paramSymbol.returnType.withNullability(isMarkedNullable = false)
-
-                    // There HAS to be a better way than this, but I fought the IntelliJ APIs and could not find
-                    // a way that worked with generic types, regular types, AND type-alias values. So what I do for
-                    // now is "parse" the fqns out of the qualified-name version of the render.
-                    val qualifiedRender = paramSymbolReturnType.render(
+                    // we use it as the type of a StyleVariable
+                    paramSymbol.returnType.withNullability(isMarkedNullable = false).render(
                         KaTypeRendererForSource.WITH_QUALIFIED_NAMES,
                         position = Variance.INVARIANT
-                    )
-
-                    ModifierChainInfo.Entry.Parameter.Type(
-                        qualifiedRender.split(Regex("[<>, ]")).filter { it.isNotBlank() && it.trim() !in setOf("*", "in", "out") }.toSet(),
-                        paramSymbolReturnType.render(
-                            KaTypeRendererForSource.WITH_SHORT_NAMES,
-                            position = Variance.INVARIANT
-                        )
                     )
                 } else null
 
                 ModifierChainInfo.Entry.Parameter(
                     paramSymbol.name.asString(),
-                    paramType ?: ModifierChainInfo.Entry.Parameter.Type(
-                        setOf(STYLE_PROPERTY_VALUE_CLASS_ID.asFqNameString()),
-                        STYLE_PROPERTY_VALUE_CLASS_ID.shortClassName.asString()
-                    ),
+                    paramType ?: STYLE_PROPERTY_VALUE_CLASS_ID.asFqNameString(),
                     paramValue,
                     paramSymbol.isVararg,
                 )
@@ -1040,15 +1015,9 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
         if (useConciseSyntax) {
             importsBuilder.add("com.varabyte.kobweb.silk.style.base")
         }
-        val styleVariables = extractStyleVariables()
-        if (styleVariables.isNotEmpty()) {
+        if (extractStyleVariables().isNotEmpty()) {
             importsBuilder.add("com.varabyte.kobweb.compose.css.StyleVariable")
             importsBuilder.add("com.varabyte.kobweb.compose.ui.modifiers.setVariable")
-            styleVariables.forEach { (parameter, _) ->
-                parameter.type.imports.forEach { fqn ->
-                    importsBuilder.add(fqn)
-                }
-            }
         }
         importsBuilder.map { FqName(it) }
     }
@@ -1111,7 +1080,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
 
         return buildString {
             extractStyleVariables().forEach { (parameter, varName) ->
-                appendLine("private val $varName by StyleVariable<${parameter.type.rendered}>()")
+                appendLine("private val $varName by StyleVariable<${parameter.type}>()")
             }
             append("val $styleName = CssStyle")
             if (useConciseSyntax) {
@@ -1206,11 +1175,19 @@ fun ExtractCssStyleWizard.Result.performRefactoring(
                 val anchor = topLevelDeclaration ?: ktFile.declarations.firstOrNull()
 
                 for (declaration in dummyFile.declarations) {
-                    if (anchor != null) {
-                        ktFile.addBefore(declaration, anchor)
-                        ktFile.addBefore(psiFactory.createNewLine(), anchor)
+                    val added = if (anchor != null) {
+                        ktFile.addBefore(declaration, anchor).also {
+                            ktFile.addBefore(psiFactory.createNewLine(), anchor)
+                        }
                     } else {
                         ktFile.add(declaration)
+                    }
+                    // StyleVariable declarations (the only delegated ones) write their types with fully qualified
+                    // names, so let the IDE shorten them, adding imports only where needed. For example,
+                    // `StyleVariable<org.jetbrains.compose.web.css.CSSColorValue>` becomes
+                    // `StyleVariable<CSSColorValue>`, plus an import at the top of the file (unless it's already there).
+                    (added as? KtProperty)?.takeIf { it.hasDelegate() }?.let {
+                        ShortenReferencesFacility.getInstance().shorten(it)
                     }
                 }
 

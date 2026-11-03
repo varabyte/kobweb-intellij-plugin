@@ -1183,4 +1183,44 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             """.trimIndent(),
         )
     }
+
+    // Kotlin imports system classes by default, so we don't need to manually add imports for those cases
+    fun testDefaultImportsAreNotAdded() {
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = true) },
+            // Before
+            """
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+
+            @Composable
+            fun SomePage() {
+                val opacity = 0.5
+                M<caret>odifier.opacity(opacity)
+            }
+            """.trimIndent(),
+            // After
+            """
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.css.StyleVariable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.base
+            import com.varabyte.kobweb.silk.style.toModifier
+
+            private val MyStyle_OpacityVar by StyleVariable<Number>()
+            val MyStyle = CssStyle.base {
+                Modifier.opacity(MyStyle_OpacityVar.value())
+            }
+
+            @Composable
+            fun SomePage() {
+                val opacity = 0.5
+                MyStyle.toModifier().setVariable(MyStyle_OpacityVar, opacity)
+            }
+            """.trimIndent(),
+        )
+    }
 }
