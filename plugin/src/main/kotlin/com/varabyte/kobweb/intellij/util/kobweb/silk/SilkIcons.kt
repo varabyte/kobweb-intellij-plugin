@@ -3,6 +3,7 @@ package com.varabyte.kobweb.intellij.util.kobweb.silk
 import com.intellij.openapi.roots.ProjectFileIndex
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.resolution.successfulFunctionCallOrNull
+import org.jetbrains.kotlin.analysis.api.resolution.symbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaEnumEntrySymbol
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.idea.references.mainReference
@@ -166,14 +167,14 @@ class SilkIconCall(
 context(kaSession: KaSession)
 fun KtCallExpression.asSilkIconCall(): SilkIconCall? = with(kaSession) {
     val call = resolveToCall()?.successfulFunctionCallOrNull() ?: return null
-    val callableId = call.partiallyAppliedSymbol.signature.symbol.callableId ?: return null
+    val callableId = call.symbol.callableId ?: return null
     if (callableId.classId != null) return null
 
     val iconSet = SilkIconSet.entries.find { it.packageName == callableId.packageName } ?: return null
     val functionName = callableId.callableName.asString()
     if (!functionName.startsWith(iconSet.functionPrefix) || functionName in iconSet.helperFunctions) return null
 
-    val styleParameter = call.partiallyAppliedSymbol.signature.valueParameters.find { it.name.asString() == "style" }
+    val styleParameter = call.symbol.valueParameters.find { it.name.asString() == "style" }
     // A type alias (e.g. a deprecated old name for the enum) is already expanded to the class it stands for here
     val styleEnum = (styleParameter?.returnType as? KaClassType)?.classId?.asSingleFqName()
     val styleExpression =

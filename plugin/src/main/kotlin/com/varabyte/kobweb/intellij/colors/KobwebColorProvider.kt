@@ -12,6 +12,7 @@ import com.varabyte.kobweb.intellij.util.psi.hasCustomGetter
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.base.KaConstantValue
 import org.jetbrains.kotlin.analysis.api.resolution.successfulFunctionCallOrNull
+import org.jetbrains.kotlin.analysis.api.resolution.symbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.lexer.KtTokens
@@ -353,7 +354,7 @@ private fun KtCallExpression.tryParseKobwebColorFunctionColor(): Color? {
             ?: return@analyze
         val call = ktExpression.resolveToCall()?.successfulFunctionCallOrNull() ?: return@analyze
         // Put arguments in parameter order, since named arguments can be written in any order
-        val parameters = call.partiallyAppliedSymbol.signature.valueParameters.map { it.symbol }
+        val parameters = call.symbol.valueParameters
         val functionArgs = call.argumentMapping.entries
             .sortedBy { (_, parameter) -> parameters.indexOf(parameter.symbol) }
             .map { (argument, _) -> argument }

@@ -6,6 +6,7 @@ import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.base.KaConstantValue
 import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
+import org.jetbrains.kotlin.analysis.api.resolution.symbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
 import org.jetbrains.kotlin.analysis.api.types.KaType
@@ -196,7 +197,7 @@ private fun KtNamedFunction.findWebModifierTypeRecursively(
 
         for (call in calls) {
             val resolvedCall = call.resolveToCall()?.singleFunctionCallOrNull() ?: continue
-            val symbol = resolvedCall.partiallyAppliedSymbol.signature.symbol
+            val symbol = resolvedCall.symbol
             val callFqName = symbol.callableId?.asSingleFqName() ?: continue
 
             when (callFqName) {
@@ -288,7 +289,7 @@ private fun KtNamedFunction.findWebNamesRecursively(
 
         for (call in calls) {
             val resolvedCall = call.resolveToCall()?.singleFunctionCallOrNull() ?: continue
-            val symbol = resolvedCall.partiallyAppliedSymbol.signature.symbol
+            val symbol = resolvedCall.symbol
             val callFqName = symbol.callableId?.asSingleFqName()
 
             when (callFqName) {
@@ -368,7 +369,7 @@ private fun extractEventNameFromRegistration(call: KtCallExpression): String? = 
     val namedListenerType = buildClassType(NAMED_EVENT_LISTENER_CLASS_ID)
     for (candidateCall in allCalls) {
         val resolvedCall = candidateCall.resolveToCall()?.singleFunctionCallOrNull() ?: continue
-        val symbol = resolvedCall.partiallyAppliedSymbol.signature.symbol
+        val symbol = resolvedCall.symbol
 
         // Check if the constructed type / return type implements NamedEventListener
         val returnType = symbol.returnType
