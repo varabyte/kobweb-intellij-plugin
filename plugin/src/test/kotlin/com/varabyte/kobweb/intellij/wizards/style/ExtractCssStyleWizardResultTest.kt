@@ -66,10 +66,10 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.modifiers.*
             import com.varabyte.kobweb.compose.ui.graphics.Colors
-            import org.jetbrains.compose.web.css.percent
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.base
             import com.varabyte.kobweb.silk.style.toModifier
+            import org.jetbrains.compose.web.css.percent
 
             val MyStyle = CssStyle.base {
                 Modifier
@@ -107,9 +107,9 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.modifiers.*
             import com.varabyte.kobweb.compose.ui.graphics.Colors
-            import org.jetbrains.compose.web.css.percent
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.toModifier
+            import org.jetbrains.compose.web.css.percent
 
             val MyStyle = CssStyle {
                 base {
@@ -152,10 +152,10 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.modifiers.*
             import com.varabyte.kobweb.compose.ui.graphics.Colors
-            import org.jetbrains.compose.web.css.percent
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.base
             import com.varabyte.kobweb.silk.style.toModifier
+            import org.jetbrains.compose.web.css.percent
 
             fun produceSize() = 70.percent
             val THEME_COLOR = Colors.Green
@@ -196,16 +196,15 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             // After
             """
             import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.css.CSSLengthOrPercentageNumericValue
+            import com.varabyte.kobweb.compose.css.StyleVariable
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.modifiers.*
             import com.varabyte.kobweb.compose.ui.graphics.Colors
-            import org.jetbrains.compose.web.css.percent
-            import com.varabyte.kobweb.compose.css.CSSLengthOrPercentageNumericValue
-            import com.varabyte.kobweb.compose.css.StyleVariable
-            import com.varabyte.kobweb.compose.ui.modifiers.setVariable
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.toModifier
             import org.jetbrains.compose.web.css.CSSColorValue
+            import org.jetbrains.compose.web.css.percent
             
             private val MyStyle_WidthVar by StyleVariable<CSSLengthOrPercentageNumericValue>()
             private val MyStyle_ColorVar by StyleVariable<CSSColorValue>()
@@ -262,16 +261,15 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             // After
             """
             import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.css.CSSLengthOrPercentageNumericValue
+            import com.varabyte.kobweb.compose.css.StyleVariable
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.modifiers.*
             import com.varabyte.kobweb.compose.ui.graphics.Colors
-            import org.jetbrains.compose.web.css.percent
-            import org.jetbrains.compose.web.css.px
-            import com.varabyte.kobweb.compose.css.CSSLengthOrPercentageNumericValue
-            import com.varabyte.kobweb.compose.css.StyleVariable
-            import com.varabyte.kobweb.compose.ui.modifiers.setVariable
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.toModifier
+            import org.jetbrains.compose.web.css.percent
+            import org.jetbrains.compose.web.css.px
             
             abstract class MyWidgetBase {
                 val height = 100.px
@@ -326,9 +324,9 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.modifiers.*
-            import org.jetbrains.compose.web.css.percent
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.toModifier
+            import org.jetbrains.compose.web.css.percent
 
             val MyStyle = CssStyle(extraModifier = { Modifier.id("hi").tabIndex(0) }) {
                 base {
@@ -364,9 +362,9 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.modifiers.*
-            import org.jetbrains.compose.web.css.percent
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.toModifier
+            import org.jetbrains.compose.web.css.percent
 
             val MyStyle = CssStyle {
                 base {
@@ -405,9 +403,9 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.modifiers.*
-            import org.jetbrains.compose.web.css.percent
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.toModifier
+            import org.jetbrains.compose.web.css.percent
 
             val MyStyle = CssStyle(extraModifier = { Modifier.id("hi") }) {
                 base {
@@ -451,11 +449,11 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.modifiers.*
-            import com.varabyte.kobweb.silk.theme.colors.ColorMode
-            import org.jetbrains.compose.web.css.percent
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.base
             import com.varabyte.kobweb.silk.style.toModifier
+            import com.varabyte.kobweb.silk.theme.colors.ColorMode
+            import org.jetbrains.compose.web.css.percent
 
             @Composable
             fun produceId() = "hi"
@@ -498,10 +496,10 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.modifiers.*
-            import org.jetbrains.compose.web.css.percent
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.base
             import com.varabyte.kobweb.silk.style.toModifier
+            import org.jetbrains.compose.web.css.percent
 
             fun Modifier.unchanged(): Modifier = this
 
@@ -538,15 +536,14 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             // After
             """
             import androidx.compose.runtime.Composable
-            import com.varabyte.kobweb.compose.ui.Modifier
-            import com.varabyte.kobweb.compose.ui.modifiers.*
-            import org.jetbrains.compose.web.css.px
             import com.varabyte.kobweb.compose.css.CSSLengthOrPercentageNumericValue
             import com.varabyte.kobweb.compose.css.StyleVariable
-            import com.varabyte.kobweb.compose.ui.modifiers.setVariable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.base
             import com.varabyte.kobweb.silk.style.toModifier
+            import org.jetbrains.compose.web.css.px
 
             private val MyStyle_MarginTopVar by StyleVariable<CSSLengthOrPercentageNumericValue>()
             val MyStyle = CssStyle.base {
@@ -692,15 +689,14 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             // After
             """
             import androidx.compose.runtime.Composable
-            import com.varabyte.kobweb.compose.ui.Modifier
-            import com.varabyte.kobweb.compose.ui.modifiers.*
-            import org.jetbrains.compose.web.css.px
             import com.varabyte.kobweb.compose.css.CSSLengthOrPercentageNumericValue
             import com.varabyte.kobweb.compose.css.StyleVariable
-            import com.varabyte.kobweb.compose.ui.modifiers.setVariable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.base
             import com.varabyte.kobweb.silk.style.toModifier
+            import org.jetbrains.compose.web.css.px
 
             @get:Composable
             private val PADDING_RIGHT get() = 10.px
@@ -760,18 +756,17 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             // After
             """
             import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.css.CSSLengthNumericValue
+            import com.varabyte.kobweb.compose.css.StyleVariable
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.modifiers.*
             import com.varabyte.kobweb.compose.ui.graphics.Colors
-            import com.varabyte.kobweb.silk.theme.colors.ColorMode
-            import org.jetbrains.compose.web.css.CSSColorValue
-            import org.jetbrains.compose.web.css.px
-            import com.varabyte.kobweb.compose.css.CSSLengthNumericValue
-            import com.varabyte.kobweb.compose.css.StyleVariable
-            import com.varabyte.kobweb.compose.ui.modifiers.setVariable
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.base
             import com.varabyte.kobweb.silk.style.toModifier
+            import com.varabyte.kobweb.silk.theme.colors.ColorMode
+            import org.jetbrains.compose.web.css.CSSColorValue
+            import org.jetbrains.compose.web.css.px
 
             private val MyStyle_BorderWidthVar by StyleVariable<CSSLengthNumericValue>()
             val MyStyle = CssStyle.base {
@@ -826,17 +821,16 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             // After
             """
             import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.css.StyleVariable
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.modifiers.*
             import com.varabyte.kobweb.compose.ui.graphics.Colors
-            import com.varabyte.kobweb.silk.theme.colors.ColorMode
-            import kotlin.random.Random
-            import org.jetbrains.compose.web.css.CSSColorValue
-            import com.varabyte.kobweb.compose.css.StyleVariable
-            import com.varabyte.kobweb.compose.ui.modifiers.setVariable
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.base
             import com.varabyte.kobweb.silk.style.toModifier
+            import com.varabyte.kobweb.silk.theme.colors.ColorMode
+            import kotlin.random.Random
+            import org.jetbrains.compose.web.css.CSSColorValue
 
             private val MyStyle_ColorVar by StyleVariable<CSSColorValue>()
             private val MyStyle_BackgroundColorVar by StyleVariable<CSSColorValue>()
@@ -888,16 +882,15 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             // After
             """
             import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.css.StyleVariable
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.modifiers.*
             import com.varabyte.kobweb.compose.ui.graphics.Colors
-            import com.varabyte.kobweb.silk.theme.colors.ColorMode
-            import org.jetbrains.compose.web.css.CSSColorValue
-            import com.varabyte.kobweb.compose.css.StyleVariable
-            import com.varabyte.kobweb.compose.ui.modifiers.setVariable
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.base
             import com.varabyte.kobweb.silk.style.toModifier
+            import com.varabyte.kobweb.silk.theme.colors.ColorMode
+            import org.jetbrains.compose.web.css.CSSColorValue
 
             private val MyStyle_ColorVar by StyleVariable<CSSColorValue>()
             val MyStyle = CssStyle.base {
@@ -936,11 +929,11 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import androidx.compose.runtime.*
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.modifiers.*
-            import com.varabyte.kobweb.silk.theme.colors.ColorMode
-            import org.jetbrains.compose.web.css.percent
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.base
             import com.varabyte.kobweb.silk.style.toModifier
+            import com.varabyte.kobweb.silk.theme.colors.ColorMode
+            import org.jetbrains.compose.web.css.percent
 
             val MyStyle = CssStyle.base {
                 Modifier.width(50.percent)
@@ -985,10 +978,10 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.modifiers.*
             import com.varabyte.kobweb.compose.ui.graphics.Colors
-            import org.jetbrains.compose.web.css.CSSColorValue
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.base
             import com.varabyte.kobweb.silk.style.toModifier
+            import org.jetbrains.compose.web.css.CSSColorValue
     
             val activeColorState = object : MutableState<CSSColorValue> {
                 override var value: CSSColorValue = Colors.Red
@@ -1036,10 +1029,10 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.modifiers.*
             import com.varabyte.kobweb.compose.ui.graphics.Colors
-            import org.jetbrains.compose.web.css.percent
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.base
             import com.varabyte.kobweb.silk.style.toModifier
+            import org.jetbrains.compose.web.css.percent
 
             val MyStyle = CssStyle.base {
                 Modifier
@@ -1084,10 +1077,10 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.modifiers.*
-            import org.jetbrains.compose.web.css.percent
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.base
             import com.varabyte.kobweb.silk.style.toModifier
+            import org.jetbrains.compose.web.css.percent
 
             val MyStyle = CssStyle.base {
                 Modifier
@@ -1127,10 +1120,10 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.modifiers.*
-            import org.jetbrains.compose.web.css.percent
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.base
             import com.varabyte.kobweb.silk.style.toModifier
+            import org.jetbrains.compose.web.css.percent
 
             val MyStyle = CssStyle.base(extraModifier = {
                 Modifier
@@ -1173,10 +1166,10 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
             import com.varabyte.kobweb.compose.ui.modifiers.*
-            import org.jetbrains.compose.web.css.percent
             import com.varabyte.kobweb.silk.style.CssStyle
             import com.varabyte.kobweb.silk.style.base
             import com.varabyte.kobweb.silk.style.toModifier
+            import org.jetbrains.compose.web.css.percent
 
             val MyStyle = CssStyle.base {
                 Modifier.width(70.percent) // Trailing comment moved

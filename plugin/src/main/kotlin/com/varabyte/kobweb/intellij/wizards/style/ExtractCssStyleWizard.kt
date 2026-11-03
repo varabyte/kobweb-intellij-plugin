@@ -39,6 +39,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.style.CSS_STYLE_SUFFIX
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleNameWarningValidator
 import com.varabyte.kobweb.intellij.util.kobweb.style.createStyleNameErrorValidator
 import com.varabyte.kobweb.intellij.util.psi.AttachedComments
+import com.varabyte.kobweb.intellij.util.psi.addImportIfNeeded
 import com.varabyte.kobweb.intellij.util.psi.findAttachedComments
 import com.varabyte.kobweb.intellij.util.psi.getEntireDotQualifiedExpression
 import com.varabyte.kobweb.intellij.util.psi.resolvedClassId
@@ -1031,7 +1032,8 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
         }
     }
 
-    private fun ExtractCssStyleWizard.Result.imports(): List<FqName> {
+    /** Returns every import the extracted code needs, whether or not the file already has it. */
+    fun imports(): List<FqName> = with(result) {
         val importsBuilder = mutableSetOf<String>()
         importsBuilder.add("com.varabyte.kobweb.silk.style.CssStyle")
         importsBuilder.add("com.varabyte.kobweb.silk.style.toModifier")
@@ -1048,13 +1050,7 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
                 }
             }
         }
-        return importsBuilder.sorted().map { FqName(it) }
-    }
-
-    fun importLines(skipImports: Set<FqName>): List<String> = with(result) {
-        imports()
-            .filter { it !in skipImports }
-            .map { "import ${it.asString()}" }
+        importsBuilder.map { FqName(it) }
     }
 
     fun cssStyleLines(): List<String> = with(result) {
@@ -1203,15 +1199,7 @@ fun ExtractCssStyleWizard.Result.performRefactoring(
             // When we're done with the write action, `Modifier.a.b.c` will become `SomeCssStyle.toModifier()`
             val cssStyleToModifierElementPtr = WriteAction.compute<SmartPsiElementPointer<PsiElement>, Throwable> {
                 // First, add imports
-                val existingImports = ktFile.importDirectives.mapNotNull { it.importedFqName }.toSet()
-
-                val importStrs = codeGen.importLines(skipImports = existingImports).joinToString("\n")
-                val dummyImports = psiFactory.createFile(importStrs).importList!!
-                ktFile.importList?.apply {
-                    dummyImports.imports.forEach { add(it) }
-                } ?: run {
-                    ktFile.add(dummyImports)
-                }
+                codeGen.imports().forEach { ktFile.addImportIfNeeded(it) }
 
                 // Next, handle the Modifier -> CssStyle extraction
                 val dummyFile = psiFactory.createFile(codeGen.cssStyleLines().joinToString("\n"))
