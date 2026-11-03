@@ -2,6 +2,7 @@ package com.varabyte.kobweb.intellij.inspections.style
 
 import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.ProblemsHolder
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.psi.PsiElementVisitor
 import com.varabyte.kobweb.intellij.quickfixes.style.DeleteAttrModifierQuickFix
 import com.varabyte.kobweb.intellij.quickfixes.style.MoveAttrModifierToExtraModifierQuickFix
@@ -9,6 +10,7 @@ import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.WebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.modifier.getWebModifierType
 import com.varabyte.kobweb.intellij.util.kobweb.style.StyleSheetBlock
+import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.psi.KtCallExpression
@@ -92,23 +94,13 @@ class AttributeModifierInStyleSheetBlockInspection : LocalInspectionTool() {
 
                 holder.registerProblem(
                     expression,
-                    buildString {
-                        append("<html>")
-                        append("Attribute modifiers are not allowed in stylesheet declarations and will result in an exception when your site runs.")
-
-                        if (styleExtraModifierSuggestedFix != null) {
-                            appendLine()
-                            appendLine()
-                            appendLine("You can move this modifier to the <code>extraModifier</code> argument, like so:")
-
-                            append("<pre><code>")
-                            append(styleExtraModifierSuggestedFix)
-                            append("</code></pre>")
-                            append(' ')
-                            append("or you can remove it entirely, perhaps adding it where you convert this style into a modifier using <code>toModifier()</code>.")
-                        }
-
-                        append("</html>")
+                    if (styleExtraModifierSuggestedFix != null) {
+                        UxGlobals.textBundle.message(
+                            "inspection.attribute.modifier.in.style.sheet.block.extra.modifier.display.text",
+                            StringUtil.escapeXmlEntities(styleExtraModifierSuggestedFix),
+                        )
+                    } else {
+                        UxGlobals.textBundle.message("inspection.attribute.modifier.in.style.sheet.block.display.text")
                     },
                     *applicableQuickFixes.toTypedArray()
                 )

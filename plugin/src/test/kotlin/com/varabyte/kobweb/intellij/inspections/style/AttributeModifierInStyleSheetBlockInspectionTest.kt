@@ -2,9 +2,13 @@
 
 package com.varabyte.kobweb.intellij.inspections.style
 
+import com.intellij.lang.annotation.HighlightSeverity
+import com.varabyte.truthish.assertThat
 import com.varabyte.kobweb.intellij.inspections.KobwebInspectionTestBase
 import com.varabyte.kobweb.intellij.quickfixes.style.DeleteAttrModifierQuickFix
 import com.varabyte.kobweb.intellij.quickfixes.style.MoveAttrModifierToExtraModifierQuickFix
+import org.jetbrains.kotlin.analysis.api.permissions.KaAllowAnalysisOnEdt
+import org.jetbrains.kotlin.analysis.api.permissions.allowAnalysisOnEdt
 
 class AttributeModifierInStyleSheetBlockInspectionTest : KobwebInspectionTestBase() {
     override fun produceInspection() = AttributeModifierInStyleSheetBlockInspection()
@@ -128,5 +132,24 @@ class AttributeModifierInStyleSheetBlockInspectionTest : KobwebInspectionTestBas
             }
             """.trimIndent())
         )
+    }
+
+    @OptIn(KaAllowAnalysisOnEdt::class)
+    fun testMessageShowsSuggestedFixContainingHtmlCharacters() {
+        myFixture.enableInspections(produceInspection())
+        myFixture.configureByText(
+            "KobwebInspectionTest.kt",
+            """
+            import com.varabyte.kobweb.compose.ui.*
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.silk.style.*
+
+            val TestStyle = CssStyle.base {
+                Modifier.id("a<b")
+            }
+            """.trimIndent(),
+        )
+        val info = allowAnalysisOnEdt { myFixture.doHighlighting(HighlightSeverity.ERROR) }.single()
+        assertThat(info.description).contains("""CssStyle.base(extraModifier = { Modifier.id("a<b") })""")
     }
 }
