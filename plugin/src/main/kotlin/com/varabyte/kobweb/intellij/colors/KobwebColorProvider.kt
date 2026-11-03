@@ -456,7 +456,8 @@ private fun tryCreateHslColor(hue: Float, saturation: Float, lightness: Float): 
     // https://en.wikipedia.org/wiki/HSL_and_HSV#Color_conversion_formulae
     val chroma = (1 - abs(2 * lightness - 1)) * saturation
     val intermediateValue = chroma * (1 - abs(((hue / 60f) % 2) - 1))
-    val hueSection = hue.roundToInt() / 60
+    // Hue is in [0, 360), but `mod` can round a tiny negative hue up to exactly 360f
+    val hueSection = (hue / 60f).toInt().coerceAtMost(5)
     val r: Float
     val g: Float
     val b: Float

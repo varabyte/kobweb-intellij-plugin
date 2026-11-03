@@ -43,6 +43,25 @@ class KobwebColorProviderTest : KobwebLineMarkerTestBase() {
         )
     }
 
+    fun testHslColorWithFractionalHue() {
+        doTest(
+            """
+            import com.varabyte.kobweb.compose.ui.graphics.Color
+
+            private val ALMOST_YELLOW = Color.hsl(59.6f, 1f, 0.5f) $GUTTER_TAG
+            private val ALMOST_RED = Color.hsl(359.7f, 1f, 0.5f) $GUTTER_TAG
+            """.trimIndent(),
+            acceptLineMarker = { it.icon is ColorIcon },
+            assertLineMarker = { index, info ->
+                val expected = when (index) {
+                    0 -> Color(0xFFFD00)
+                    else -> Color(0xFF0001)
+                }
+                assertThat((info.icon as ColorIcon).iconColor).isEqualTo(expected)
+            }
+        )
+    }
+
     fun testHslColorWithOutOfRangeSaturationAndLightness() {
         doTest(
             """
