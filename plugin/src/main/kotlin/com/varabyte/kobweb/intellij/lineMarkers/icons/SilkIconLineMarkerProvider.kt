@@ -16,8 +16,8 @@ import com.varabyte.kobweb.intellij.util.kobweb.isInKobwebSource
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconSet
 import com.varabyte.kobweb.intellij.util.kobweb.silk.asSilkIconCall
-import com.varabyte.kobweb.intellij.util.kobweb.silk.asSilkSvgIconCall
-import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkSvgIconCall
+import com.varabyte.kobweb.intellij.util.kobweb.silk.asSvgIconCall
+import com.varabyte.kobweb.intellij.util.kobweb.silk.SvgIconCall
 import com.varabyte.kobweb.intellij.util.kobweb.silk.readSvgIconShape
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -27,8 +27,8 @@ import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
 
 /**
- * Shows a preview of the icon in the gutter next to calls like `FaHouse()`, `MsHome()`, or `ArrowBackIcon()`, and next
- * to calls to `createIcon` (where SVG icons, including the user's own, are defined).
+ * Shows a preview of the icon in the gutter next to calls like `FaHouse()`, `MsHome()`, and next to calls to Silk's
+ * SVG-defining `createIcon` method, as well as icons that delegate to it (e.g. `ArrowBackIcon()`).
  */
 class SilkIconLineMarkerProvider : LineMarkerProviderDescriptor() {
     override fun getName() = UxGlobals.textBundle.message("line.markers.icon.preview.name")
@@ -76,20 +76,21 @@ class SilkIconLineMarkerProvider : LineMarkerProviderDescriptor() {
     }
 
     /**
-     * A line marker for one of the SVG icons Silk defines in code (e.g. `ArrowBackIcon()`), or for a call to
-     * `createIcon`, where SVG icons are defined.
+     * A line marker for a call to an SVG icon, either one of Silk's (e.g. `ArrowBackIcon()`) or one defined in the
+     * user's own code, or for a call to `createIcon`, where SVG icons are defined.
      */
     private fun createSvgIconLineMarker(element: LeafPsiElement, call: KtCallExpression): LineMarkerInfo<*>? {
-        return when (val iconCall = call.asSilkSvgIconCall()) {
+        return when (val iconCall = call.asSvgIconCall()) {
             null -> null
-            SilkSvgIconCall.CreateIcon -> {
+            SvgIconCall.CreateIcon -> {
                 val shape = call.cachedSvgIconShape() ?: return null
                 createSvgIconLineMarker(element, shape, "Icon preview")
             }
 
-            is SilkSvgIconCall.Icon -> {
+            is SvgIconCall.NamedIcon -> {
                 val shape = iconCall.function.cachedSvgIconShape() ?: return null
-                createSvgIconLineMarker(element, shape, "Silk: ${iconCall.name}", iconCall.sourceUrl)
+                val sourceUrl = (iconCall as? SvgIconCall.SilkIcon)?.sourceUrl
+                createSvgIconLineMarker(element, shape, "Icon: ${iconCall.name}", sourceUrl)
             }
         }
     }

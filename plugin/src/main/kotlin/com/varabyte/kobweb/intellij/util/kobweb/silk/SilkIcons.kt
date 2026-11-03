@@ -1,5 +1,6 @@
 package com.varabyte.kobweb.intellij.util.kobweb.silk
 
+import com.intellij.openapi.roots.ProjectFileIndex
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.resolution.successfulFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.symbols.KaEnumEntrySymbol
@@ -206,33 +207,60 @@ fun KtCallExpression.asSilkIconCall(): SilkIconCall? = with(kaSession) {
 /** The package of the SVG icons Silk defines in code (e.g. `ArrowBackIcon`), as opposed to its icon font modules. */
 private val SILK_SVG_ICONS_PACKAGE = FqName("com.varabyte.kobweb.silk.components.icons")
 
-/** A call to a function in Silk's SVG icons package: one of its icons, or `createIcon`, which they're made with. */
-sealed interface SilkSvgIconCall {
+/**
+ * A call to an icon made with Silk's `createIcon`, or to `createIcon` itself.
+ *
+ * Icons are recognized by name (Kobweb's convention is that they end in "Icon", e.g. `ArrowBackIcon`), so that only
+ * calls that look like icons need to be resolved.
+ */
+sealed interface SvgIconCall {
     /** A call to `createIcon` itself, which is where an icon is defined, e.g. `createIcon { Path { ... } }`. */
-    data object CreateIcon : SilkSvgIconCall
+    data object CreateIcon : SvgIconCall
+
+    /**
+     * A call to an icon function, which is named after the icon, e.g. `ArrowBackIcon()`.
+     *
+     * @property function The icon's function, whose body defines the icon.
+     */
+    sealed class NamedIcon(val function: KtNamedFunction) : SvgIconCall {
+        /** The icon's name, e.g. "ArrowBack" for `ArrowBackIcon`. */
+        val name: String = function.name.orEmpty().removeSuffix("Icon")
+    }
 
     /**
      * A call to one of Silk's icons, e.g. `ArrowBackIcon()`.
      *
-     * @property function The icon's function, from Kobweb's sources when they're available, so its body can be read.
+     * Its [function] comes from Kobweb's sources when they're available, so its body can be read.
      */
-    class Icon(val function: KtNamedFunction) : SilkSvgIconCall {
-        /** The icon's name, e.g. "ArrowBack" for `ArrowBackIcon`. */
-        val name: String = function.name.orEmpty().removeSuffix("Icon")
-
+    class SilkIcon(function: KtNamedFunction) : NamedIcon(function) {
         /** A link to the icon's source in the Kobweb repo, where each icon has its own file. */
         val sourceUrl: String =
             "https://github.com/varabyte/kobweb/blob/main/frontend/silk-widgets/src/jsMain/kotlin/" +
                 "${SILK_SVG_ICONS_PACKAGE.asString().replace('.', '/')}/${function.containingFile.name}"
     }
+
+    /**
+     * A call to a function in the user's own code whose name looks like an icon's (i.e. it ends in "Icon").
+     *
+     * It's only really an icon if its body can be read as one (see [readSvgIconShape]).
+     */
+    class UserIcon(function: KtNamedFunction) : NamedIcon(function)
 }
 
-/** Returns information about this call if it's to one of Silk's SVG icons (e.g. `ArrowBackIcon()`) or `createIcon`. */
-fun KtCallExpression.asSilkSvgIconCall(): SilkSvgIconCall? {
+/** Returns information about this call if it's to an SVG icon (e.g. `ArrowBackIcon()`) or to `createIcon`. */
+fun KtCallExpression.asSvgIconCall(): SvgIconCall? {
     val callee = calleeExpression as? KtNameReferenceExpression ?: return null
+    // This includes `createIcon`
     if (!callee.getReferencedName().endsWith("Icon")) return null
     val function = callee.mainReference.resolve() as? KtNamedFunction ?: return null
-    if (!function.isTopLevel || function.containingKtFile.packageFqName != SILK_SVG_ICONS_PACKAGE) return null
-    if (function.name == "createIcon") return SilkSvgIconCall.CreateIcon
-    return SilkSvgIconCall.Icon(function.navigationElement as? KtNamedFunction ?: function)
+    // Silk declares `createIcon` and all of its icons as top-level functions in its icons package. (Calls to them can
+    // be anywhere.)
+    if (function.isTopLevel && function.containingKtFile.packageFqName == SILK_SVG_ICONS_PACKAGE) {
+        if (function.name == "createIcon") return SvgIconCall.CreateIcon
+        return SvgIconCall.SilkIcon(function.navigationElement as? KtNamedFunction ?: function)
+    }
+    // Only the user's own code, not libraries, since those would need their sources loaded just to check
+    val file = function.containingFile.virtualFile ?: return null
+    if (!ProjectFileIndex.getInstance(function.project).isInSourceContent(file)) return null
+    return SvgIconCall.UserIcon(function)
 }
