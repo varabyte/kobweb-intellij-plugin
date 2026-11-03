@@ -69,10 +69,11 @@ import javax.swing.JComponent
 /**
  * Extracted information about some target `Modifier.a(...).b(...).c(...)` chain.
  *
- * @param chainTerminator A final function on the chain which does not itself return a modifier. In other words, it ends
- *    the chain. We need to record it so we can make sure we put it back after our refactoring is complete.
+ * @param chainTerminator The first expression (usually a method, but could technically be a property) on the chain that
+ *    isn't a Modifier function, e.g. `toAttrs()`. In other words, it ends the chain, and it (along with anything after
+ *    it) is left alone by our refactoring.
  */
-class ModifierChainInfo(val entries: List<Entry>, val chainTerminator: KtCallExpression?) {
+class ModifierChainInfo(val entries: List<Entry>, val chainTerminator: KtExpression?) {
     class Entry(
         val webModifier: KtNamedFunction,
         val webModifierType: WebModifierType,
@@ -114,25 +115,24 @@ class ModifierChainInfo(val entries: List<Entry>, val chainTerminator: KtCallExp
 context(kaSession: KaSession)
 fun KtDotQualifiedExpression.toModifierChainInfo(): ModifierChainInfo = with(kaSession) {
     val chainedCalls = mutableListOf<Pair<KtNamedFunction, KtCallExpression>>()
-    var current: KtExpression? = this@toModifierChainInfo
-    var chainTerminator: KtCallExpression? = null
-    while (current is KtDotQualifiedExpression) {
-        val callExpression = (current.selectorExpression as? KtCallExpression)
+    // Walk the chain from `Modifier` outward, e.g. `Modifier.a()` then `Modifier.a().b()`
+    val dotExprs = generateSequence<KtExpression>(this@toModifierChainInfo) {
+        (it as? KtDotQualifiedExpression)?.receiverExpression
+    }.filterIsInstance<KtDotQualifiedExpression>().toList().asReversed()
+    var chainTerminator: KtExpression? = null
+    for (dotExpr in dotExprs) {
+        val callExpression = dotExpr.selectorExpression as? KtCallExpression
         val namedFun = callExpression
             ?.resolveToCall()
             ?.singleFunctionCallOrNull()
             ?.symbol?.psi
                 as? KtNamedFunction
 
-        if (namedFun != null) {
-            if (!namedFun.isModifierChainingFunction()) {
-                check(chainTerminator == null) { "There should only ever be at most one non-Modifier function in a Modifier chain (which, if present, terminates it!)"}
-                chainTerminator = callExpression
-            } else {
-                chainedCalls.add(0, namedFun to callExpression)
-            }
+        if (callExpression == null || namedFun == null || !namedFun.isModifierChainingFunction()) {
+            chainTerminator = dotExpr.selectorExpression
+            break
         }
-        current = current.receiverExpression
+        chainedCalls.add(namedFun to callExpression)
     }
 
     val entries = chainedCalls.map { (funcDefn, callExpr) ->
@@ -1141,7 +1141,6 @@ private class ExtractCssCodeGenerator(val result: ExtractCssStyleWizard.Result) 
                     append(')')
                 })
             }
-            extractionSupport.modifierChainInfo.chainTerminator?.let { chainTerminator -> add(chainTerminator.text) }
         }
 
         return buildString {
@@ -1216,17 +1215,26 @@ fun ExtractCssStyleWizard.Result.performRefactoring(
                 }
 
                 val replacementExpr = psiFactory.createExpression(codeGen.inlineModifierLines().joinToString("\n"))
-                val origInlineModifierExpr = modifierChainStart.getEntireDotQualifiedExpression()
+                // Only the Modifier chain itself is replaced, so any calls after it stay as the user wrote them.
+                // For example, in `Modifier.width(w).toAttrs().also { ... }`, only `Modifier.width(w)` is replaced.
+                val chainTerminator = extractionSupport.modifierChainInfo.chainTerminator
+                val modifierChainExpr = if (chainTerminator != null) {
+                    // e.g. `Modifier.width(w).toAttrs()`, whose receiver is `Modifier.width(w)`
+                    val terminatorDotExpr = chainTerminator.getQualifiedExpressionForSelector()!!
+                    terminatorDotExpr.receiverExpression
+                } else {
+                    modifierChainStart.getEntireDotQualifiedExpression()
+                }
 
                 // If there is a trailing comment after the end of the inline modifier which we will move over to
                 // the CssStyle block, delete it from here so it won't be duplicated in two places
-                val trailingComment = origInlineModifierExpr.findAttachedComments().trailing
+                val trailingComment = modifierChainExpr.findAttachedComments().trailing
                     ?.takeIf { psiComment ->
                         psiComment == modifiersToExtract().lastOrNull()?.attachedComments?.trailing
                     }
 
                 SmartPointerManager.getInstance(project).createSmartPsiElementPointer(
-                    origInlineModifierExpr.replace(replacementExpr).also {
+                    modifierChainExpr.replace(replacementExpr).also {
                         if (trailingComment != null) {
                             (trailingComment.prevSibling as? PsiWhiteSpace)?.delete()
                             trailingComment.delete()

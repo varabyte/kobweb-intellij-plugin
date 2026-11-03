@@ -1328,4 +1328,50 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             """.trimIndent(),
         )
     }
+
+    fun testCallsAfterTheModifierChainEndsAreKept() {
+        myFixture.addFileToProject(
+            "Describe.kt",
+            """
+            import com.varabyte.kobweb.compose.ui.Modifier
+
+            fun Modifier.describe() = toString()
+            """.trimIndent(),
+        )
+
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = true) },
+            // Before
+            """
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+
+            @Composable
+            fun SomePage() {
+                val description = M<caret>odifier.color(Colors.Red).describe().uppercase()
+            }
+            """.trimIndent(),
+            // After
+            """
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.graphics.Colors
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.base
+            import com.varabyte.kobweb.silk.style.toModifier
+
+            val MyStyle = CssStyle.base {
+                Modifier.color(Colors.Red)
+            }
+
+            @Composable
+            fun SomePage() {
+                val description = MyStyle.toModifier().describe().uppercase()
+            }
+            """.trimIndent(),
+        )
+    }
 }
