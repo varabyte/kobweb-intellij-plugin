@@ -60,6 +60,7 @@ import org.jetbrains.kotlin.idea.base.codeInsight.ShortenReferencesFacility
 import org.jetbrains.kotlin.idea.base.psi.childrenDfsSequence
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.getQualifiedExpressionForSelector
 import org.jetbrains.kotlin.types.Variance
@@ -231,10 +232,35 @@ class ModifierChainExtractionSupport(
     val modifierChainInfo: ModifierChainInfo,
     /** How each parameter value would be written inside the style block, if it can be computed there at all */
     val styleBlockTexts: Map<ModifierChainInfo.Entry.Parameter, String>,
+    /** The parameters whose values a StyleVariable could hold, should they need to be passed in that way */
+    val styleVariableCompatibleParameters: Set<ModifierChainInfo.Entry.Parameter>,
 )
 
 context(_: KaSession)
-fun ModifierChainInfo.toExtractionSupport() = ModifierChainExtractionSupport(this, transformValuesForStyleBlock())
+fun ModifierChainInfo.toExtractionSupport() = ModifierChainExtractionSupport(
+    this,
+    transformValuesForStyleBlock(),
+    findStyleVariableCompatibleParameters(),
+)
+
+/**
+ * Finds the parameters whose values a StyleVariable can hold, i.e. ones taking a single value (not a vararg) of a type
+ * that Kobweb's `StyleVariable` overloads accept: a `StylePropertyValue`, a `Number`, or a `String`.
+ */
+context(kaSession: KaSession)
+private fun ModifierChainInfo.findStyleVariableCompatibleParameters(): Set<ModifierChainInfo.Entry.Parameter> =
+    with(kaSession) {
+        val styleVariableClassIds =
+            listOf(STYLE_PROPERTY_VALUE_CLASS_ID, StandardClassIds.Number, StandardClassIds.String)
+        entries.flatMap { entry ->
+            entry.parameters.filter { parameter ->
+                if (parameter.isVararg) return@filter false
+                val ktParameter = entry.webModifier.valueParameters.single { it.name == parameter.name }
+                val type = ktParameter.symbol.returnType.withNullability(isMarkedNullable = false)
+                styleVariableClassIds.any { type.isSubtypeOf(it) }
+            }
+        }.toSet()
+    }
 
 /** Works out how each parameter value in this chain would be written inside a style block. */
 context(_: KaSession)
@@ -918,8 +944,9 @@ private fun ModifierChainExtractionSupport.needsStyleVariable(parameter: Modifie
 /** True if this modifier can be moved out of the call site, into the style block or `extraModifier` */
 private fun ModifierChainExtractionSupport.canExtract(entry: ModifierChainInfo.Entry): Boolean {
     return when (entry.webModifierType) {
-        // A StyleVariable can't hold the values of a vararg parameter
-        WebModifierType.STYLE -> entry.parameters.none { it.isVararg && needsStyleVariable(it) }
+        WebModifierType.STYLE -> entry.parameters.none {
+            needsStyleVariable(it) && it !in styleVariableCompatibleParameters
+        }
         WebModifierType.ATTRS -> !entry.hasLocallyBoundParameter()
         else -> false
     }

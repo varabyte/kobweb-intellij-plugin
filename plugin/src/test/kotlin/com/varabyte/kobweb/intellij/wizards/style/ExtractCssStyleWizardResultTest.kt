@@ -1223,4 +1223,55 @@ class ExtractCssStyleWizardResultTest : KobwebApplicationTestCase() {
             """.trimIndent(),
         )
     }
+
+    // Kobweb's StyleVariables can only hold CSS property values, numbers, and strings, so a locally bound value of any
+    // other type has to stay at the call site
+    fun testStyleModifiersWithValuesAStyleVariableCannotHoldAreNotExtracted() {
+        myFixture.addFileToProject(
+            "Highlighted.kt",
+            """
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.styleModifier
+
+            fun Modifier.highlighted(enabled: Boolean) = styleModifier {
+                property("outline-style", if (enabled) "solid" else "none")
+            }
+            """.trimIndent(),
+        )
+
+        doTest(
+            produceResult = { createResult("MyStyle", useConciseSyntax = true) },
+            // Before
+            """
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import org.jetbrains.compose.web.css.percent
+
+            @Composable
+            fun SomePage(enabled: Boolean) {
+                M<caret>odifier.width(70.percent).highlighted(enabled)
+            }
+            """.trimIndent(),
+            // After
+            """
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.base
+            import com.varabyte.kobweb.silk.style.toModifier
+            import org.jetbrains.compose.web.css.percent
+
+            val MyStyle = CssStyle.base {
+                Modifier.width(70.percent)
+            }
+
+            @Composable
+            fun SomePage(enabled: Boolean) {
+                MyStyle.toModifier().highlighted(enabled)
+            }
+            """.trimIndent(),
+        )
+    }
 }
