@@ -7,7 +7,10 @@ import com.varabyte.kobweb.intellij.test.fixtures.KobwebApplicationTestCase
 import com.varabyte.kobweb.intellij.test.util.analyzeOnEdt
 import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconSet
 import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconStyle
+import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkSvgIconCall
 import com.varabyte.kobweb.intellij.util.kobweb.silk.asSilkIconCall
+import com.varabyte.kobweb.intellij.util.kobweb.silk.asSilkSvgIconCall
+import com.varabyte.truthish.assertThat
 import org.intellij.lang.annotations.Language
 import org.jetbrains.kotlin.psi.KtCallExpression
 import java.awt.geom.Path2D
@@ -137,6 +140,24 @@ class SilkIconPopupTest : KobwebApplicationTestCase() {
 
             fun test() { FaSquare(Modifier, size = IconSize.LG) }
             """.trimIndent(),
+        )
+    }
+
+    fun testSvgIconLinksToItsSource() {
+        myFixture.configureByText(
+            "PopupTest.kt",
+            """
+            import com.varabyte.kobweb.silk.components.icons.*
+
+            fun test() { EyeIcon() }
+            """.trimIndent()
+        )
+        val call = PsiTreeUtil.findChildrenOfType(myFixture.file, KtCallExpression::class.java)
+            .single { it.calleeExpression?.text == "EyeIcon" }
+
+        assertThat((call.asSilkSvgIconCall() as? SilkSvgIconCall.Icon)?.sourceUrl).isEqualTo(
+            "https://github.com/varabyte/kobweb/blob/main/frontend/silk-widgets/src/jsMain/kotlin/" +
+                "com/varabyte/kobweb/silk/components/icons/EyeIcon.kt"
         )
     }
 }

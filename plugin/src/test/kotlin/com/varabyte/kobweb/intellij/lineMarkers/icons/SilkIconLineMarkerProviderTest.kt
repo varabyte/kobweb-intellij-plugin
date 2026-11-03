@@ -1,3 +1,5 @@
+@file:Suppress("FunctionName")
+
 package com.varabyte.kobweb.intellij.lineMarkers.icons
 
 import com.varabyte.kobweb.intellij.iconpreviews.IconSet
@@ -78,6 +80,119 @@ class SilkIconLineMarkerProviderTest : KobwebLineMarkerTestBase() {
             }
             """.trimIndent(),
             acceptLineMarker = { isIconPreview(it.lineMarkerTooltip) },
+        )
+    }
+
+    fun testGutterIconShownForSvgIconCalls() {
+        val expectedTooltips = listOf(
+            "Silk: ArrowBack",
+            "Silk: CheckCircle",
+            "Silk: Hamburger",
+            "Silk: Indeterminate",
+        )
+
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.icons.*
+
+            @Composable
+            fun SomePage() {
+                ArrowBackIcon() $GUTTER_TAG
+                CheckCircleIcon() $GUTTER_TAG
+                HamburgerIcon() $GUTTER_TAG
+                IndeterminateIcon() $GUTTER_TAG
+            }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip?.startsWith("Silk:") == true },
+            assertLineMarker = { index, marker ->
+                assertThat(marker.lineMarkerTooltip).isEqualTo(expectedTooltips[index])
+            }
+        )
+    }
+
+    // This is temporary and will probably be resolved in a followup commit
+    fun testGutterIconNotShownForSvgIconCallsOutsideOfSilk() {
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.icons.*
+
+            @Composable
+            fun ArrowBackLookalikeIcon() {
+                createIcon { Path { d("M20 11H7.83") } }
+            }
+
+            @Composable
+            fun SomePage() {
+                ArrowBackLookalikeIcon() // Not from Kobweb
+            }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip?.startsWith("Silk:") == true },
+        )
+    }
+
+    fun testGutterIconShownForCreateIconCalls() {
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.toAttrs
+            import com.varabyte.kobweb.silk.components.icons.*
+
+            @Composable
+            fun SmileyIcon(modifier: Modifier = Modifier) {
+                createIcon(renderStyle = IconRenderStyle.Stroke(2), attrs = modifier.toAttrs()) { $GUTTER_TAG
+                    Circle {
+                        cx(12)
+                        cy(12)
+                        r(10)
+                    }
+                    Path {
+                        strokeLineCap(SVGStrokeLineCap.Round)
+                        d("M8 14a4 4 0 0 0 8 0")
+                    }
+                }
+            }
+
+            @Composable
+            fun SomePage() {
+                createIcon { Path { d("M4 4h16v16H4z") } } $GUTTER_TAG
+            }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip == "Icon preview" },
+        )
+    }
+
+    fun testGutterIconNotShownForUnreadableCreateIconCalls() {
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+            import com.varabyte.kobweb.silk.components.icons.*
+
+            @Composable
+            fun MaybeFilledIcon(filled: Boolean) {
+                createIcon(renderStyle = IconRenderStyle.Fill()) {
+                    if (filled) Path { d("M4 4h16v16H4z") }
+                }
+            }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip == "Icon preview" },
+        )
+    }
+
+    fun testGutterIconNotShownForOtherCreateIconFunctions() {
+        doTest(
+            """
+            fun createIcon(content: () -> Unit) {}
+
+            fun SomeFunction() {
+                createIcon { }
+            }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip == "Icon preview" },
         )
     }
 }

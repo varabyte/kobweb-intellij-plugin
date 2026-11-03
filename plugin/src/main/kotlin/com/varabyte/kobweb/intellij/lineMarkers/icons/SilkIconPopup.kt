@@ -4,6 +4,7 @@ import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.DialogPanel
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.psi.PsiFile
 import com.intellij.ui.awt.RelativePoint
@@ -12,6 +13,7 @@ import com.intellij.ui.dsl.builder.Row
 import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.dsl.gridLayout.UnscaledGaps
 import com.intellij.util.ui.JBUI
+import com.varabyte.kobweb.intellij.iconpreviews.IconShape
 import com.varabyte.kobweb.intellij.services.icons.IconPreview
 import com.varabyte.kobweb.intellij.services.icons.findRenderedBy
 import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconCall
@@ -110,17 +112,8 @@ class SilkIconPopup(
                     BrowserUtil.browse(iconCall.iconSet.browserUrl(currentPreview.shape.name, currentPreview.style))
                 }
             }
-        }.apply {
-            // Keep content (especially the previews) from touching the edges of the popup
-            border = JBUI.Borders.empty(8, 12)
         }
-
-        JBPopupFactory.getInstance()
-            .createComponentPopupBuilder(content, null)
-            .setRequestFocus(true)
-            .setCancelOnClickOutside(true)
-            .createPopup()
-            .show(point)
+        content.showAsIconPopup(point)
     }
 
     /** Set the call's `style` argument to [style], or remove it if `null` (so the function's default is used). */
@@ -196,5 +189,36 @@ class SilkIconPopup(
             // A little extra breathing room between the preview and the radio button
             .customize(UnscaledGaps(right = 12))
 
-    private fun message(key: String, vararg params: Any) = UxGlobals.textBundle.message(key, *params)
 }
+
+/**
+ * A popup for an SVG icon, e.g. for a call to `ArrowBackIcon()` or to `createIcon` itself, showing the icon.
+ *
+ * @param sourceUrl A link to the icon's source, if it's somewhere other than the code the user is looking at.
+ */
+class SvgIconPopup(private val title: String, private val shape: IconShape, private val sourceUrl: String? = null) {
+    fun show(point: RelativePoint) {
+        panel {
+            row { label(title).bold() }
+            row { icon(IconShapeIcon(shape, PREVIEW_SIZE)) }
+            if (sourceUrl != null) {
+                separator()
+                row { link(message("popups.silk.icon.view.source")) { BrowserUtil.browse(sourceUrl) } }
+            }
+        }.showAsIconPopup(point)
+    }
+}
+
+private fun DialogPanel.showAsIconPopup(point: RelativePoint) {
+    // Keep content (especially the previews) from touching the edges of the popup
+    border = JBUI.Borders.empty(8, 12)
+
+    JBPopupFactory.getInstance()
+        .createComponentPopupBuilder(this, null)
+        .setRequestFocus(true)
+        .setCancelOnClickOutside(true)
+        .createPopup()
+        .show(point)
+}
+
+private fun message(key: String, vararg params: Any) = UxGlobals.textBundle.message(key, *params)
