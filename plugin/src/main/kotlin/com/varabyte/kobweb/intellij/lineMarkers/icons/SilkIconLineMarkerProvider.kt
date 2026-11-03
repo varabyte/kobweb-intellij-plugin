@@ -3,6 +3,7 @@ package com.varabyte.kobweb.intellij.lineMarkers.icons
 import com.intellij.codeInsight.daemon.LineMarkerInfo
 import com.intellij.codeInsight.daemon.LineMarkerProviderDescriptor
 import com.intellij.openapi.editor.markup.GutterIconRenderer
+import com.intellij.openapi.progress.ProgressManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
 import com.intellij.psi.util.CachedValueProvider
@@ -34,21 +35,53 @@ class SilkIconLineMarkerProvider : LineMarkerProviderDescriptor() {
     override fun getName() = UxGlobals.textBundle.message("line.markers.icon.preview.name")
     override fun getIcon() = UxGlobals.gutterIcon
 
-    override fun getLineMarkerInfo(element: PsiElement): LineMarkerInfo<*>? {
-        // Target the identifier leaf of the call's name, e.g. `FaHouse` in `FaHouse()`
-        if (element !is LeafPsiElement || element.elementType != KtTokens.IDENTIFIER) return null
-        val mayBeFontIcon = SilkIconSet.entries.any { element.text.startsWith(it.functionPrefix) }
-        // This includes `createIcon`
-        val mayBeSvgIcon = element.text.endsWith("Icon")
+    override fun getLineMarkerInfo(element: PsiElement) = createLineMarker(element, isSlowPass = false)
+
+    override fun collectSlowLineMarkers(elements: List<PsiElement>, result: MutableCollection<in LineMarkerInfo<*>>) {
+        for (element in elements) {
+            ProgressManager.checkCanceled()
+            createLineMarker(element, isSlowPass = true)?.let { result.add(it) }
+        }
+    }
+
+    /**
+     * Creates a line marker for [element] if it's the name of a call to an icon.
+     *
+     * Each pass handles different names, so no call gets two markers. Resolving a call is the expensive part, so names
+     * that are likely icons get handled in the fast pass, and the rest in the slow pass.
+     */
+    private fun createLineMarker(element: PsiElement, isSlowPass: Boolean): LineMarkerInfo<*>? {
+        if (element !is LeafPsiElement) return null
+        val name = element.text
+        val mayBeFontIcon = SilkIconSet.entries.any { name.startsWith(it.functionPrefix) }
+        // Kobweb's convention is to end SVG icon names in "Icon" (as with `createIcon` itself)
+        val mayBeSvgIcon = name.endsWith("Icon")
+        // Any other Composable might still be an icon, e.g. a user's `Logo()`. (Composable function names are
+        // capitalized by convention, which rules out most other calls, e.g. `remember` or `listOf`.)
+        val mayBeUnconventionalSvgIcon = !mayBeFontIcon && !mayBeSvgIcon && name.firstOrNull()?.isUpperCase() == true
+
+        if (isSlowPass) {
+            if (!mayBeUnconventionalSvgIcon) return null
+            return element.findCall()?.let { createSvgIconLineMarker(element, it) }
+        }
         if (!mayBeFontIcon && !mayBeSvgIcon) return null
-        val nameRef = element.parent as? KtNameReferenceExpression ?: return null
+        val call = element.findCall() ?: return null
+        if (mayBeFontIcon) createFontIconLineMarker(element, call)?.let { return it }
+        return if (mayBeSvgIcon) createSvgIconLineMarker(element, call) else null
+    }
+
+    /**
+     * Returns the call this is the name of (e.g. `FaHouse()` for `FaHouse`), if it's in code where previews should be
+     * shown.
+     */
+    private fun LeafPsiElement.findCall(): KtCallExpression? {
+        if (elementType != KtTokens.IDENTIFIER) return null
+        val nameRef = parent as? KtNameReferenceExpression ?: return null
         val call = nameRef.parent as? KtCallExpression ?: return null
         if (call.calleeExpression != nameRef) return null
         // Kobweb's own code counts too, so that icons defined there (e.g. in the Kobweb repo) get previews
-        if (!element.isInReadableKobwebProject() && !element.isInKobwebSource()) return null
-
-        if (mayBeFontIcon) createFontIconLineMarker(element, call)?.let { return it }
-        return if (mayBeSvgIcon) createSvgIconLineMarker(element, call) else null
+        if (!isInReadableKobwebProject() && !isInKobwebSource()) return null
+        return call
     }
 
     /** A line marker for an icon from one of Silk's icon font modules, e.g. `FaHouse()`. */

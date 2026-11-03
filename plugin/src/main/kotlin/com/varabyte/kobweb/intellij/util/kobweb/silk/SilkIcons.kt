@@ -240,18 +240,21 @@ sealed interface SvgIconCall {
     }
 
     /**
-     * A call to a function in the user's own code whose name looks like an icon's (i.e. it ends in "Icon").
+     * A call to a function in the user's own code, which may define an icon.
      *
      * It's only really an icon if its body can be read as one (see [readSvgIconShape]).
      */
     class UserIcon(function: KtNamedFunction) : NamedIcon(function)
 }
 
-/** Returns information about this call if it's to an SVG icon (e.g. `ArrowBackIcon()`) or to `createIcon`. */
+/**
+ * Returns information about this call if it's to an SVG icon (e.g. `ArrowBackIcon()`), or to `createIcon`.
+ *
+ * This resolves the call (which is expensive), so callers should first filter out calls that can't be icons (e.g. by
+ * name) where they can.
+ */
 fun KtCallExpression.asSvgIconCall(): SvgIconCall? {
     val callee = calleeExpression as? KtNameReferenceExpression ?: return null
-    // This includes `createIcon`
-    if (!callee.getReferencedName().endsWith("Icon")) return null
     val function = callee.mainReference.resolve() as? KtNamedFunction ?: return null
     // Silk declares `createIcon` and all of its icons as top-level functions in its icons package. (Calls to them can
     // be anywhere.)

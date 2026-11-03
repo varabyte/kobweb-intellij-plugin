@@ -244,4 +244,55 @@ class SilkIconLineMarkerProviderTest : KobwebLineMarkerTestBase() {
             acceptLineMarker = { it.lineMarkerTooltip?.startsWith("Icon:") == true },
         )
     }
+
+    fun testGutterIconShownForUserIconCallsWithoutIconSuffix() {
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+            import com.varabyte.kobweb.silk.components.icons.*
+
+            @Composable
+            fun Smiley() {
+                createIcon(renderStyle = IconRenderStyle.Stroke(2)) {
+                    Circle {
+                        cx(12)
+                        cy(12)
+                        r(10)
+                    }
+                }
+            }
+
+            @Composable
+            fun SomePage() {
+                Smiley() $GUTTER_TAG
+            }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip?.startsWith("Icon:") == true },
+            assertLineMarker = { _, marker ->
+                assertThat(marker.lineMarkerTooltip).isEqualTo("Icon: Smiley")
+            }
+        )
+    }
+
+    fun testGutterIconNotShownForOtherCallsWithoutIconSuffix() {
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.foundation.layout.Box
+
+            @Composable
+            fun Header() {
+                Box()
+            }
+
+            @Composable
+            fun SomePage() {
+                Header() // The user's own function, but not an icon
+                Box() // From a library
+            }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip?.startsWith("Icon:") == true },
+        )
+    }
 }
