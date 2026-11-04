@@ -4,8 +4,10 @@ import com.intellij.codeInsight.daemon.LineMarkerInfo
 import com.intellij.codeInsight.daemon.LineMarkerProviderDescriptor
 import com.intellij.openapi.editor.markup.GutterIconRenderer
 import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.util.Key
 import com.intellij.psi.PsiElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
+import com.intellij.psi.util.CachedValue
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiModificationTracker
@@ -47,8 +49,9 @@ class SilkIconLineMarkerProvider : LineMarkerProviderDescriptor() {
     /**
      * Creates a line marker for [element] if it's the name of a call to an icon.
      *
-     * Each pass handles different names, so no call gets two markers. Resolving a call is the expensive part, so names
-     * that are likely icons get handled in the fast pass, and the rest in the slow pass.
+     * Resolving calls is the expensive part, so the fast pass handles names that are likely icons, without following
+     * calls into other functions. The slow pass, in contrast, is willing to follow calls (see [readSvgIconShape]),
+     * but it skips any icons the fast pass already marked, so no call gets two markers.
      */
     private fun createLineMarker(element: PsiElement, isSlowPass: Boolean): LineMarkerInfo<*>? {
         if (element !is LeafPsiElement) return null
@@ -61,13 +64,15 @@ class SilkIconLineMarkerProvider : LineMarkerProviderDescriptor() {
         val mayBeUnconventionalSvgIcon = !mayBeFontIcon && !mayBeSvgIcon && name.firstOrNull()?.isUpperCase() == true
 
         if (isSlowPass) {
-            if (!mayBeUnconventionalSvgIcon) return null
-            return element.findCall()?.let { createSvgIconLineMarker(element, it) }
+            if (!mayBeSvgIcon && !mayBeUnconventionalSvgIcon) return null
+            val call = element.findCall() ?: return null
+            val isMarkedInFastPass = mayBeSvgIcon && createSvgIconLineMarker(element, call, followCalls = false) != null
+            return if (isMarkedInFastPass) null else createSvgIconLineMarker(element, call, followCalls = true)
         }
         if (!mayBeFontIcon && !mayBeSvgIcon) return null
         val call = element.findCall() ?: return null
         if (mayBeFontIcon) createFontIconLineMarker(element, call)?.let { return it }
-        return if (mayBeSvgIcon) createSvgIconLineMarker(element, call) else null
+        return if (mayBeSvgIcon) createSvgIconLineMarker(element, call, followCalls = false) else null
     }
 
     /**
@@ -111,8 +116,14 @@ class SilkIconLineMarkerProvider : LineMarkerProviderDescriptor() {
     /**
      * A line marker for a call to an SVG icon, either one of Silk's (e.g. `ArrowBackIcon()`) or one defined in the
      * user's own code, or for a call to `createIcon` or `Svg`, where SVG icons are defined.
+     *
+     * @param followCalls Whether to look for icons in the functions an icon function calls (see [readSvgIconShape]).
      */
-    private fun createSvgIconLineMarker(element: LeafPsiElement, call: KtCallExpression): LineMarkerInfo<*>? {
+    private fun createSvgIconLineMarker(
+        element: LeafPsiElement,
+        call: KtCallExpression,
+        followCalls: Boolean,
+    ): LineMarkerInfo<*>? {
         return when (val iconCall = call.asSvgIconCall()) {
             null -> null
             SvgIconCall.CreateIcon, SvgIconCall.Svg -> {
@@ -121,7 +132,7 @@ class SilkIconLineMarkerProvider : LineMarkerProviderDescriptor() {
             }
 
             is SvgIconCall.NamedIcon -> {
-                val shape = iconCall.function.cachedSvgIconShape() ?: return null
+                val shape = iconCall.function.cachedSvgIconShape(followCalls) ?: return null
                 val sourceUrl = (iconCall as? SvgIconCall.SilkIcon)?.sourceUrl
                 createSvgIconLineMarker(element, shape, "Icon: ${iconCall.name}", sourceUrl)
             }
@@ -151,13 +162,22 @@ class SilkIconLineMarkerProvider : LineMarkerProviderDescriptor() {
  *
  * The result is cached, as the gutter asks for it on every highlighting pass.
  */
-private fun KtNamedFunction.cachedSvgIconShape(): IconShape? = cachedOrNull { readSvgIconShape() }
+private fun KtNamedFunction.cachedSvgIconShape(followCalls: Boolean): IconShape? =
+    if (followCalls) {
+        cachedOrNull(SHAPE_KEY_DEEP_SEARCH) { readSvgIconShape(followCalls = true) }
+    } else {
+        cachedOrNull(SHAPE_KEY_SHALLOW_SEARCH) { readSvgIconShape(followCalls = false) }
+    }
 
 /** Like the [KtNamedFunction] version, but for a call to `createIcon` or `Svg`. */
-private fun KtCallExpression.cachedSvgIconShape(): IconShape? = cachedOrNull { readSvgIconShape() }
+private fun KtCallExpression.cachedSvgIconShape(): IconShape? =
+    cachedOrNull(SHAPE_KEY_SHALLOW_SEARCH) { readSvgIconShape() }
 
-private fun <T : PsiElement> T.cachedOrNull(read: T.() -> IconShape): IconShape? =
-    CachedValuesManager.getCachedValue(this) {
+private val SHAPE_KEY_SHALLOW_SEARCH = Key.create<CachedValue<IconShape?>>("kobweb.svgIconShape.shallowSearch")
+private val SHAPE_KEY_DEEP_SEARCH = Key.create<CachedValue<IconShape?>>("kobweb.svgIconShape.deepSearch")
+
+private fun <T : PsiElement> T.cachedOrNull(key: Key<CachedValue<IconShape?>>, read: T.() -> IconShape): IconShape? =
+    CachedValuesManager.getCachedValue(this, key) {
         val shape = try {
             read()
         } catch (_: IllegalArgumentException) {

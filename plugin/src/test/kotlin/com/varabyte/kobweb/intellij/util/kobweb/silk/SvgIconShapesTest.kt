@@ -647,6 +647,75 @@ class SvgIconShapesTest : KobwebApplicationTestCase() {
         }
     }
 
+    fun testFollowingCallsFindsAnIconInAnotherFunction() {
+        myFixture.configureByText(
+            "TestIcons.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+            import org.jetbrains.compose.web.dom.Span
+            import org.jetbrains.compose.web.dom.Text
+
+            @Composable
+            fun TestIcon() {
+                Span { SquareTestIcon() }
+                Text("Square")
+            }
+
+            @Composable
+            fun SquareTestIcon() {
+                Svg(attrs = { viewBox(0, 0, 24, 24) }) {
+                    Path { d("M4 4h16v16H4z") }
+                }
+            }
+            """.trimIndent(),
+        )
+        val function = (myFixture.file as KtFile).declarations.filterIsInstance<KtNamedFunction>()
+            .single { it.name == "TestIcon" }
+        assertThrows<IllegalArgumentException> { function.readSvgIconShape(followCalls = false) }
+
+        val icon = function.readSvgIconShape(followCalls = true)
+        assertThat(icon.name).isEqualTo("TestIcon")
+        icon.assertBounds(4.0, 4.0, 16.0, 16.0)
+    }
+
+    fun testFollowingCallsToMoreThanOneIconIsNotRead() {
+        myFixture.configureByText(
+            "TestIcons.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+            import org.jetbrains.compose.web.dom.Span
+
+            @Composable
+            fun TestIcon() {
+                Span { SquareTestIcon() }
+                SmallSquareTestIcon()
+            }
+
+            @Composable
+            fun SquareTestIcon() {
+                Svg(attrs = { viewBox(0, 0, 24, 24) }) {
+                    Path { d("M4 4h16v16H4z") }
+                }
+            }
+
+            @Composable
+            fun SmallSquareTestIcon() {
+                Svg(attrs = { viewBox(0, 0, 24, 24) }) {
+                    Path { d("M8 8h8v8H8z") }
+                }
+            }
+            """.trimIndent(),
+        )
+        assertThrows<IllegalArgumentException> {
+            (myFixture.file as KtFile).declarations.filterIsInstance<KtNamedFunction>()
+                .single { it.name == "TestIcon" }.readSvgIconShape(followCalls = true)
+        }
+    }
+
     fun testUnsupportedCodeFailsTheWholeIcon() {
         // An `if`, even alongside elements that could be read
         myFixture.configureByText(

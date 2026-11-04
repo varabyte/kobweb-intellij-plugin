@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.psi.KtBlockExpression
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtConstantExpression
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
+import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtEscapeStringTemplateEntry
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtForExpression
@@ -22,8 +23,8 @@ import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParenthesizedExpression
 import org.jetbrains.kotlin.psi.KtPrefixExpression
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
+import org.jetbrains.kotlin.psi.KtTreeVisitorVoid
 import org.jetbrains.kotlin.psi.KtValueArgument
-import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 import java.awt.BasicStroke
 import java.awt.Shape
@@ -44,6 +45,8 @@ private const val MAX_DELEGATION_DEPTH = 3
  * long as it's the only one. A function without one can instead call another icon, possibly wrapped in elements (e.g.
  * `Span { GitHubIcon() }`).
  *
+ * With [followCalls], the search also looks inside the icons this function calls (those whose names end in "Icon").
+ *
  * This reads the source as written rather than running it, so it only understands the SVG elements, attributes, and
  * statements that Kobweb's icons use. Anything else fails the whole read, rather than leaving parts of the icon out.
  *
@@ -52,9 +55,9 @@ private const val MAX_DELEGATION_DEPTH = 3
  * @throws IllegalArgumentException if the function's body can't be read, e.g. because it does something other than
  *   call `createIcon` or `Svg`, or uses code this doesn't understand.
  */
-fun KtNamedFunction.readSvgIconShape(): IconShape {
+fun KtNamedFunction.readSvgIconShape(followCalls: Boolean = false): IconShape {
     val name = name ?: unsupported(this, "an unnamed function")
-    return readIconFunction(depth = 0).let { IconShape(name, it.width, it.path) }
+    return readIconFunction(depth = 0, followCalls).let { IconShape(name, it.width, it.path) }
 }
 
 /**
@@ -102,36 +105,61 @@ private data class Presentation(
  */
 private data class Scope(val presentation: Presentation, val variables: Map<String, Double> = emptyMap())
 
-private fun KtNamedFunction.readIconFunction(depth: Int): IconShape {
+private fun KtNamedFunction.readIconFunction(depth: Int, followCalls: Boolean): IconShape {
     val body = bodyExpression ?: unsupported(this, "a function without a body")
 
     // An icon drawn anywhere in the function, e.g. `Span { Svg(...) }`, even alongside other content such as a tooltip.
     // Other elements around it (and their modifiers) are ignored, as they don't change the icon's shape.
-    val roots = body.collectDescendantsOfType<KtCallExpression> { it.isIconRoot }
+    val roots = body.collectIconRoots(depth, followCalls)
     if (roots.size > 1) unsupported(this, "more than one `createIcon` or `Svg` call")
     roots.singleOrNull()?.readIconRoot()?.let { return it }
 
     val call = (bodyBlockExpression?.statements?.singleOrNull() ?: body) as? KtCallExpression
         ?: unsupported(this, "a body that isn't a single call")
-    return call.readIconCall(depth)
+    return call.readIconCall(depth, followCalls)
+}
+
+/**
+ * Finds the calls in this code that draw an icon's SVG themselves (see [readIconRoot]), and, with [followCalls], those
+ * in the icons it calls (see [readSvgIconShape]).
+ */
+private fun KtElement.collectIconRoots(depth: Int, followCalls: Boolean): List<KtCallExpression> {
+    val roots = mutableListOf<KtCallExpression>()
+    accept(object : KtTreeVisitorVoid() {
+        override fun visitCallExpression(expression: KtCallExpression) {
+            if (expression.isIconRoot) {
+                // Anything inside is part of the icon's content, which reading the icon covers
+                roots += expression
+                return
+            }
+            // Kobweb's convention is to end SVG icon names in "Icon"
+            val mayBeIcon = expression.calleeExpression?.text?.endsWith("Icon") == true
+            if (followCalls && mayBeIcon && depth < MAX_DELEGATION_DEPTH) {
+                val function = (expression.asSvgIconCall() as? SvgIconCall.NamedIcon)?.function
+                function?.bodyExpression?.let { roots += it.collectIconRoots(depth + 1, followCalls = true) }
+            }
+            super.visitCallExpression(expression)
+        }
+    })
+    return roots
 }
 
 /**
  * Reads the icon drawn by this call to another icon, possibly wrapped in elements (e.g. `Span { GitHubIcon() }`).
  */
-private fun KtCallExpression.readIconCall(depth: Int): IconShape {
+private fun KtCallExpression.readIconCall(depth: Int, followCalls: Boolean): IconShape {
     // An icon wrapped in an element, e.g. `Span { GitHubIcon() }`
     lambdaArguments.singleOrNull()?.getLambdaExpression()?.let { content ->
         val inner = content.bodyExpression?.statements?.singleOrNull() as? KtCallExpression
             ?: unsupported(this, "content that isn't a single call")
-        return inner.readIconCall(depth)
+        return inner.readIconCall(depth, followCalls)
     }
 
     // An icon that's just another icon, e.g. `fun IndeterminateIcon(modifier: Modifier) = MinusIcon(modifier)`
     if (depth >= MAX_DELEGATION_DEPTH) unsupported(this, "icons that call other icons this deeply")
     val callee = calleeExpression as? KtNameReferenceExpression ?: unsupported(this)
     val target = callee.mainReference.resolve()?.navigationElement as? KtNamedFunction ?: unsupported(this)
-    return target.readIconFunction(depth + 1)
+    return target.readIconFunction(depth + 1, followCalls)
 }
 
 /**

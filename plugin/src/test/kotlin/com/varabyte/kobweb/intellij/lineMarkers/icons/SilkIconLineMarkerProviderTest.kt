@@ -325,6 +325,210 @@ class SilkIconLineMarkerProviderTest : KobwebLineMarkerTestBase() {
         )
     }
 
+    fun testGutterIconShownForUserIconCallsThatCallAnotherIconAmongOtherContent() {
+        val expectedTooltips = listOf(
+            "Icon: GitHub",
+            "Icon: UnderlinedGitHub",
+        )
+
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+            import com.varabyte.kobweb.core.Page
+            import com.varabyte.kobweb.silk.components.overlay.PreviousSibling
+            import com.varabyte.kobweb.silk.components.overlay.Tooltip
+            import org.jetbrains.compose.web.dom.Span
+
+            @Composable
+            fun GitHubIcon() {
+                Svg(attrs = { viewBox(0, 0, 16, 16) }) {
+                    Path { d("M4 4h8v8H4z") }
+                }
+            }
+
+            @Composable
+            fun UnderlinedGitHubIcon() {
+                Span { GitHubIcon() } $GUTTER_TAG
+                Tooltip(PreviousSibling, "GitHub")
+            }
+
+            @Page
+            @Composable
+            fun HomePage() {
+                UnderlinedGitHubIcon() $GUTTER_TAG
+            }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip?.startsWith("Icon:") == true },
+            assertLineMarker = { index, marker ->
+                assertThat(marker.lineMarkerTooltip).isEqualTo(expectedTooltips[index])
+            }
+        )
+    }
+
+    fun testGutterIconShownForUserFunctionsThatCallAnIconAmongOtherContent() {
+        val expectedTooltips = listOf(
+            "Icon: GitHub",
+            "Icon: GitHubSourceLink",
+        )
+
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+            import com.varabyte.kobweb.core.Page
+            import com.varabyte.kobweb.silk.components.navigation.Link
+            import com.varabyte.kobweb.silk.components.overlay.PreviousSibling
+            import com.varabyte.kobweb.silk.components.overlay.Tooltip
+
+            @Composable
+            fun GitHubIcon() {
+                Svg(attrs = { viewBox(0, 0, 16, 16) }) {
+                    Path { d("M4 4h8v8H4z") }
+                }
+            }
+
+            @Composable
+            fun GitHubSourceLink() {
+                Link("https://github.com/example/site") { GitHubIcon() } $GUTTER_TAG
+                Tooltip(PreviousSibling, "View source")
+            }
+
+            @Page
+            @Composable
+            fun HomePage() {
+                GitHubSourceLink() $GUTTER_TAG
+            }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip?.startsWith("Icon:") == true },
+            assertLineMarker = { index, marker ->
+                assertThat(marker.lineMarkerTooltip).isEqualTo(expectedTooltips[index])
+            }
+        )
+    }
+
+    fun testGutterIconShownForUserFunctionsThatCallASilkIconAmongOtherContent() {
+        val expectedTooltips = listOf(
+            "Icon: Check",
+            "Icon: DoneLabel",
+        )
+
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+            import com.varabyte.kobweb.silk.components.icons.CheckIcon
+            import org.jetbrains.compose.web.dom.Span
+            import org.jetbrains.compose.web.dom.Text
+
+            @Composable
+            fun DoneLabel() {
+                Span {
+                    CheckIcon() $GUTTER_TAG
+                    Text("Done")
+                }
+            }
+
+            @Page
+            @Composable
+            fun HomePage() {
+                DoneLabel() $GUTTER_TAG
+            }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip?.startsWith("Icon:") == true },
+            assertLineMarker = { index, marker ->
+                assertThat(marker.lineMarkerTooltip).isEqualTo(expectedTooltips[index])
+            }
+        )
+    }
+
+    fun testGutterIconNotShownForUserFunctionsThatCallMoreThanOneIcon() {
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+            import com.varabyte.kobweb.core.Page
+            import org.jetbrains.compose.web.dom.Span
+
+            @Composable
+            fun GitHubIcon() {
+                Svg(attrs = { viewBox(0, 0, 16, 16) }) {
+                    Path { d("M4 4h8v8H4z") }
+                }
+            }
+
+            @Composable
+            fun MastodonIcon() {
+                Svg(attrs = { viewBox(0, 0, 16, 16) }) {
+                    Path { d("M8 8h4v4H8z") }
+                }
+            }
+
+            @Composable
+            fun SocialLinks() {
+                Span { GitHubIcon() } $GUTTER_TAG
+                Span { MastodonIcon() } $GUTTER_TAG
+            }
+
+            @Page
+            @Composable
+            fun HomePage() {
+                SocialLinks() // Draws two icons, so it isn't one
+            }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip?.startsWith("Icon:") == true },
+        )
+    }
+
+    fun testGutterIconNotShownForUserFunctionsThatCallAnIconThroughNonIconFunctions() {
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+            import com.varabyte.kobweb.compose.foundation.layout.Column
+            import com.varabyte.kobweb.compose.foundation.layout.Row
+            import com.varabyte.kobweb.core.Page
+            import org.jetbrains.compose.web.dom.Text
+
+            @Composable
+            fun Logo() {
+                Svg(attrs = { viewBox(0, 0, 16, 16) }) {
+                    Path { d("M4 4h8v8H4z") }
+                }
+            }
+
+            @Composable
+            fun NavHeader() {
+                Row {
+                    Logo() $GUTTER_TAG
+                    Text("My Site")
+                }
+            }
+
+            @Composable
+            fun PageLayout(title: String, content: @Composable () -> Unit) {
+                Column {
+                    NavHeader() // Its logo isn't one of its icons, as `Logo` isn't named like one
+                    Text(title)
+                    content()
+                }
+            }
+
+            @Page
+            @Composable
+            fun HomePage() {
+                PageLayout("Home") {
+                    Text("Welcome")
+                }
+            }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip?.startsWith("Icon:") == true },
+            assertLineMarker = { _, marker ->
+                assertThat(marker.lineMarkerTooltip).isEqualTo("Icon: Logo")
+            }
+        )
+    }
+
     fun testGutterIconShownForUserIconCalls() {
         doTest(
             """
