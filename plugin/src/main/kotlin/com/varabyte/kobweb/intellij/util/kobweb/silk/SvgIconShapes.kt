@@ -38,8 +38,8 @@ import java.awt.geom.RoundRectangle2D
 private const val MAX_DELEGATION_DEPTH = 3
 
 /**
- * Reads the shape this icon function draws, for functions whose body is a call to Silk's `createIcon`, e.g. Kobweb's
- * own `ArrowBackIcon`.
+ * Reads the shape this icon function draws, for functions whose body is a call to Silk's `createIcon` (e.g. Kobweb's
+ * own `ArrowBackIcon`) or to Kobweb's `Svg`.
  *
  * This reads the source as written rather than running it, so it only understands the SVG elements, attributes, and
  * statements that Kobweb's icons use. Anything else fails the whole read, rather than leaving parts of the icon out.
@@ -47,7 +47,7 @@ private const val MAX_DELEGATION_DEPTH = 3
  * Strokes are converted into filled outlines, so the result can be painted like any other [IconShape].
  *
  * @throws IllegalArgumentException if the function's body can't be read, e.g. because it does something other than
- *   call `createIcon`, or uses code this doesn't understand.
+ *   call `createIcon` or `Svg`, or uses code this doesn't understand.
  */
 fun KtNamedFunction.readSvgIconShape(): IconShape {
     val name = name ?: unsupported(this, "an unnamed function")
@@ -55,16 +55,16 @@ fun KtNamedFunction.readSvgIconShape(): IconShape {
 }
 
 /**
- * Reads the shape this call to Silk's `createIcon` draws.
+ * Reads the shape this call to Silk's `createIcon` or Kobweb's `Svg` draws.
  *
  * The shape is named after the function the call is in, if any. See the other [readSvgIconShape] for details.
  *
- * @throws IllegalArgumentException if this isn't a `createIcon` call, or uses code this doesn't understand.
+ * @throws IllegalArgumentException if this isn't a `createIcon` or `Svg` call, or uses code this doesn't understand.
  */
 fun KtCallExpression.readSvgIconShape(): IconShape {
-    if (calleeExpression?.text != "createIcon") unsupported(this, "a call that isn't to `createIcon`")
     val name = getStrictParentOfType<KtNamedFunction>()?.name.orEmpty()
-    return readCreateIcon().let { IconShape(name, it.width, it.path) }
+    val shape = readIconRoot() ?: unsupported(this, "a call that isn't to `createIcon` or `Svg`")
+    return IconShape(name, shape.width, shape.path)
 }
 
 private fun unsupported(element: PsiElement, description: String = "`${element.text.truncate(40)}`"): Nothing =
@@ -72,19 +72,21 @@ private fun unsupported(element: PsiElement, description: String = "`${element.t
 
 private class ViewBox(val x: Double, val y: Double, val width: Double, val height: Double)
 
-/** What `createIcon`'s `renderStyle` parameter takes: `IconRenderStyle.Fill()` or `IconRenderStyle.Stroke()`. */
-private sealed interface RenderStyle {
-    object Fill : RenderStyle
-    class Stroke(val width: Float) : RenderStyle
-}
-
 /**
  * Presentation attributes that apply to an element, which it inherits from its groups.
  *
- * The defaults are SVG's: https://www.w3.org/TR/SVG2/painting.html#StrokeProperties
+ * Previews are drawn in a single color, so all that matters about the fill and stroke is whether they're drawn, not
+ * their color.
+ *
+ * The defaults are SVG's: https://www.w3.org/TR/SVG2/painting.html
+ *
+ * @property fillRule One of [Path2D]'s winding rules.
  */
 private data class Presentation(
-    val renderStyle: RenderStyle,
+    val isFilled: Boolean = true,
+    val isStroked: Boolean = false,
+    val strokeWidth: Float = 1f,
+    val fillRule: Int = Path2D.WIND_NON_ZERO,
     val lineCap: Int = BasicStroke.CAP_BUTT,
     val lineJoin: Int = BasicStroke.JOIN_MITER,
     val miterLimit: Float = 4f,
@@ -101,7 +103,7 @@ private fun KtNamedFunction.readIconFunction(depth: Int): IconShape {
     val body = bodyBlockExpression?.statements?.singleOrNull() ?: bodyExpression
     val call = body as? KtCallExpression ?: unsupported(this, "a body that isn't a single call")
     val callee = call.calleeExpression as? KtNameReferenceExpression ?: unsupported(call)
-    if (callee.getReferencedName() == "createIcon") return call.readCreateIcon()
+    call.readIconRoot()?.let { return it }
 
     // An icon that's just another icon, e.g. `fun IndeterminateIcon(modifier: Modifier) = MinusIcon(modifier)`
     if (depth >= MAX_DELEGATION_DEPTH) unsupported(call, "icons that call other icons this deeply")
@@ -109,11 +111,21 @@ private fun KtNamedFunction.readIconFunction(depth: Int): IconShape {
     return target.readIconFunction(depth + 1)
 }
 
+/**
+ * Reads this call if it's one that draws an icon's SVG itself, i.e. a call to `createIcon` or `Svg`, or returns null
+ * for any other call.
+ */
+private fun KtCallExpression.readIconRoot(): IconShape? = when (calleeExpression?.text) {
+    "createIcon" -> readCreateIcon()
+    "Svg" -> readSvg()
+    else -> null
+}
+
 private fun KtCallExpression.readCreateIcon(): IconShape {
     val arguments = namedArguments(listOf("viewBox", "width", "renderStyle", "attrs", "content"))
     val viewBox = arguments["viewBox"]?.let { readViewBox(it) } ?: ViewBox(0.0, 0.0, 24.0, 24.0)
-    // SVG's default stroke width is 1
-    val renderStyle = arguments["renderStyle"]?.let { readRenderStyle(it) } ?: RenderStyle.Stroke(1f)
+    val presentation = arguments["renderStyle"]?.let { readRenderStyle(it) }
+        ?: Presentation(isFilled = false, isStroked = true)
     // Attributes like `modifier.toAttrs()` style the icon as a whole (e.g. its size and color) but don't change its
     // shape. Attributes set directly in a lambda could, so those aren't supported.
     arguments["attrs"]?.let { attrs ->
@@ -121,13 +133,47 @@ private fun KtCallExpression.readCreateIcon(): IconShape {
         if (selector?.calleeExpression?.text != "toAttrs") unsupported(attrs)
     }
     val content = arguments["content"] as? KtLambdaExpression ?: unsupported(this, "`createIcon` without content")
-    val outline = readContent(content, Scope(Presentation(renderStyle)))
+    return readContent(content, Scope(presentation)).toIconShape(viewBox)
+}
 
-    // Normalize to IconShape's coordinates, where the view box is 1 unit tall
+/** Attributes of an `Svg` element that affect how it's laid out or announced, but not the shape it draws. */
+private val SVG_ATTRIBUTES_WITHOUT_SHAPE = setOf("width", "height", "id", "classes", "style", "ariaHidden")
+
+private fun KtCallExpression.readSvg(): IconShape {
+    val arguments = namedArguments(listOf("attrs", "content"))
+    val attributes = (arguments["attrs"] as? KtLambdaExpression ?: unsupported(this, "`Svg` without attrs"))
+        .readAttributes()
+    val viewBox = when (val call = attributes.remove("viewBox")) {
+        // Without a view box, SVG draws in the element's own units
+        null -> {
+            val width = attributes["width"]?.let { readNumber(it.singleArgument()) }
+            val height = attributes["height"]?.let { readNumber(it.singleArgument()) }
+            if (width == null || height == null) unsupported(this, "`Svg` without `viewBox`, `width`, and `height`")
+            ViewBox(0.0, 0.0, width, height)
+        }
+
+        else -> {
+            val values = call.valueArguments.map { it.getArgumentExpression() ?: unsupported(call) }
+            when (values.size) {
+                1 -> readViewBox(values[0])
+                4 -> values.map { readNumber(it) }.let { (x, y, width, height) -> ViewBox(x, y, width, height) }
+                else -> unsupported(call)
+            }
+        }
+    }
+    val presentation = Scope(Presentation()).readPresentation(attributes)
+    attributes.keys.firstOrNull { it !in SVG_ATTRIBUTES_WITHOUT_SHAPE }
+        ?.let { unsupported(this, "the `$it` attribute") }
+    val content = arguments["content"] as? KtLambdaExpression ?: unsupported(this, "`Svg` without content")
+    return readContent(content, Scope(presentation)).toIconShape(viewBox)
+}
+
+/** Converts this outline to IconShape's coordinates, where the view box is 1 unit tall. */
+private fun Area.toIconShape(viewBox: ViewBox): IconShape {
     val transform = AffineTransform.getScaleInstance(1 / viewBox.height, 1 / viewBox.height).apply {
         translate(-viewBox.x, -viewBox.y)
     }
-    return IconShape("", (viewBox.width / viewBox.height).toFloat(), Path2D.Float(outline, transform))
+    return IconShape("", (viewBox.width / viewBox.height).toFloat(), Path2D.Float(this, transform))
 }
 
 private fun readViewBox(expression: KtExpression): ViewBox {
@@ -144,14 +190,23 @@ private fun readViewBox(expression: KtExpression): ViewBox {
     }
 }
 
-private fun readRenderStyle(expression: KtExpression): RenderStyle {
+/**
+ * Reads `createIcon`'s `renderStyle` argument, `IconRenderStyle.Fill()` or `IconRenderStyle.Stroke()`, as the
+ * presentation `createIcon` gives the icon's root.
+ */
+private fun readRenderStyle(expression: KtExpression): Presentation {
     val call = expression.asCall("IconRenderStyle")
     return when (call.calleeExpression?.text) {
-        "Fill" -> RenderStyle.Fill.also { if (call.valueArguments.isNotEmpty()) unsupported(expression) }
-        "Stroke" -> when (call.valueArguments.size) {
-            0 -> RenderStyle.Stroke(1f)
-            1 -> RenderStyle.Stroke(readNumber(call.valueArguments[0].getArgumentExpression()).toFloat())
-            else -> unsupported(expression)
+        "Fill" -> Presentation(isFilled = true, isStroked = false)
+            .also { if (call.valueArguments.isNotEmpty()) unsupported(expression) }
+
+        "Stroke" -> {
+            val strokeWidth = when (call.valueArguments.size) {
+                0 -> 1f
+                1 -> readNumber(call.valueArguments[0].getArgumentExpression()).toFloat()
+                else -> unsupported(expression)
+            }
+            Presentation(isFilled = false, isStroked = true, strokeWidth = strokeWidth)
         }
 
         else -> unsupported(expression)
@@ -243,11 +298,11 @@ private fun readElement(call: KtCallExpression, scope: Scope): Area {
     }
     if (attributes.isNotEmpty()) unsupported(call, "the `${attributes.keys.first()}` attribute")
 
-    return when (val renderStyle = presentation.renderStyle) {
-        RenderStyle.Fill -> Area(shape)
-        is RenderStyle.Stroke -> {
-            val stroke = with(presentation) { BasicStroke(renderStyle.width, lineCap, lineJoin, miterLimit) }
-            Area(stroke.createStrokedShape(shape))
+    return Area().apply {
+        if (presentation.isFilled) add(Area(Path2D.Double(shape).apply { windingRule = presentation.fillRule }))
+        if (presentation.isStroked) {
+            val stroke = with(presentation) { BasicStroke(strokeWidth, lineCap, lineJoin, miterLimit) }
+            add(Area(stroke.createStrokedShape(shape)))
         }
     }
 }
@@ -273,6 +328,24 @@ private fun KtLambdaExpression.readAttributes(): MutableMap<String, KtCallExpres
  */
 private fun Scope.readPresentation(attributes: MutableMap<String, KtCallExpression>): Presentation {
     var presentation = presentation
+    // Any paint other than `None` (e.g. `CurrentColor`, a color, or a gradient) draws something
+    attributes.remove("fill")?.let { call ->
+        presentation = presentation.copy(isFilled = call.singleArgument().enumEntryName() != "None")
+    }
+    attributes.remove("stroke")?.let { call ->
+        presentation = presentation.copy(isStroked = call.singleArgument().enumEntryName() != "None")
+    }
+    attributes.remove("strokeWidth")?.let { call ->
+        presentation = presentation.copy(strokeWidth = readNumber(call.singleArgument(), variables).toFloat())
+    }
+    attributes.remove("fillRule")?.let { call ->
+        val fillRule = when (call.singleArgument().enumEntryName()) {
+            "NonZero" -> Path2D.WIND_NON_ZERO
+            "EvenOdd" -> Path2D.WIND_EVEN_ODD
+            else -> unsupported(call)
+        }
+        presentation = presentation.copy(fillRule = fillRule)
+    }
     attributes.remove("strokeLineCap")?.let { call ->
         val lineCap = when (call.singleArgument().enumEntryName()) {
             "Butt" -> BasicStroke.CAP_BUTT

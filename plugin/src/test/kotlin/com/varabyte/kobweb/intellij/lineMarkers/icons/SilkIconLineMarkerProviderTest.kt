@@ -175,6 +175,65 @@ class SilkIconLineMarkerProviderTest : KobwebLineMarkerTestBase() {
         )
     }
 
+    fun testGutterIconShownForSvgCalls() {
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+
+            @Composable
+            fun SomePage() {
+                Svg(attrs = { viewBox(0, 0, 24, 24) }) { $GUTTER_TAG
+                    Path { d("M4 4h16v16H4z") }
+                }
+            }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip == "Icon preview" },
+        )
+    }
+
+    fun testGutterIconNotShownForUnreadableSvgCalls() {
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+
+            @Composable
+            fun SomePage() {
+                Svg(attrs = { viewBox(0, 0, 24, 24) }) {
+                    Text("Not a shape") { }
+                }
+            }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip == "Icon preview" },
+        )
+    }
+
+    fun testGutterIconShownForUserIconCallsThatUseSvg() {
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+
+            @Composable
+            fun Logo() {
+                Svg(attrs = { viewBox(0, 0, 24, 24) }) {
+                    Path { d("M4 4h16v16H4z") }
+                }
+            }
+
+            @Composable
+            fun SomePage() {
+                Logo() $GUTTER_TAG
+            }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip?.startsWith("Icon:") == true },
+            assertLineMarker = { _, marker ->
+                assertThat(marker.lineMarkerTooltip).isEqualTo("Icon: Logo")
+            }
+        )
+    }
+
     fun testGutterIconShownForUserIconCalls() {
         doTest(
             """

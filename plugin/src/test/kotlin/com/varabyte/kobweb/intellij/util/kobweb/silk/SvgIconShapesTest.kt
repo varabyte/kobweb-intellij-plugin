@@ -209,6 +209,143 @@ class SvgIconShapesTest : KobwebApplicationTestCase() {
         offsetIcon.assertBounds(4.0, 4.0, 8.0, 8.0, viewBoxHeight = 16)
     }
 
+    fun testSvg() {
+        myFixture.configureByText(
+            "TestIcons.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.css.ariaHidden
+            import com.varabyte.kobweb.compose.dom.svg.*
+
+            @Composable
+            fun GitHubLogo() {
+                Svg(
+                    attrs = {
+                        viewBox(0, 0, 16, 16)
+                        width(20)
+                        height(20)
+                        fill(SVGFillType.CurrentColor)
+                        ariaHidden(true)
+                    }
+                ) {
+                    Path {
+                        d(
+                            "M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 " +
+                                "0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13" +
+                                "-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66" +
+                                ".07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15" +
+                                "-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 " +
+                                "1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 " +
+                                "1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 " +
+                                "1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+                        )
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+        val icon = (myFixture.file as KtFile).declarations.filterIsInstance<KtNamedFunction>()
+            .single { it.name == "GitHubLogo" }.readSvgIconShape()
+        assertThat(icon.name).isEqualTo("GitHubLogo")
+        assertThat(icon.width).isEqualTo(1f)
+        // The logo's circle, except for the bottom, which is cut off where the cat's tail and legs end
+        icon.assertBounds(0.0, 0.0, 16.0, 15.61, viewBoxHeight = 16)
+    }
+
+    fun testSvgWithoutViewBoxUsesItsSize() {
+        myFixture.configureByText(
+            "TestIcons.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+
+            @Composable
+            fun TestIcon() {
+                Svg(attrs = {
+                    width(24)
+                    height(20)
+                }) {
+                    Path { d("M0 0h24v20H0z") }
+                }
+            }
+            """.trimIndent(),
+        )
+        val icon = (myFixture.file as KtFile).declarations.filterIsInstance<KtNamedFunction>()
+            .single { it.name == "TestIcon" }.readSvgIconShape()
+        assertThat(icon.width).isEqualTo(1.2f)
+        icon.assertBounds(0.0, 0.0, 24.0, 20.0, viewBoxHeight = 20)
+    }
+
+    fun testFillAndStrokeAttributes() {
+        // A stroked line, plus a dot that turns the stroke off and the fill back on
+        myFixture.configureByText(
+            "TestIcons.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+
+            @Composable
+            fun TestIcon() {
+                Svg(attrs = {
+                    viewBox(0, 0, 24, 24)
+                    fill(SVGFillType.None)
+                    stroke(SVGStrokeType.CurrentColor)
+                    strokeWidth(2)
+                }) {
+                    Line {
+                        x1(3)
+                        x2(21)
+                        y1(12)
+                        y2(12)
+                    }
+                    Group(attrs = { stroke(SVGStrokeType.None) }) {
+                        Circle {
+                            fill(SVGFillType.CurrentColor)
+                            cx(12)
+                            cy(20)
+                            r(2)
+                        }
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+        val icon = (myFixture.file as KtFile).declarations.filterIsInstance<KtNamedFunction>()
+            .single { it.name == "TestIcon" }.readSvgIconShape()
+        icon.assertBounds(3.0, 11.0, 18.0, 11.0)
+    }
+
+    fun testFillRule() {
+        // A square with a square hole, which only even-odd filling leaves empty
+        myFixture.configureByText(
+            "TestIcons.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+
+            @Composable
+            fun TestIcon() {
+                Svg(attrs = { viewBox(0, 0, 24, 24) }) {
+                    Path {
+                        fillRule(SVGFillRule.EvenOdd)
+                        d("M4 4h16v16H4z M8 8h8v8H8z")
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+        val icon = (myFixture.file as KtFile).declarations.filterIsInstance<KtNamedFunction>()
+            .single { it.name == "TestIcon" }.readSvgIconShape()
+        assertAll {
+            that(icon.path.contains(6.0 / 24, 6.0 / 24)).isTrue()
+            that(icon.path.contains(12.0 / 24, 12.0 / 24)).isFalse()
+        }
+    }
+
     fun testShapes() {
         myFixture.configureByText(
             "TestIcons.kt",
@@ -422,6 +559,53 @@ class SvgIconShapesTest : KobwebApplicationTestCase() {
             @Composable
             fun TestIcon() {
                 println("Not an icon")
+            }
+            """.trimIndent(),
+        )
+        assertThrows<IllegalArgumentException> {
+            (myFixture.file as KtFile).declarations.filterIsInstance<KtNamedFunction>()
+                .single { it.name == "TestIcon" }.readSvgIconShape()
+        }
+    }
+
+    fun testSvgWithUnsupportedAttributesFails() {
+        // A transform changes the shape, but isn't supported
+        myFixture.configureByText(
+            "TestIcons.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+
+            @Composable
+            fun TestIcon() {
+                Svg(attrs = {
+                    viewBox(0, 0, 24, 24)
+                    transform { rotate(45) }
+                }) {
+                    Path { d("M4 4h16v16H4z") }
+                }
+            }
+            """.trimIndent(),
+        )
+        assertThrows<IllegalArgumentException> {
+            (myFixture.file as KtFile).declarations.filterIsInstance<KtNamedFunction>()
+                .single { it.name == "TestIcon" }.readSvgIconShape()
+        }
+
+        // Without a view box or a size, there's no way to know the icon's coordinates
+        myFixture.configureByText(
+            "TestIcons.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+
+            @Composable
+            fun TestIcon() {
+                Svg(attrs = { fill(SVGFillType.CurrentColor) }) {
+                    Path { d("M4 4h16v16H4z") }
+                }
             }
             """.trimIndent(),
         )

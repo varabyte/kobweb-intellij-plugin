@@ -29,7 +29,7 @@ import org.jetbrains.kotlin.psi.KtNamedFunction
 
 /**
  * Shows a preview of the icon in the gutter next to calls like `FaHouse()`, `MsHome()`, and next to calls to Silk's
- * SVG-defining `createIcon` method, as well as icons that delegate to it (e.g. `ArrowBackIcon()`).
+ * SVG-defining `createIcon` method or Kobweb's `Svg`, as well as icons that delegate to them (e.g. `ArrowBackIcon()`).
  */
 class SilkIconLineMarkerProvider : LineMarkerProviderDescriptor() {
     override fun getName() = UxGlobals.textBundle.message("line.markers.icon.preview.name")
@@ -110,12 +110,12 @@ class SilkIconLineMarkerProvider : LineMarkerProviderDescriptor() {
 
     /**
      * A line marker for a call to an SVG icon, either one of Silk's (e.g. `ArrowBackIcon()`) or one defined in the
-     * user's own code, or for a call to `createIcon`, where SVG icons are defined.
+     * user's own code, or for a call to `createIcon` or `Svg`, where SVG icons are defined.
      */
     private fun createSvgIconLineMarker(element: LeafPsiElement, call: KtCallExpression): LineMarkerInfo<*>? {
         return when (val iconCall = call.asSvgIconCall()) {
             null -> null
-            SvgIconCall.CreateIcon -> {
+            SvgIconCall.CreateIcon, SvgIconCall.Svg -> {
                 val shape = call.cachedSvgIconShape() ?: return null
                 createSvgIconLineMarker(element, shape, "Icon preview")
             }
@@ -153,7 +153,7 @@ class SilkIconLineMarkerProvider : LineMarkerProviderDescriptor() {
  */
 private fun KtNamedFunction.cachedSvgIconShape(): IconShape? = cachedOrNull { readSvgIconShape() }
 
-/** Like the [KtNamedFunction] version, but for a call to `createIcon`. */
+/** Like the [KtNamedFunction] version, but for a call to `createIcon` or `Svg`. */
 private fun KtCallExpression.cachedSvgIconShape(): IconShape? = cachedOrNull { readSvgIconShape() }
 
 private fun <T : PsiElement> T.cachedOrNull(read: T.() -> IconShape): IconShape? =

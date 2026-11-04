@@ -208,8 +208,11 @@ fun KtCallExpression.asSilkIconCall(): SilkIconCall? = with(kaSession) {
 /** The package of the SVG icons Silk defines in code (e.g. `ArrowBackIcon`), as opposed to its icon font modules. */
 private val SILK_SVG_ICONS_PACKAGE = FqName("com.varabyte.kobweb.silk.components.icons")
 
+/** The package of Kobweb's SVG composables, e.g. `Svg` and `Path`. */
+private val KOBWEB_SVG_PACKAGE = FqName("com.varabyte.kobweb.compose.dom.svg")
+
 /**
- * A call to an icon made with Silk's `createIcon`, or to `createIcon` itself.
+ * A call to an icon made with Silk's `createIcon` or Kobweb's `Svg`, or to `createIcon` or `Svg` itself.
  *
  * Icons are recognized by name (Kobweb's convention is that they end in "Icon", e.g. `ArrowBackIcon`), so that only
  * calls that look like icons need to be resolved.
@@ -217,6 +220,9 @@ private val SILK_SVG_ICONS_PACKAGE = FqName("com.varabyte.kobweb.silk.components
 sealed interface SvgIconCall {
     /** A call to `createIcon` itself, which is where an icon is defined, e.g. `createIcon { Path { ... } }`. */
     data object CreateIcon : SvgIconCall
+
+    /** A call to Kobweb's `Svg`, which can define an icon directly, e.g. `Svg(attrs = { ... }) { Path { ... } }`. */
+    data object Svg : SvgIconCall
 
     /**
      * A call to an icon function, which is named after the icon, e.g. `ArrowBackIcon()`.
@@ -249,7 +255,7 @@ sealed interface SvgIconCall {
 }
 
 /**
- * Returns information about this call if it's to an SVG icon (e.g. `ArrowBackIcon()`), or to `createIcon`.
+ * Returns information about this call if it's to an SVG icon (e.g. `ArrowBackIcon()`), or to `createIcon` or `Svg`.
  *
  * This resolves the call (which is expensive), so callers should first filter out calls that can't be icons (e.g. by
  * name) where they can.
@@ -262,6 +268,9 @@ fun KtCallExpression.asSvgIconCall(): SvgIconCall? {
     if (function.isTopLevel && function.containingKtFile.packageFqName == SILK_SVG_ICONS_PACKAGE) {
         if (function.name == "createIcon") return SvgIconCall.CreateIcon
         return SvgIconCall.SilkIcon(function.navigationElement as? KtNamedFunction ?: function)
+    }
+    if (function.isTopLevel && function.containingKtFile.packageFqName == KOBWEB_SVG_PACKAGE) {
+        return if (function.name == "Svg") SvgIconCall.Svg else null
     }
     // Only the user's own code, not libraries, since those would need their sources loaded just to check
     val file = function.containingFile.virtualFile ?: return null
