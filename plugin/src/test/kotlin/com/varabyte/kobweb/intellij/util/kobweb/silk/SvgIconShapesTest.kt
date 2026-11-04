@@ -380,9 +380,41 @@ class SvgIconShapesTest : KobwebApplicationTestCase() {
             }
 
             @Composable
+            fun EllipseTestIcon() {
+                createIcon(renderStyle = IconRenderStyle.Fill()) {
+                    Ellipse {
+                        cx(12)
+                        cy(12)
+                        rx(10)
+                        ry(6)
+                    }
+                }
+            }
+
+            @Composable
+            fun EllipseWithOneRadiusTestIcon() {
+                createIcon(renderStyle = IconRenderStyle.Fill()) {
+                    Ellipse {
+                        cx(12)
+                        cy(12)
+                        rx(4)
+                    }
+                }
+            }
+
+            @Composable
             fun PolylineTestIcon() {
                 createIcon(renderStyle = IconRenderStyle.Fill()) {
                     Polyline {
+                        points(3 to 12, 9 to 18, 21 to 2)
+                    }
+                }
+            }
+
+            @Composable
+            fun PolygonTestIcon() {
+                createIcon(renderStyle = IconRenderStyle.Fill()) {
+                    Polygon {
                         points(3 to 12, 9 to 18, 21 to 2)
                     }
                 }
@@ -392,7 +424,49 @@ class SvgIconShapesTest : KobwebApplicationTestCase() {
         val functions = (myFixture.file as KtFile).declarations.filterIsInstance<KtNamedFunction>()
         functions.single { it.name == "CircleTestIcon" }.readSvgIconShape().assertBounds(4.0, 4.0, 16.0, 16.0)
         functions.single { it.name == "RectTestIcon" }.readSvgIconShape().assertBounds(2.0, 6.0, 20.0, 12.0)
+        functions.single { it.name == "EllipseTestIcon" }.readSvgIconShape().assertBounds(2.0, 6.0, 20.0, 12.0)
+        functions.single { it.name == "EllipseWithOneRadiusTestIcon" }.readSvgIconShape()
+            .assertBounds(8.0, 8.0, 8.0, 8.0)
         functions.single { it.name == "PolylineTestIcon" }.readSvgIconShape().assertBounds(3.0, 2.0, 18.0, 16.0)
+        functions.single { it.name == "PolygonTestIcon" }.readSvgIconShape().assertBounds(3.0, 2.0, 18.0, 16.0)
+    }
+
+    fun testPolygonsCloseTheirOutline() {
+        // Stroked, the polygon draws the diagonal from its last point back to its first, which the polyline doesn't
+        myFixture.configureByText(
+            "TestIcons.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+            import com.varabyte.kobweb.silk.components.icons.*
+
+            @Composable
+            fun PolylineTestIcon() {
+                createIcon(renderStyle = IconRenderStyle.Stroke(2)) {
+                    Polyline {
+                        points(4 to 4, 20 to 4, 20 to 20)
+                    }
+                }
+            }
+
+            @Composable
+            fun PolygonTestIcon() {
+                createIcon(renderStyle = IconRenderStyle.Stroke(2)) {
+                    Polygon {
+                        points(4 to 4, 20 to 4, 20 to 20)
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+        val functions = (myFixture.file as KtFile).declarations.filterIsInstance<KtNamedFunction>()
+        val polyline = functions.single { it.name == "PolylineTestIcon" }.readSvgIconShape()
+        val polygon = functions.single { it.name == "PolygonTestIcon" }.readSvgIconShape()
+        assertAll {
+            that(polyline.path.contains(12.0 / 24, 12.0 / 24)).isFalse()
+            that(polygon.path.contains(12.0 / 24, 12.0 / 24)).isTrue()
+        }
     }
 
     fun testLoopOverLiteralValues() {

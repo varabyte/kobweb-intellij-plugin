@@ -286,11 +286,21 @@ private fun readElement(call: KtCallExpression, scope: Scope): Area {
             }
         }
 
-        "Polyline" -> {
+        "Ellipse" -> {
+            // If only one radius is set, SVG uses it for both
+            val rx = number("rx")
+            val ry = number("ry") ?: rx ?: 0.0
+            val radiusX = rx ?: ry
+            Ellipse2D.Double((number("cx") ?: 0.0) - radiusX, (number("cy") ?: 0.0) - ry, 2 * radiusX, 2 * ry)
+        }
+
+        // A polygon is a polyline that closes back to its first point
+        "Polyline", "Polygon" -> {
             val points = attributes.remove("points")?.valueArguments?.map { readPoint(it, scope) }
-                ?: unsupported(call, "a polyline without `points`")
+                ?: unsupported(call, "`$elementName` without `points`")
             Path2D.Double().apply {
                 points.forEachIndexed { i, (x, y) -> if (i == 0) moveTo(x, y) else lineTo(x, y) }
+                if (elementName == "Polygon") closePath()
             }
         }
 
