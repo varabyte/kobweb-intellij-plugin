@@ -583,23 +583,60 @@ class SvgIconShapesTest : KobwebApplicationTestCase() {
         icon.assertBounds(4.0, 4.0, 16.0, 16.0)
     }
 
-    fun testElementWithMoreThanAnIconFails() {
+    fun testIconAlongsideOtherContent() {
         myFixture.configureByText(
             "TestIcons.kt",
             // language=kotlin
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.dom.svg.*
+            import org.jetbrains.compose.web.dom.Div
             import org.jetbrains.compose.web.dom.Span
             import org.jetbrains.compose.web.dom.Text
 
             @Composable
             fun TestIcon() {
-                Span {
-                    Svg(attrs = { viewBox(0, 0, 24, 24) }) {
-                        Path { d("M4 4h16v16H4z") }
+                Div {
+                    Span {
+                        Svg(attrs = { viewBox(0, 0, 24, 24) }) {
+                            Path { d("M4 4h16v16H4z") }
+                        }
+                        Text("GitHub")
                     }
-                    Text("GitHub")
+                }
+                Text("Source")
+            }
+            """.trimIndent(),
+        )
+        val icon = (myFixture.file as KtFile).declarations.filterIsInstance<KtNamedFunction>()
+            .single { it.name == "TestIcon" }.readSvgIconShape()
+        assertThat(icon.name).isEqualTo("TestIcon")
+        icon.assertBounds(4.0, 4.0, 16.0, 16.0)
+    }
+
+    fun testFunctionWithMoreThanOneIconIsNotRead() {
+        myFixture.configureByText(
+            "TestIcons.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+            import org.jetbrains.compose.web.dom.Div
+            import org.jetbrains.compose.web.dom.Span
+
+            @Composable
+            fun TestIcon() {
+                Div {
+                    Span {
+                        Svg(attrs = { viewBox(0, 0, 24, 24) }) {
+                            Path { d("M4 4h16v16H4z") }
+                        }
+                    }
+                    Span {
+                        Svg(attrs = { viewBox(0, 0, 24, 24) }) {
+                            Path { d("M8 8h8v8H8z") }
+                        }
+                    }
                 }
             }
             """.trimIndent(),

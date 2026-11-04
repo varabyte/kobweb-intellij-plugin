@@ -286,6 +286,45 @@ class SilkIconLineMarkerProviderTest : KobwebLineMarkerTestBase() {
         )
     }
 
+    fun testGutterIconShownForUserFunctionsWithOneSvgAmongOtherContent() {
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.toAttrs
+            import com.varabyte.kobweb.core.Page
+            import com.varabyte.kobweb.silk.components.navigation.Link
+            import com.varabyte.kobweb.silk.components.overlay.PopupPlacement
+            import com.varabyte.kobweb.silk.components.overlay.PreviousSibling
+            import com.varabyte.kobweb.silk.components.overlay.Tooltip
+            import org.jetbrains.compose.web.dom.Span
+
+            @Composable
+            fun GitHubSourceLink() {
+                Link("https://github.com/example/site") {
+                    Span(attrs = Modifier.toAttrs()) {
+                        Svg(attrs = { viewBox(0, 0, 16, 16) }) {
+                            Path { d("M4 4h8v8H4z") }
+                        }
+                    }
+                }
+                Tooltip(PreviousSibling, "View source", placement = PopupPlacement.BottomRight)
+            }
+
+            @Page
+            @Composable
+            fun HomePage() {
+                GitHubSourceLink() $GUTTER_TAG
+            }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip?.startsWith("Icon:") == true },
+            assertLineMarker = { _, marker ->
+                assertThat(marker.lineMarkerTooltip).isEqualTo("Icon: GitHubSourceLink")
+            }
+        )
+    }
+
     fun testGutterIconShownForUserIconCalls() {
         doTest(
             """

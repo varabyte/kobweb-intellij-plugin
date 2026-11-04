@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.psi.KtParenthesizedExpression
 import org.jetbrains.kotlin.psi.KtPrefixExpression
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.KtValueArgument
+import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 import java.awt.BasicStroke
 import java.awt.Shape
@@ -39,7 +40,9 @@ private const val MAX_DELEGATION_DEPTH = 3
 
 /**
  * Reads the shape this icon function draws, for functions whose body is a call to Silk's `createIcon` (e.g. Kobweb's
- * own `ArrowBackIcon`) or to Kobweb's `Svg`, possibly wrapped in an element (e.g. `Span { Svg(...) }`).
+ * own `ArrowBackIcon`) or to Kobweb's `Svg`. That call can be anywhere in the function (e.g. `Span { Svg(...) }`), as
+ * long as it's the only one. A function without one can instead call another icon, possibly wrapped in elements (e.g.
+ * `Span { GitHubIcon() }`).
  *
  * This reads the source as written rather than running it, so it only understands the SVG elements, attributes, and
  * statements that Kobweb's icons use. Anything else fails the whole read, rather than leaving parts of the icon out.
@@ -100,20 +103,24 @@ private data class Presentation(
 private data class Scope(val presentation: Presentation, val variables: Map<String, Double> = emptyMap())
 
 private fun KtNamedFunction.readIconFunction(depth: Int): IconShape {
-    val body = bodyBlockExpression?.statements?.singleOrNull() ?: bodyExpression
-    val call = body as? KtCallExpression ?: unsupported(this, "a body that isn't a single call")
+    val body = bodyExpression ?: unsupported(this, "a function without a body")
+
+    // An icon drawn anywhere in the function, e.g. `Span { Svg(...) }`, even alongside other content such as a tooltip.
+    // Other elements around it (and their modifiers) are ignored, as they don't change the icon's shape.
+    val roots = body.collectDescendantsOfType<KtCallExpression> { it.isIconRoot }
+    if (roots.size > 1) unsupported(this, "more than one `createIcon` or `Svg` call")
+    roots.singleOrNull()?.readIconRoot()?.let { return it }
+
+    val call = (bodyBlockExpression?.statements?.singleOrNull() ?: body) as? KtCallExpression
+        ?: unsupported(this, "a body that isn't a single call")
     return call.readIconCall(depth)
 }
 
 /**
- * Reads the icon this call draws: a call to `createIcon` or `Svg`, a call whose content is a single such call (e.g.
- * `Span { Svg(...) }`), or a call to another icon.
+ * Reads the icon drawn by this call to another icon, possibly wrapped in elements (e.g. `Span { GitHubIcon() }`).
  */
 private fun KtCallExpression.readIconCall(depth: Int): IconShape {
-    readIconRoot()?.let { return it }
-
-    // An icon wrapped in an element, e.g. `Span { Svg(...) }`. The wrapper's own arguments (e.g. a modifier) are
-    // ignored, as they style the element around the icon rather than its shape.
+    // An icon wrapped in an element, e.g. `Span { GitHubIcon() }`
     lambdaArguments.singleOrNull()?.getLambdaExpression()?.let { content ->
         val inner = content.bodyExpression?.statements?.singleOrNull() as? KtCallExpression
             ?: unsupported(this, "content that isn't a single call")
@@ -136,6 +143,10 @@ private fun KtCallExpression.readIconRoot(): IconShape? = when (calleeExpression
     "Svg" -> readSvg()
     else -> null
 }
+
+/** Whether [readIconRoot] would read this call, without reading it. */
+private val KtCallExpression.isIconRoot: Boolean
+    get() = calleeExpression?.text.let { it == "createIcon" || it == "Svg" }
 
 private fun KtCallExpression.readCreateIcon(): IconShape {
     val arguments = namedArguments(listOf("viewBox", "width", "renderStyle", "attrs", "content"))
