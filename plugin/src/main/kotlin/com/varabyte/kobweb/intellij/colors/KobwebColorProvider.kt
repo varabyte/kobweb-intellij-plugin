@@ -446,9 +446,12 @@ private fun tryCreateRgbColor(rgb: Int) =
 //   saturation: 0-1
 //   lightness: 0-1
 private fun tryCreateHslColor(hue: Float, saturation: Float, lightness: Float): Color {
-    // Hue is an angle, so e.g. -90 is the same as 270
+    // Hue is an angle, so e.g. -90 is the same as 270.
     @Suppress("NAME_SHADOWING")
-    val hue = hue.mod(360f)
+    val hue = hue.mod(360f).let {
+        // A tiny negative hue can round up to exactly 360 after `mod`.
+        if (it == 360f) 0f else it
+    }
     @Suppress("NAME_SHADOWING")
     val saturation = saturation.coerceIn(0f, 1f)
     @Suppress("NAME_SHADOWING")
@@ -457,8 +460,7 @@ private fun tryCreateHslColor(hue: Float, saturation: Float, lightness: Float): 
     // https://en.wikipedia.org/wiki/HSL_and_HSV#Color_conversion_formulae
     val chroma = (1 - abs(2 * lightness - 1)) * saturation
     val intermediateValue = chroma * (1 - abs(((hue / 60f) % 2) - 1))
-    // Hue is in [0, 360), but `mod` can round a tiny negative hue up to exactly 360f
-    val hueSection = (hue / 60f).toInt().coerceAtMost(5)
+    val hueSection = (hue / 60f).toInt()
     val r: Float
     val g: Float
     val b: Float

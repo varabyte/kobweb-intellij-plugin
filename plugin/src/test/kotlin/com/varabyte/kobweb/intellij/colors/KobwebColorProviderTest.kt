@@ -43,6 +43,21 @@ class KobwebColorProviderTest : KobwebLineMarkerTestBase() {
         )
     }
 
+    fun testHslColorWithTinyNegativeHue() {
+        doTest(
+            """
+            import com.varabyte.kobweb.compose.ui.graphics.Color
+
+            // `mod` rounds this up to exactly 360, which is the same as a hue of 0
+            private val RED = Color.hsl(-0.00001f, 1f, 0.5f) $GUTTER_TAG
+            """.trimIndent(),
+            acceptLineMarker = { it.icon is ColorIcon },
+            assertLineMarker = { _, info ->
+                assertThat((info.icon as ColorIcon).iconColor).isEqualTo(Color(0xFF0000))
+            }
+        )
+    }
+
     fun testHslColorWithFractionalHue() {
         doTest(
             """
