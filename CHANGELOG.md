@@ -31,10 +31,13 @@ We've jumped from 0.2.6 straight to 0.8.0 to reflect how far the plugin has come
     ![Choosing a layout](https://github.com/varabyte/media/raw/main/kobweb-intellij-plugin/0.8.0/choose-layout.png)
   - Renaming or moving a layout (or its package) updates the `@Layout` paths that point to it.
   - Redundant and conflicting layout annotations are reported.
+- **`.kobweb/conf.yaml`.** Kobweb now publishes a [schema](https://raw.githubusercontent.com/varabyte/kobweb/main/schemas/kobweb-conf.schema.json)
+  for its config file, and the plugin applies it for you (IntelliJ 2026.3+), so you get completion, validation, and
+  documentation as you edit it.
 - **Icon previews.** Calls like [`FaHouse()`](https://fontawesome.com/icons/house?f=classic&s=solid) or
   [`MsRocketLaunch()`](https://fonts.google.com/icons?icon.set=Material+Symbols&icon.query=rocket_launch&selected=Material+Symbols+Outlined:rocket_launch:&icon.style=Outlined) now show the icon itself in the gutter. Font Awesome,
   Material Design Icons, Material Symbols, Lucide icons, and SVG icons (Silk's built-in ones like [`CloseIcon()`](https://github.com/varabyte/kobweb/blob/main/frontend/silk-widgets/src/jsMain/kotlin/com/varabyte/kobweb/silk/components/icons/CloseIcon.kt) and
-  even your own, defined with [`createIcon`](https://github.com/varabyte/kobweb/blob/bc54b5c03e97a05e571342be880f7a6d15ac95d8/frontend/silk-widgets/src/jsMain/kotlin/com/varabyte/kobweb/silk/components/icons/_Icons.kt#L34)) are supported.<br>
+  even your own, defined with [`createIcon`](https://github.com/varabyte/kobweb/blob/bc54b5c03e97a05e571342be880f7a6d15ac95d8/frontend/silk-widgets/src/jsMain/kotlin/com/varabyte/kobweb/silk/components/icons/_Icons.kt#L34) or Kobweb's [`Svg`](https://github.com/varabyte/kobweb/blob/bc54b5c03e97a05e571342be880f7a6d15ac95d8/frontend/compose-html-ext/src/jsMain/kotlin/com/varabyte/kobweb/compose/dom/svg/Svg.kt#L478)) are supported.<br>
   ![Lucide icons in the gutter](https://github.com/varabyte/media/raw/main/kobweb-intellij-plugin/0.8.0/icons-lucide.png)
   - Click an icon in the gutter for a popup with a larger preview and, where relevant, options for changing its style
     (e.g. outlined vs. filled).<br>
@@ -43,8 +46,6 @@ We've jumped from 0.2.6 straight to 0.8.0 to reflect how far the plugin has come
   from your `WorkerFactory` is now available in the IDE right away, without needing to build your project first.
   - Find Usages and Rename on a factory include its worker too.
   - We also warn if you use `remember { MyWorker(...) }` where `rememberWorker` should be used.
-- `.kobweb/conf.yaml` files now get Kobweb's schema applied (IntelliJ 2026.3+), even when your site lives in a
-  subfolder.
 
 ### Fixed
 
