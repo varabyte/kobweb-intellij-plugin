@@ -178,6 +178,62 @@ class RouteCompletionTest : KobwebApplicationTestCase() {
         ).containsExactly("/blog/", "/blog/post").inOrder()
     }
 
+    fun testStringsForwardedToRouteParametersAreCompleted() {
+        assertThat(
+            complete(
+                """
+                package $TEST_GROUP.components
+
+                import androidx.compose.runtime.Composable
+                import com.varabyte.kobweb.silk.components.navigation.Link
+
+                @Composable
+                private fun NavLink(path: String, text: String) {
+                    Link(path, text)
+                }
+
+                @Composable
+                fun Nav() {
+                    NavLink("/bl<caret>", "Blog")
+                }
+                """.trimIndent()
+            )!!
+        ).containsExactly("/blog/", "/blog/post").inOrder()
+    }
+
+    fun testStringsForwardedThroughSeveralFunctionsAreCompleted() {
+        assertThat(
+            complete(
+                """
+                package $TEST_GROUP.components
+
+                import androidx.compose.runtime.Composable
+                import com.varabyte.kobweb.silk.components.navigation.Link
+
+                @Composable
+                private fun NavLink(path: String, text: String) {
+                    NavLink2(path, text)
+                }
+
+                @Composable
+                private fun NavLink2(path: String, text: String) {
+                    NavLink3(path, text)
+                }
+
+                @Composable
+                private fun NavLink3(path: String, text: String) {
+                    Link(path, text)
+                }
+
+                @Composable
+                fun Nav() {
+                    NavLink("/bl<caret>", "Blog")
+                }
+                """.trimIndent()
+            )!!
+        ).containsExactly("/blog/", "/blog/post").inOrder()
+    }
+
     fun testStringsNotPassedToRouteParametersAreNotCompleted() {
         assertThat(
             complete(

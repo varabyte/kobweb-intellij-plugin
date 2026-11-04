@@ -160,6 +160,83 @@ class UnknownRouteInspectionTest : KobwebInspectionTestBase() {
         )
     }
 
+    fun testRoutesForwardedToRoutePathsAreChecked() {
+        doTest(
+            """
+            package $TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.navigation.Link
+
+            @Composable
+            private fun NavLink(path: String, text: String) {
+                Link(path, text)
+            }
+
+            private fun log(message: String) {
+                println(message)
+            }
+
+            @Composable
+            fun Nav() {
+                NavLink("/blog/post", "Post")
+                NavLink("<warning>/blog/pots</warning>", "Typo")
+
+                // Not a route
+                log("/blog/pots")
+            }
+            """.trimIndent(),
+        )
+    }
+
+    fun testRoutesForwardedThroughSeveralFunctionsAreChecked() {
+        doTest(
+            """
+            package $TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.navigation.BasePath
+            import com.varabyte.kobweb.silk.components.navigation.Link
+
+            @Composable
+            private fun NavLink(path: String) = Link(BasePath.prependTo(path))
+
+            @Composable
+            private fun FooterLink(path: String) {
+                NavLink(path)
+            }
+
+            @Composable
+            fun Footer() {
+                FooterLink("/blog/post")
+                FooterLink("<warning>/blog/pots</warning>")
+            }
+            """.trimIndent(),
+        )
+    }
+
+    fun testRoutesForwardedByRecursiveFunctionsAreChecked() {
+        doTest(
+            """
+            package $TEST_GROUP.components
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.navigation.Link
+
+            @Composable
+            private fun NestedLink(path: String, depth: Int) {
+                if (depth > 0) NestedLink(path, depth - 1) else Link(path)
+            }
+
+            @Composable
+            fun Nav() {
+                NestedLink("/blog/post", 3)
+                NestedLink("<warning>/blog/pots</warning>", 3)
+            }
+            """.trimIndent(),
+        )
+    }
+
     fun testRoutesAreCheckedWhereTheirRedirectsLead() {
         myFixture.addFileToProject(
             ".kobweb/conf.yaml",

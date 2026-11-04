@@ -3,6 +3,8 @@ package com.varabyte.kobweb.intellij.util.kobweb.route
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.resolution.singleFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolOrigin
+import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
@@ -10,8 +12,12 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtCallElement
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtExpression
+import org.jetbrains.kotlin.psi.KtNameReferenceExpression
+import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.KtValueArgument
+import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import org.jetbrains.kotlin.psi.psiUtil.getQualifiedExpressionForSelectorOrThis
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 
@@ -260,16 +266,65 @@ private val ROUTE_PATH_ANNOTATION = PathAnnotation(
  * the target also includes whatever the call's result is used with, e.g. `url`'s for the `"/images/cat.png"` in
  * `url(BasePath.prependTo("/images/cat.png"))` (see [INHERITING_ROUTE_PARAMETERS]).
  *
+ * If this string is passed into an unmarked parameter of the project's own code that is then passed on to something
+ * that holds a route, it's treated the same as if it were passed to that directly (see [findForwardedRoutePathTarget]).
+ * For example, if a user wrote:
+ * ```
+ * @Composable
+ * private fun NavLink(path: String, text: String) {
+ *     Link(path, text, variant = NavLinkVariant)
+ * }
+ * ```
+ * then `NavLink("/about", "About")` gets the same inspections and autocompletion choices as `Link("/about", "About")`.
+ *
  * Call [mayHavePathTarget] first to skip strings that can't have one without running analysis.
  *
  * This method must be called inside an `analyze` block.
  */
 context(_: KaSession)
-fun KtExpression.findRoutePathTarget(): RoutePathTarget? {
-    val target = findPathTarget(ROUTE_PATH_ANNOTATION)
-    val inheritedTarget = findInheritingCall()?.findRoutePathTarget() ?: return target
+fun KtExpression.findRoutePathTarget(): RoutePathTarget? = findRoutePathTarget(visitedParameters = emptySet())
+
+/**
+ * Like the public [findRoutePathTarget], but skips parameters in [visitedParameters], which we're already working out
+ * the forwarded target of (see [findForwardedRoutePathTarget]), so recursive functions don't loop forever.
+ */
+context(_: KaSession)
+private fun KtExpression.findRoutePathTarget(visitedParameters: Set<KtParameter>): RoutePathTarget? {
+    val target = findPathTarget(ROUTE_PATH_ANNOTATION) ?: findForwardedRoutePathTarget(visitedParameters)
+    val inheritedTarget = findInheritingCall()?.findRoutePathTarget(visitedParameters) ?: return target
     return target?.intersect(inheritedTarget) ?: inheritedTarget
 }
+
+/**
+ * Finds the parameter this expression is passed into, then returns the target of whatever its function passes that
+ * parameter on to.
+ *
+ * This is useful for cases where a parameter isn't marked with `@RoutePath` but its function passes it on unchanged to
+ * something that holds a route.
+ *
+ * This follows chains of such functions, and if the parameter is passed on to more than one target, the result only
+ * accepts routes they all do. It only works for functions whose source we have, as compiled ones have no body to look
+ * into.
+ */
+context(kaSession: KaSession)
+private fun KtExpression.findForwardedRoutePathTarget(visitedParameters: Set<KtParameter>): RoutePathTarget? =
+    with(kaSession) {
+        val argument = parent as? KtValueArgument ?: return null
+        val callElement = argument.getStrictParentOfType<KtCallElement>() ?: return null
+        val call = callElement.resolveToCall()?.singleFunctionCallOrNull() ?: return null
+        val parameterSymbol = call.argumentMapping[this@findForwardedRoutePathTarget]?.symbol ?: return null
+        if (parameterSymbol.origin != KaSymbolOrigin.SOURCE) return null
+        val parameter = parameterSymbol.psi as? KtParameter ?: return null
+        if (parameter in visitedParameters) return null
+        val body = (parameter.ownerFunction as? KtNamedFunction)?.bodyExpression ?: return null
+        val name = parameter.name ?: return null
+
+        return body
+            .collectDescendantsOfType<KtNameReferenceExpression> { it.getReferencedName() == name }
+            .filter { it.mainReference.resolveToSymbol()?.psi == parameter }
+            .mapNotNull { it.findRoutePathTarget(visitedParameters + parameter) }
+            .reduceOrNull { target, other -> target.intersect(other) }
+    }
 
 /**
  * Returns true if this string is used with something that holds a route (see [findRoutePathTarget]).
