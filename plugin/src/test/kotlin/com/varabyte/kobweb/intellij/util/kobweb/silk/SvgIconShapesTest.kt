@@ -528,6 +528,88 @@ class SvgIconShapesTest : KobwebApplicationTestCase() {
         icon.assertBounds(4.0, 4.0, 16.0, 16.0)
     }
 
+    fun testIconWrappedInAnElement() {
+        myFixture.configureByText(
+            "TestIcons.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+            import org.jetbrains.compose.web.dom.Span
+
+            @Composable
+            fun TestIcon() {
+                Span {
+                    Svg(attrs = { viewBox(0, 0, 24, 24) }) {
+                        Path { d("M4 4h16v16H4z") }
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+        val icon = (myFixture.file as KtFile).declarations.filterIsInstance<KtNamedFunction>()
+            .single { it.name == "TestIcon" }.readSvgIconShape()
+        assertThat(icon.name).isEqualTo("TestIcon")
+        icon.assertBounds(4.0, 4.0, 16.0, 16.0)
+    }
+
+    fun testElementsWrappedAroundAnIconDontCountTowardItsDelegationDepth() {
+        myFixture.configureByText(
+            "TestIcons.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+            import org.jetbrains.compose.web.dom.Div
+            import org.jetbrains.compose.web.dom.Span
+
+            @Composable
+            fun TestIcon() {
+                Div { Span { Div { Span { SquareTestIcon() } } } }
+            }
+
+            @Composable
+            fun SquareTestIcon() {
+                Div { Span { Div { Span {
+                    Svg(attrs = { viewBox(0, 0, 24, 24) }) {
+                        Path { d("M4 4h16v16H4z") }
+                    }
+                } } } }
+            }
+            """.trimIndent(),
+        )
+        val icon = (myFixture.file as KtFile).declarations.filterIsInstance<KtNamedFunction>()
+            .single { it.name == "TestIcon" }.readSvgIconShape()
+        icon.assertBounds(4.0, 4.0, 16.0, 16.0)
+    }
+
+    fun testElementWithMoreThanAnIconFails() {
+        myFixture.configureByText(
+            "TestIcons.kt",
+            // language=kotlin
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.dom.svg.*
+            import org.jetbrains.compose.web.dom.Span
+            import org.jetbrains.compose.web.dom.Text
+
+            @Composable
+            fun TestIcon() {
+                Span {
+                    Svg(attrs = { viewBox(0, 0, 24, 24) }) {
+                        Path { d("M4 4h16v16H4z") }
+                    }
+                    Text("GitHub")
+                }
+            }
+            """.trimIndent(),
+        )
+        assertThrows<IllegalArgumentException> {
+            (myFixture.file as KtFile).declarations.filterIsInstance<KtNamedFunction>()
+                .single { it.name == "TestIcon" }.readSvgIconShape()
+        }
+    }
+
     fun testUnsupportedCodeFailsTheWholeIcon() {
         // An `if`, even alongside elements that could be read
         myFixture.configureByText(

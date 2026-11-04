@@ -39,7 +39,7 @@ private const val MAX_DELEGATION_DEPTH = 3
 
 /**
  * Reads the shape this icon function draws, for functions whose body is a call to Silk's `createIcon` (e.g. Kobweb's
- * own `ArrowBackIcon`) or to Kobweb's `Svg`.
+ * own `ArrowBackIcon`) or to Kobweb's `Svg`, possibly wrapped in an element (e.g. `Span { Svg(...) }`).
  *
  * This reads the source as written rather than running it, so it only understands the SVG elements, attributes, and
  * statements that Kobweb's icons use. Anything else fails the whole read, rather than leaving parts of the icon out.
@@ -102,12 +102,28 @@ private data class Scope(val presentation: Presentation, val variables: Map<Stri
 private fun KtNamedFunction.readIconFunction(depth: Int): IconShape {
     val body = bodyBlockExpression?.statements?.singleOrNull() ?: bodyExpression
     val call = body as? KtCallExpression ?: unsupported(this, "a body that isn't a single call")
-    val callee = call.calleeExpression as? KtNameReferenceExpression ?: unsupported(call)
-    call.readIconRoot()?.let { return it }
+    return call.readIconCall(depth)
+}
+
+/**
+ * Reads the icon this call draws: a call to `createIcon` or `Svg`, a call whose content is a single such call (e.g.
+ * `Span { Svg(...) }`), or a call to another icon.
+ */
+private fun KtCallExpression.readIconCall(depth: Int): IconShape {
+    readIconRoot()?.let { return it }
+
+    // An icon wrapped in an element, e.g. `Span { Svg(...) }`. The wrapper's own arguments (e.g. a modifier) are
+    // ignored, as they style the element around the icon rather than its shape.
+    lambdaArguments.singleOrNull()?.getLambdaExpression()?.let { content ->
+        val inner = content.bodyExpression?.statements?.singleOrNull() as? KtCallExpression
+            ?: unsupported(this, "content that isn't a single call")
+        return inner.readIconCall(depth)
+    }
 
     // An icon that's just another icon, e.g. `fun IndeterminateIcon(modifier: Modifier) = MinusIcon(modifier)`
-    if (depth >= MAX_DELEGATION_DEPTH) unsupported(call, "icons that call other icons this deeply")
-    val target = callee.mainReference.resolve()?.navigationElement as? KtNamedFunction ?: unsupported(call)
+    if (depth >= MAX_DELEGATION_DEPTH) unsupported(this, "icons that call other icons this deeply")
+    val callee = calleeExpression as? KtNameReferenceExpression ?: unsupported(this)
+    val target = callee.mainReference.resolve()?.navigationElement as? KtNamedFunction ?: unsupported(this)
     return target.readIconFunction(depth + 1)
 }
 
