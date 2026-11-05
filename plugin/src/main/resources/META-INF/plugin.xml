@@ -8,6 +8,8 @@
     <depends optional="true" config-file="kobweb-withYaml.xml">org.jetbrains.plugins.yaml</depends>
     <!-- Used to apply Kobweb's schema to .kobweb/conf.yaml files (which also needs the YAML plugin, which depends on it) -->
     <depends optional="true" config-file="kobweb-withJson.xml">com.intellij.modules.json</depends>
+    <!-- Used to edit Gradle settings scripts and version catalogs when creating Kobweb modules -->
+    <depends optional="true" config-file="kobweb-withGradleDsl.xml">org.jetbrains.idea.gradle.dsl</depends>
 
     <resource-bundle>bundles.KobwebBundle</resource-bundle>
 
