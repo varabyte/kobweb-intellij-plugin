@@ -1,0 +1,16 @@
+# ${MODULE_NAME}
+
+A Kobweb library. Its code goes in these folders:
+
+* `src/jsMain/kotlin/${PACKAGE_PATH}/components`: layouts, sections, and widgets
+  (see #[[https://kobweb.varabyte.com/docs/concepts/foundation/project-structure#components-and-pages]]#)
+* `src/jsMain/kotlin/${PACKAGE_PATH}/pages`: pages
+  (see #[[https://kobweb.varabyte.com/docs/concepts/foundation/routing#page]]#)
+#if ($USE_MARKDOWN)
+* `src/jsMain/resources/markdown`: Markdown files, which get converted into pages
+  (see #[[https://kobweb.varabyte.com/docs/concepts/foundation/markdown]]#)
+#end
+#if ($USE_SERVER)
+* `src/jvmMain/kotlin/${PACKAGE_PATH}/api`: API routes
+  (see #[[https://kobweb.varabyte.com/docs/concepts/server/fullstack#define-api-routes]]#)
+#end
