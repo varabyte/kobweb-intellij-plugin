@@ -49,8 +49,8 @@ import javax.swing.text.JTextComponent
  * out of the data object, creating the promised output class.
  *
  * ```
- * private val KEY_A = Key(0)
- * private val KEY_B = Key("hello")
+ * private val KEY_A by key(0)
+ * private val KEY_B by key("hello")
  *
  * class MyWizard(...) : SimpleWizard {
  *     override fun createSteps(ctx: StepContext) = listOf(
