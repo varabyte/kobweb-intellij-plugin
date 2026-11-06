@@ -2,6 +2,7 @@ package com.varabyte.kobweb.intellij.wizards.module
 
 import com.android.tools.idea.gradle.dsl.api.GradleSettingsModel
 import com.android.tools.idea.gradle.dsl.api.ProjectBuildModel
+import com.android.tools.idea.gradle.dsl.api.ext.ReferenceTo
 import com.intellij.ide.fileTemplates.FileTemplateManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VfsUtil
@@ -120,7 +121,7 @@ class KobwebModuleWriter(private val project: Project, private val rootDir: Virt
             VfsUtil.createDirectoryIfMissing(moduleRoot, "src/jvmMain/kotlin/$packagePath/api")
         }
 
-        includeInGradleSettings(moduleDir)
+        updateRootProject(moduleDir)
         return buildFile
     }
 
@@ -171,7 +172,7 @@ class KobwebModuleWriter(private val project: Project, private val rootDir: Virt
             VfsUtil.createDirectoryIfMissing(moduleRoot, "src/jvmMain/kotlin/$packagePath/api")
         }
 
-        includeInGradleSettings(moduleDir)
+        updateRootProject(moduleDir)
         return buildFile
     }
 
@@ -209,7 +210,7 @@ class KobwebModuleWriter(private val project: Project, private val rootDir: Virt
             moduleRoot.writeTemplate("README.md", "Kobweb Worker README.md", properties)
         }
 
-        includeInGradleSettings(moduleDir)
+        updateRootProject(moduleDir)
         return buildFile
     }
 
@@ -308,6 +309,43 @@ class KobwebModuleWriter(private val project: Project, private val rootDir: Virt
     private fun VirtualFile.toCatalogModel() =
         ProjectBuildModel.get(project).versionCatalogsModel.getVersionCatalogModel(this, CATALOG_NAME)
 
+    /**
+     * Updates the root project's scripts for the new module in [moduleDir], once its own files are written. Every kind
+     * of Kobweb module needs these changes.
+     */
+    private fun updateRootProject(moduleDir: String) {
+        declareKotlinPluginInRootBuildScript()
+        includeInGradleSettings(moduleDir)
+    }
+
+    /**
+     * Declares the Kotlin Multiplatform plugin in the root build script with `apply false`, unless it's already there,
+     * creating the script if needed.
+     *
+     * Otherwise, Gradle loads the Kotlin Gradle plugin separately for each module that applies it, and a build with
+     * two such modules fails with "The Kotlin Gradle plugin was loaded multiple times". Declaring it in the root build
+     * script makes all modules share one copy. The other plugins Kobweb modules apply (e.g. Compose Compiler) work
+     * either way, so they're left out.
+     */
+    private fun declareKotlinPluginInRootBuildScript() {
+        val buildFile = BUILD_FILE_NAMES.firstNotNullOfOrNull { rootDir.findChild(it) }
+            ?: rootDir.createChildData(this, BUILD_FILE_NAMES.first())
+        val buildModel = ProjectBuildModel.get(project).getModuleBuildModel(buildFile)
+        val userCatalog = findOrCreateUserCatalog()
+        val alias = userCatalog.findPluginAlias(KOTLIN_MULTIPLATFORM_PLUGIN_ID)!!
+
+        // The DSL only lists an `alias(...)` declaration if it finds the catalog, which it looks for under the IDE
+        // project's base path, so a build in a subdirectory of the project needs the text check.
+        val aliasCall = "alias(${userCatalog.pluginAccessor(alias)})"
+        val isDeclared = buildModel.plugins().any { it.name().forceString() == KOTLIN_MULTIPLATFORM_PLUGIN_ID } ||
+            buildModel.pluginsPsiElement?.text.orEmpty().filterNot { it.isWhitespace() }.contains(aliasCall)
+        if (isDeclared) return
+
+        val pluginModel = userCatalog.model.pluginDeclarations().getAll().getValue(alias).completeModel()!!
+        buildModel.applyPlugin(ReferenceTo(pluginModel, buildModel), /* apply = */ false)
+        buildModel.applyChanges()
+    }
+
     private fun includeInGradleSettings(moduleDir: String) {
         val gradlePath = moduleDir.toGradlePath()
         val settingsFile = SETTINGS_FILE_NAMES.firstNotNullOfOrNull { rootDir.findChild(it) }
@@ -351,6 +389,7 @@ class KobwebModuleWriter(private val project: Project, private val rootDir: Virt
         const val FAVICON_RESOURCE = "/kobweb/templates/app/favicon.ico"
         val SETTINGS_FILE_NAMES = listOf("settings.gradle.kts", "settings.gradle")
         val BUILD_FILE_NAMES = listOf("build.gradle.kts", "build.gradle")
+        const val KOTLIN_MULTIPLATFORM_PLUGIN_ID = "org.jetbrains.kotlin.multiplatform"
 
         /** Template property name to its alias in the template catalog. */
         val APP_TEMPLATE_LIBRARIES = mapOf(

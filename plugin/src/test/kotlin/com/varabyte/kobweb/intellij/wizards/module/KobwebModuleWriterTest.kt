@@ -254,6 +254,15 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
 
             """.trimIndent()
         )
+        // Declared at the root so that modules share one copy of the Kotlin Gradle plugin
+        assertThat(textOf("build.gradle.kts")).isEqualTo(
+            """
+            plugins {
+                alias(libs.plugins.kotlin.multiplatform) apply false
+            }
+
+            """.trimIndent()
+        )
     }
 
     fun testAppSampleCodeWithoutSilk() {
@@ -493,6 +502,15 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
 
             include(":site")
             include(":mylib")
+
+            """.trimIndent()
+        )
+        // Declared at the root so that modules share one copy of the Kotlin Gradle plugin
+        assertThat(textOf("build.gradle.kts")).isEqualTo(
+            """
+            plugins {
+                alias(libs.plugins.kotlin.multiplatform) apply false
+            }
 
             """.trimIndent()
         )
@@ -749,6 +767,15 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
 
             """.trimIndent()
         )
+        // Declared at the root so that modules share one copy of the Kotlin Gradle plugin
+        assertThat(textOf("build.gradle.kts")).isEqualTo(
+            """
+            plugins {
+                alias(libs.plugins.kotlin.multiplatform) apply false
+            }
+
+            """.trimIndent()
+        )
         // The catalog gets the serialization entries too, so users can switch to custom classes later
         assertThat(textOf("gradle/libs.versions.toml")).contains("kotlinx-serialization-json")
     }
@@ -827,6 +854,146 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
             """.trimIndent()
         )
         assertThat(exists("worker/README.md")).isFalse()
+    }
+
+    fun testKotlinPluginIsAddedToExistingRootBuildScriptWithPluginsBlock() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+        myFixture.addFileToProject(
+            "build.gradle.kts",
+            """
+            plugins {
+                alias(libs.plugins.kotlin.jvm) apply false
+            }
+            """.trimIndent(),
+        )
+
+        writeLibrary(
+            rootDir,
+            "mylib",
+            KobwebLibraryOptions(
+                group = "com.example.mylib",
+                useSilk = true,
+                useServer = false,
+                useMarkdown = false,
+                generateReadme = false,
+                addSampleCode = false,
+            ),
+        )
+
+        assertThat(textOf("build.gradle.kts")).isEqualTo(
+            """
+            plugins {
+                alias(libs.plugins.kotlin.jvm) apply false
+                alias(libs.plugins.kotlin.multiplatform) apply false
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testKotlinPluginIsAddedToExistingRootBuildScriptWithoutPluginsBlock() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+        myFixture.addFileToProject(
+            "build.gradle.kts",
+            """
+            allprojects {
+                group = "com.example"
+            }
+            """.trimIndent(),
+        )
+
+        writeLibrary(
+            rootDir,
+            "mylib",
+            KobwebLibraryOptions(
+                group = "com.example.mylib",
+                useSilk = true,
+                useServer = false,
+                useMarkdown = false,
+                generateReadme = false,
+                addSampleCode = false,
+            ),
+        )
+
+        assertThat(textOf("build.gradle.kts")).isEqualTo(
+            """
+            plugins {
+                alias(libs.plugins.kotlin.multiplatform) apply false
+            }
+            allprojects {
+                group = "com.example"
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testKotlinPluginDeclaredWithAliasIsNotAddedAgain() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+        myFixture.addFileToProject(
+            "build.gradle.kts",
+            """
+            plugins {
+                alias(libs.plugins.kotlin.multiplatform) apply false
+            }
+            """.trimIndent(),
+        )
+
+        writeLibrary(
+            rootDir,
+            "mylib",
+            KobwebLibraryOptions(
+                group = "com.example.mylib",
+                useSilk = true,
+                useServer = false,
+                useMarkdown = false,
+                generateReadme = false,
+                addSampleCode = false,
+            ),
+        )
+
+        assertThat(textOf("build.gradle.kts")).isEqualTo(
+            """
+            plugins {
+                alias(libs.plugins.kotlin.multiplatform) apply false
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testKotlinPluginDeclaredByIdIsNotAddedAgain() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+        myFixture.addFileToProject(
+            "build.gradle.kts",
+            """
+            plugins {
+                kotlin("multiplatform") version "2.4.10" apply false
+            }
+            """.trimIndent(),
+        )
+
+        writeLibrary(
+            rootDir,
+            "mylib",
+            KobwebLibraryOptions(
+                group = "com.example.mylib",
+                useSilk = true,
+                useServer = false,
+                useMarkdown = false,
+                generateReadme = false,
+                addSampleCode = false,
+            ),
+        )
+
+        assertThat(textOf("build.gradle.kts")).isEqualTo(
+            """
+            plugins {
+                kotlin("multiplatform") version "2.4.10" apply false
+            }
+            """.trimIndent()
+        )
     }
 
     fun testModuleIsAddedToApplicationDependencies() {
