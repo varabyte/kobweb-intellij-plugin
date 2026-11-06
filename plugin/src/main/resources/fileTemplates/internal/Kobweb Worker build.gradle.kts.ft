@@ -11,7 +11,7 @@ group = "${GROUP}"
 version = "1.0-SNAPSHOT"
 
 kotlin {
-    configAsKobwebWorker()
+    configAsKobwebWorker("${SCRIPT_NAME}")
 
     sourceSets {
         jsMain.dependencies {

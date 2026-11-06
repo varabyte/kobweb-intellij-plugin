@@ -670,7 +670,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
             version = "1.0-SNAPSHOT"
 
             kotlin {
-                configAsKobwebWorker()
+                configAsKobwebWorker("echo-worker")
 
                 sourceSets {
                     jsMain.dependencies {
@@ -772,7 +772,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
             version = "1.0-SNAPSHOT"
 
             kotlin {
-                configAsKobwebWorker()
+                configAsKobwebWorker("image-processor-worker")
 
                 sourceSets {
                     jsMain.dependencies {

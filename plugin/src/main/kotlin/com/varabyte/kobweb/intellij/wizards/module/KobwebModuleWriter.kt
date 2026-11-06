@@ -12,6 +12,7 @@ import com.varabyte.kobweb.intellij.util.gradle.catalog.findLibraryAlias
 import com.varabyte.kobweb.intellij.util.gradle.catalog.findPluginAlias
 import com.varabyte.kobweb.intellij.util.gradle.catalog.libraryAccessor
 import com.varabyte.kobweb.intellij.util.gradle.catalog.pluginAccessor
+import com.varabyte.kobweb.intellij.util.text.camelCaseToKebabCase
 
 /**
  * The choices a user makes for a new Kobweb app module.
@@ -190,6 +191,9 @@ class KobwebModuleWriter(private val project: Project, private val rootDir: Virt
             "PACKAGE" to options.group,
             "PACKAGE_PATH" to packagePath,
             "NAME" to options.name,
+            // Names the worker's script, which makes it easier to spot when debugging, e.g. `image-processor-worker.js`
+            // for `ImageProcessor`
+            "SCRIPT_NAME" to options.name.camelCaseToKebabCase() + "-worker",
             "USE_CUSTOM_TYPES" to options.useCustomTypes,
             "INPUT_EXAMPLE" to if (options.useCustomTypes) "${options.name}Input(\"Hello\")" else "\"Hello\"",
         ) + addCatalogEntries(WORKER_TEMPLATE_LIBRARIES, WORKER_TEMPLATE_PLUGINS)
