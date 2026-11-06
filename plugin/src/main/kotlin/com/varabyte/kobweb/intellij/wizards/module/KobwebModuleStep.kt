@@ -1,7 +1,8 @@
 package com.varabyte.kobweb.intellij.wizards.module
 
-import com.intellij.ide.wizard.AbstractNewProjectWizardStep
+import com.intellij.ide.wizard.AbstractNewProjectWizardMultiStepBase
 import com.intellij.ide.wizard.NewProjectWizardBaseStep
+import com.intellij.ide.wizard.NewProjectWizardStep
 import com.intellij.openapi.externalSystem.ExternalSystemModulePropertyManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.externalSystem.importing.ImportSpecBuilder
@@ -17,6 +18,7 @@ import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.dsl.builder.COLUMNS_MEDIUM
 import com.intellij.ui.dsl.builder.Panel
+import com.intellij.ui.dsl.builder.TopGap
 import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.bindText
 import com.intellij.ui.dsl.builder.columns
@@ -30,23 +32,26 @@ import java.nio.file.Path
 import kotlin.io.path.Path
 import kotlin.io.path.invariantSeparatorsPathString
 
-/** The kinds of Kobweb modules the wizard can create. */
-private enum class KobwebModuleType(val text: String) {
-    LIBRARY(UxGlobals.textBundle.message("wizard.kobweb.module.type.library")),
-}
-
 /**
- * The step of the Kobweb wizard that asks about the new module and then creates it.
+ * The step of the Kobweb wizard that asks which kind of module to create, showing that kind's options below it.
  *
- * The module's name and location come from the [NewProjectWizardBaseStep] before it.
+ * It also holds the options that all kinds share, so they keep their values when users switch between kinds. The
+ * module's name and location come from the [NewProjectWizardBaseStep] before it.
  */
-class KobwebModuleStep(private val baseStep: NewProjectWizardBaseStep) : AbstractNewProjectWizardStep(baseStep) {
-    private val typeProperty = propertyGraph.property(KobwebModuleType.LIBRARY)
-    private val groupProperty = propertyGraph.lazyProperty(::suggestGroup)
-    private val useSilkProperty = propertyGraph.property(true)
-    private val useServerProperty = propertyGraph.property(false)
-    private val useMarkdownProperty = propertyGraph.property(true)
-    private val generateReadmeProperty = propertyGraph.property(true).bindBooleanStorage(GENERATE_README_PROPERTY_NAME)
+class KobwebModuleStep(
+    private val baseStep: NewProjectWizardBaseStep,
+) : AbstractNewProjectWizardMultiStepBase(baseStep) {
+    override val label = UxGlobals.textBundle.message("wizard.kobweb.module.type")
+
+    internal val nameProperty get() = baseStep.nameProperty
+    internal val groupProperty = propertyGraph.lazyProperty(::suggestGroup)
+    internal val useSilkProperty = propertyGraph.property(true)
+    internal val useServerProperty = propertyGraph.property(false)
+    internal val useMarkdownProperty = propertyGraph.property(true)
+    internal val generateReadmeProperty =
+        propertyGraph.property(true).bindBooleanStorage(GENERATE_README_PROPERTY_NAME)
+    internal val addSampleCodeProperty =
+        propertyGraph.property(true).bindBooleanStorage(ADD_SAMPLE_CODE_PROPERTY_NAME)
 
     init {
         // Follows the module name and location until the user edits it
@@ -56,10 +61,17 @@ class KobwebModuleStep(private val baseStep: NewProjectWizardBaseStep) : Abstrac
 
     private val moduleDir: Path get() = Path(baseStep.path, baseStep.name)
 
+    override fun initSteps(): Map<String, NewProjectWizardStep> {
+        val bundle = UxGlobals.textBundle
+        return linkedMapOf(
+            bundle.message("wizard.kobweb.module.type.app") to KobwebAppStep(this),
+            bundle.message("wizard.kobweb.module.type.library") to KobwebLibraryStep(this),
+        )
+    }
+
     override fun setupUI(builder: Panel) {
         val bundle = UxGlobals.textBundle
-        val project = context.project
-        val gradleRoot = project?.findGradleRoot(moduleDir)
+        val gradleRoot = context.project?.findGradleRoot(moduleDir)
         when {
             context.isCreatingNewProject -> bundle.message("wizard.kobweb.project.unsupported")
             gradleRoot == null -> bundle.message("wizard.kobweb.module.error.not.gradle")
@@ -71,64 +83,83 @@ class KobwebModuleStep(private val baseStep: NewProjectWizardBaseStep) : Abstrac
         // If gradleRoot were null, we would have returned above. Kotlin code analysis doesn't seem to detect this.
         gradleRoot!!
 
-        with(builder) {
-            row(bundle.message("wizard.kobweb.module.type")) {
-                segmentedButton(KobwebModuleType.entries) { text = it.text }
-                    .bind(typeProperty)
-            }
-            row(bundle.message("wizard.kobweb.module.group")) {
-                textField()
-                    .bindText(groupProperty)
-                    .columns(COLUMNS_MEDIUM)
-                    .validationOnInput { field -> validateGroup(field.text) }
-                    .validationOnApply { field -> validateGroup(field.text) }
-                    // The location field belongs to the previous step, so check here that it's still inside the build
-                    .validationOnApply {
-                        if (project.findGradleRoot(moduleDir) != null) null
-                        else error(bundle.message("wizard.kobweb.module.error.not.gradle"))
-                    }
-            }
-            row {
-                checkBox(bundle.message("wizard.kobweb.module.use.silk"))
-                    .bindSelected(useSilkProperty)
-                    .comment(bundle.message("wizard.kobweb.module.use.silk.comment"))
-            }
-            row {
-                checkBox(bundle.message("wizard.kobweb.module.use.server"))
-                    .bindSelected(useServerProperty)
-                    .comment(bundle.message("wizard.kobweb.module.use.server.comment"))
-            }
-            row {
-                checkBox(bundle.message("wizard.kobweb.module.use.markdown"))
-                    .bindSelected(useMarkdownProperty)
-                    .comment(bundle.message("wizard.kobweb.module.use.markdown.comment"))
-            }
-            row {
-                checkBox(bundle.message("wizard.kobweb.module.generate.readme"))
-                    .bindSelected(generateReadmeProperty)
-                    .comment(bundle.message("wizard.kobweb.module.generate.readme.comment"))
-            }
-            if (gradleRoot.findFileByRelativePath("gradle/libs.versions.toml") == null) {
-                row { comment(bundle.message("wizard.kobweb.module.catalog.created")) }
-            }
+        super.setupUI(builder)
+        if (gradleRoot.findFileByRelativePath("gradle/libs.versions.toml") == null) {
+            builder.row { comment(bundle.message("wizard.kobweb.module.catalog.created")) }
         }
     }
 
-    override fun setupProject(project: Project) {
+    /**
+     * Adds the group field, whose error message uses [exampleGroup] (e.g. `com.example.mylib`) as an example.
+     */
+    internal fun Panel.groupRow(exampleGroup: String) {
+        val bundle = UxGlobals.textBundle
+        row(bundle.message("wizard.kobweb.module.group")) {
+            textField()
+                .bindText(groupProperty)
+                .columns(COLUMNS_MEDIUM)
+                .validationOnInput { field -> validateGroup(field.text, exampleGroup) }
+                .validationOnApply { field -> validateGroup(field.text, exampleGroup) }
+                // The location field belongs to an earlier step, so check here that it's still inside the build
+                .validationOnApply {
+                    if (context.project?.findGradleRoot(moduleDir) != null) null
+                    else error(bundle.message("wizard.kobweb.module.error.not.gradle"))
+                }
+        }
+    }
+
+    /** Adds the checkboxes for the Kobweb features that all kinds of modules can use. */
+    internal fun Panel.featureRows() {
+        val bundle = UxGlobals.textBundle
+        row {
+            checkBox(bundle.message("wizard.kobweb.module.use.silk"))
+                .bindSelected(useSilkProperty)
+                .comment(bundle.message("wizard.kobweb.module.use.silk.comment"))
+        }
+        row {
+            checkBox(bundle.message("wizard.kobweb.module.use.server"))
+                .bindSelected(useServerProperty)
+                .comment(bundle.message("wizard.kobweb.module.use.server.comment"))
+        }
+        row {
+            checkBox(bundle.message("wizard.kobweb.module.use.markdown"))
+                .bindSelected(useMarkdownProperty)
+                .comment(bundle.message("wizard.kobweb.module.use.markdown.comment"))
+        }
+    }
+
+    /** Adds a titled section that separates the Kobweb-specific options from the general ones above it. */
+    internal fun Panel.kobwebConfigurationGroup(init: Panel.() -> Unit) {
+        group(UxGlobals.textBundle.message("wizard.kobweb.module.configuration"), init = init)
+            .topGap(TopGap.MEDIUM)
+    }
+
+    internal fun Panel.readmeRow() {
+        row {
+            checkBox(UxGlobals.textBundle.message("wizard.kobweb.module.generate.readme"))
+                .bindSelected(generateReadmeProperty)
+        }
+    }
+
+    internal fun Panel.sampleCodeRow() {
+        row {
+            checkBox(UxGlobals.textBundle.message("wizard.kobweb.module.add.sample.code"))
+                .bindSelected(addSampleCodeProperty)
+        }
+    }
+
+    /**
+     * Writes the new module with [write], which gets a path relative to the build's root (e.g. `"site"`) and returns
+     * the module's build script. Then syncs Gradle and opens the build script.
+     */
+    internal fun writeModule(project: Project, write: KobwebModuleWriter.(moduleDir: String) -> VirtualFile) {
         val gradleRoot = project.findGradleRoot(moduleDir) ?: return
         val relativeModuleDir = gradleRoot.toNioPath().relativize(moduleDir).invariantSeparatorsPathString
-        val options = KobwebLibraryOptions(
-            group = groupProperty.get(),
-            useSilk = useSilkProperty.get(),
-            useServer = useServerProperty.get(),
-            useMarkdown = useMarkdownProperty.get(),
-            generateReadme = generateReadmeProperty.get(),
-        )
 
         val buildFile = WriteCommandAction.writeCommandAction(project)
             .withName(UxGlobals.textBundle.message("wizard.kobweb.module.command"))
             .compute<VirtualFile, Throwable> {
-                KobwebModuleWriter(project, gradleRoot).writeLibrary(relativeModuleDir, options)
+                KobwebModuleWriter(project, gradleRoot).write(relativeModuleDir)
             }
 
         ExternalSystemUtil.refreshProject(gradleRoot.path, ImportSpecBuilder(project, GradleConstants.SYSTEM_ID))
@@ -166,8 +197,9 @@ class KobwebModuleStep(private val baseStep: NewProjectWizardBaseStep) : Abstrac
     }
 
     private companion object {
-        /** Remembers across projects whether users want a README, as IntelliJ does for its "Add sample code" option. */
+        // These options are remembered across projects, as IntelliJ does for its own "Add sample code" option
         const val GENERATE_README_PROPERTY_NAME = "kobweb.wizard.module.generateReadme"
+        const val ADD_SAMPLE_CODE_PROPERTY_NAME = "kobweb.wizard.module.addSampleCode"
     }
 }
 
@@ -200,9 +232,9 @@ private fun List<String>.commonGroupPrefix(): String? {
     return common.joinToString(".").takeIf { it.isNotEmpty() }
 }
 
-private fun ValidationInfoBuilder.validateGroup(group: String): ValidationInfo? =
+private fun ValidationInfoBuilder.validateGroup(group: String, exampleGroup: String): ValidationInfo? =
     if (group.isNotEmpty() && group.split('.').all { StringUtil.isJavaIdentifier(it) }) null
-    else error(UxGlobals.textBundle.message("wizard.kobweb.module.error.invalid.group"))
+    else error(UxGlobals.textBundle.message("wizard.kobweb.module.error.invalid.group", exampleGroup))
 
 /** The root directory of the Gradle build that [moduleDir] is inside of, or null if it isn't inside one. */
 private fun Project.findGradleRoot(moduleDir: Path): VirtualFile? =

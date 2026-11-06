@@ -1,0 +1,8 @@
+---
+title: About
+layout: .components.layouts.PageLayout
+---
+
+# About
+
+This page is written in Markdown. Kobweb converts it into a page at `/about`.

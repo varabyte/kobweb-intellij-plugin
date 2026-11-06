@@ -1,0 +1,22 @@
+# ${MODULE_NAME}
+
+A Kobweb application. To run it, open a terminal in this folder and type `kobweb run`, then visit http://localhost:8080.
+#[[(See https://kobweb.varabyte.com/docs/getting-started/getting-kobweb for how to install the `kobweb` command.)]]#
+
+Its code goes in these places:
+
+* `src/jsMain/kotlin/${PACKAGE_PATH}/AppEntry.kt`: the `@App` function that wraps every page
+* `src/jsMain/kotlin/${PACKAGE_PATH}/components`: layouts, sections, and widgets
+  (see #[[https://kobweb.varabyte.com/docs/concepts/foundation/project-structure#components-and-pages]]#)
+* `src/jsMain/kotlin/${PACKAGE_PATH}/pages`: pages
+  (see #[[https://kobweb.varabyte.com/docs/concepts/foundation/routing#page]]#)
+* `src/jsMain/resources/public`: files served as is, like images and the favicon
+#if ($USE_MARKDOWN)
+* `src/jsMain/resources/markdown`: Markdown files, which get converted into pages
+  (see #[[https://kobweb.varabyte.com/docs/concepts/foundation/markdown]]#)
+#end
+#if ($USE_SERVER)
+* `src/jvmMain/kotlin/${PACKAGE_PATH}/api`: API routes
+  (see #[[https://kobweb.varabyte.com/docs/concepts/server/fullstack#define-api-routes]]#)
+#end
+* `.kobweb/conf.yaml`: the site's title and server settings
