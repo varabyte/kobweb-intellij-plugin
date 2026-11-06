@@ -214,6 +214,50 @@ class KobwebModuleWriter(private val project: Project, private val rootDir: Virt
     }
 
     /**
+     * Adds the module at [moduleDir] to the `jsMain` dependencies of each module in [dependentDirs], unless it's
+     * already there. Both are paths relative to the build's root, e.g. `"site"`.
+     *
+     * Must be called inside a write command.
+     *
+     * @param includeJvm Whether to also add it to the dependents' `jvmMain` dependencies, for a module with a JVM
+     *   target. Dependents without a `jvmMain` block are left alone: most of them are JS-only.
+     * @return the dependents whose build script couldn't be edited, because it has no `jsMain` block the DSL can find
+     *   (e.g. it uses `val jsMain by getting`, or has no such block at all).
+     */
+    fun addAsDependency(moduleDir: String, dependentDirs: List<String>, includeJvm: Boolean): List<String> {
+        val gradlePath = moduleDir.toGradlePath()
+        val skippedDirs = mutableListOf<String>()
+        for (dependentDir in dependentDirs) {
+            val buildModel = findBuildFile(dependentDir)?.let { ProjectBuildModel.get(project).getModuleBuildModel(it) }
+            // Only existing blocks are edited. Kotlin creates the source sets of each target itself, so adding a block
+            // the DSL doesn't find (e.g. `val jsMain by getting`, or none at all) would declare the source set a
+            // second time, e.g. `create("jsMain")`, which fails the build.
+            val sourceSets = buildModel?.kotlin()?.sourceSets().orEmpty()
+            val jsMain = sourceSets.find { it.name() == "jsMain" }
+            if (buildModel == null || jsMain == null) {
+                skippedDirs.add(dependentDir)
+                continue
+            }
+            val jvmMain = if (includeJvm) sourceSets.find { it.name() == "jvmMain" } else null
+            for (sourceSet in listOfNotNull(jsMain, jvmMain)) {
+                val dependencies = sourceSet.dependencies()
+                if (dependencies.modules().none { it.path().forceString() == gradlePath }) {
+                    dependencies.addModule("implementation", gradlePath)
+                }
+            }
+            buildModel.applyChanges()
+        }
+        return skippedDirs
+    }
+
+    /** The build script of the module in [moduleDir], a path relative to [rootDir]. */
+    fun findBuildFile(moduleDir: String): VirtualFile? =
+        BUILD_FILE_NAMES.firstNotNullOfOrNull { rootDir.findFileByRelativePath("$moduleDir/$it") }
+
+    /** The Gradle path of the module in [moduleDir], e.g. `:libs:mylib` for `"libs/mylib"`. */
+    fun gradlePathOf(moduleDir: String): String = moduleDir.toGradlePath()
+
+    /**
      * Adds the given entries of the template catalog to the build's catalog, if it doesn't have them yet.
      *
      * @param libraries Template property names mapped to library aliases in the template catalog.
@@ -306,6 +350,7 @@ class KobwebModuleWriter(private val project: Project, private val rootDir: Virt
         const val TEMPLATE_CATALOG_RESOURCE = "/kobweb/templates/libs.versions.toml"
         const val FAVICON_RESOURCE = "/kobweb/templates/app/favicon.ico"
         val SETTINGS_FILE_NAMES = listOf("settings.gradle.kts", "settings.gradle")
+        val BUILD_FILE_NAMES = listOf("build.gradle.kts", "build.gradle")
 
         /** Template property name to its alias in the template catalog. */
         val APP_TEMPLATE_LIBRARIES = mapOf(
