@@ -21,6 +21,7 @@ import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.platform.ide.progress.runWithModalProgressBlocking
 import com.intellij.ui.CheckBoxList
 import com.intellij.ui.ListSpeedSearch
 import com.intellij.ui.ScrollPaneFactory
@@ -36,6 +37,7 @@ import com.intellij.util.ui.JBUI
 import com.varabyte.kobweb.intellij.model.KobwebProjectType
 import com.varabyte.kobweb.intellij.notification.KobwebNotifier
 import com.varabyte.kobweb.intellij.project.KobwebProject
+import com.varabyte.kobweb.intellij.services.versions.KobwebReleaseVersionsService
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.plugins.gradle.service.project.GradleProjectResolverUtil
@@ -44,6 +46,7 @@ import org.jetbrains.plugins.gradle.util.GradleConstants
 import java.nio.file.Path
 import kotlin.io.path.Path
 import kotlin.io.path.invariantSeparatorsPathString
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The step of the Kobweb wizard that asks which kind of module to create, showing that kind's options below it.
@@ -111,6 +114,9 @@ class KobwebModuleStep(
         }
         // If gradleRoot were null, we would have returned above. Kotlin code analysis doesn't seem to detect this.
         gradleRoot!!
+
+        // Fetched while users fill in the form, so it's usually ready by the time they click Create
+        KobwebReleaseVersionsService.instance.prefetch()
 
         super.setupUI(builder)
         if (gradleRoot.findFileByRelativePath("gradle/libs.versions.toml") == null) {
@@ -262,7 +268,7 @@ class KobwebModuleStep(
     ) {
         val gradleRoot = project.findGradleRoot(moduleDir) ?: return
         val relativeModuleDir = gradleRoot.toNioPath().relativize(moduleDir).invariantSeparatorsPathString
-        val writer = KobwebModuleWriter(project, gradleRoot)
+        val writer = KobwebModuleWriter(project, gradleRoot, versionOverrides = awaitLatestKobwebVersions(project))
 
         val result = WriteCommandAction.writeCommandAction(project)
             .withName(UxGlobals.textBundle.message("wizard.kobweb.module.command"))
@@ -284,6 +290,19 @@ class KobwebModuleStep(
         for (dependent in dependents.filter { it.dir in result.skippedDependentDirs }) {
             notifyDependencyNotAdded(project, writer, dependent, gradlePath)
         }
+    }
+
+    /**
+     * The versions the latest Kobweb release uses, waiting briefly for them if they're still being fetched. If they
+     * can't be fetched (e.g. when offline), returns no versions, so the module uses the ones bundled with the plugin.
+     */
+    private fun awaitLatestKobwebVersions(project: Project): Map<String, String> {
+        val service = KobwebReleaseVersionsService.instance
+        service.latestVersionsIfFetched()?.let { return it }
+        val title = UxGlobals.textBundle.message("wizard.kobweb.module.fetching.versions")
+        return runWithModalProgressBlocking(project, title) {
+            service.awaitLatestVersions(LATEST_VERSIONS_TIMEOUT)
+        }.orEmpty()
     }
 
     private fun notifyDependencyNotAdded(
@@ -394,6 +413,9 @@ class KobwebModuleStep(
     private class WriteModuleResult(val buildFile: VirtualFile, val skippedDependentDirs: List<String>)
 
     private companion object {
+        /** How long Create waits for the latest Kobweb versions, if they're still being fetched. */
+        val LATEST_VERSIONS_TIMEOUT = 2.seconds
+
         /** The popup of dependents scrolls past this many. */
         const val MAX_VISIBLE_DEPENDENTS = 10
 

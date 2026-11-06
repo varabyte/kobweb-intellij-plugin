@@ -1,0 +1,7 @@
+<!-- Features that need both IntelliJ's Gradle DSL and TOML plugins (see kobweb-withGradleDsl.xml) -->
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- A module builder rather than a newProjectWizard.generator, which only shows up in the New Project dialog -->
+        <moduleBuilder builderClass="com.varabyte.kobweb.intellij.wizards.module.KobwebNewProjectWizard$Builder"/>
+    </extensions>
+</idea-plugin>

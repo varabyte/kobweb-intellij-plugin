@@ -60,8 +60,15 @@ data class KobwebWorkerOptions(
  * `gradle/libs.versions.toml` if the build doesn't have one) and includes the module in the build's settings script.
  *
  * @param rootDir The build's root directory, which holds its settings script.
+ * @param versionOverrides Versions to use instead of the bundled template catalog's own, keyed like its `[versions]`
+ *   table (e.g. `"kobweb"` to `"0.25.2"`), such as the latest Kobweb release's. Keys the template catalog doesn't
+ *   declare are ignored. Versions the build's catalog already declares are kept either way.
  */
-class KobwebModuleWriter(private val project: Project, private val rootDir: VirtualFile) {
+class KobwebModuleWriter(
+    private val project: Project,
+    private val rootDir: VirtualFile,
+    private val versionOverrides: Map<String, String>,
+) {
     /**
      * Writes an app module into [moduleDir], a path relative to [rootDir] (e.g. `"site"` or `"apps/site"`).
      *
@@ -289,21 +296,40 @@ class KobwebModuleWriter(private val project: Project, private val rootDir: Virt
     }
 
     // The Gradle DSL needs a file inside a real directory, so this reads the resource in place (e.g. inside the
-    // plugin's jar) rather than through an in-memory copy
+    // plugin's jar) rather than through an in-memory copy.
+    //
+    // NOTE: Its model is never written back, so applying [versionOverrides] changes it only in memory.
     private fun loadTemplateCatalog(): VersionCatalog {
         val url = checkNotNull(KobwebModuleWriter::class.java.getResource(TEMPLATE_CATALOG_RESOURCE))
-        return VersionCatalog(checkNotNull(VfsUtil.findFileByURL(url)).toCatalogModel())
+        val catalog = VersionCatalog(checkNotNull(VfsUtil.findFileByURL(url)).toCatalogModel())
+        catalog.applyVersionOverrides()
+        return catalog
     }
 
-    /** Finds the build's default catalog, or creates it as a copy of the template catalog. */
+    /**
+     * Finds the build's default catalog, or creates it as a copy of the template catalog, using [versionOverrides].
+     *
+     * The version overrides aren't saved to a created catalog until the caller calls [VersionCatalog.applyChanges].
+     */
     private fun findOrCreateUserCatalog(): VersionCatalog {
-        val catalogFile = rootDir.findFileByRelativePath("$CATALOG_DIR/$CATALOG_FILE_NAME") ?: run {
-            val text = checkNotNull(KobwebModuleWriter::class.java.getResource(TEMPLATE_CATALOG_RESOURCE)).readText()
-            VfsUtil.createDirectoryIfMissing(rootDir, CATALOG_DIR)
-                .createChildData(this, CATALOG_FILE_NAME)
-                .also { VfsUtil.saveText(it, text) }
+        val existingFile = rootDir.findFileByRelativePath("$CATALOG_DIR/$CATALOG_FILE_NAME")
+        if (existingFile != null) return VersionCatalog(existingFile.toCatalogModel())
+
+        val text = checkNotNull(KobwebModuleWriter::class.java.getResource(TEMPLATE_CATALOG_RESOURCE)).readText()
+        val catalogFile = VfsUtil.createDirectoryIfMissing(rootDir, CATALOG_DIR)
+            .createChildData(this, CATALOG_FILE_NAME)
+            .also { VfsUtil.saveText(it, text) }
+        val catalog = VersionCatalog(catalogFile.toCatalogModel())
+        catalog.applyVersionOverrides()
+        return catalog
+    }
+
+    /** Replaces the versions in this catalog's `[versions]` table with [versionOverrides]. */
+    private fun VersionCatalog.applyVersionOverrides() {
+        val declarations = model.versionDeclarations().getAll()
+        for ((key, version) in versionOverrides) {
+            declarations[key]?.completeModel()?.setValue(version)
         }
-        return VersionCatalog(catalogFile.toCatalogModel())
     }
 
     private fun VirtualFile.toCatalogModel() =

@@ -11,19 +11,19 @@ import com.varabyte.truthish.assertThat
 class KobwebModuleWriterTest : BasePlatformTestCase() {
     private fun writeApp(rootDir: VirtualFile, moduleDir: String, options: KobwebAppOptions) {
         WriteCommandAction.runWriteCommandAction(project) {
-            KobwebModuleWriter(project, rootDir).writeApp(moduleDir, options)
+            KobwebModuleWriter(project, rootDir, versionOverrides = emptyMap()).writeApp(moduleDir, options)
         }
     }
 
     private fun writeLibrary(rootDir: VirtualFile, moduleDir: String, options: KobwebLibraryOptions) {
         WriteCommandAction.runWriteCommandAction(project) {
-            KobwebModuleWriter(project, rootDir).writeLibrary(moduleDir, options)
+            KobwebModuleWriter(project, rootDir, versionOverrides = emptyMap()).writeLibrary(moduleDir, options)
         }
     }
 
     private fun writeWorker(rootDir: VirtualFile, moduleDir: String, options: KobwebWorkerOptions) {
         WriteCommandAction.runWriteCommandAction(project) {
-            KobwebModuleWriter(project, rootDir).writeWorker(moduleDir, options)
+            KobwebModuleWriter(project, rootDir, versionOverrides = emptyMap()).writeWorker(moduleDir, options)
         }
     }
 
@@ -34,7 +34,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
         includeJvm: Boolean,
     ): List<String> =
         WriteCommandAction.runWriteCommandAction<List<String>>(project) {
-            KobwebModuleWriter(project, rootDir).addAsDependency(moduleDir, dependentDirs, includeJvm)
+            KobwebModuleWriter(project, rootDir, versionOverrides = emptyMap()).addAsDependency(moduleDir, dependentDirs, includeJvm)
         }
 
     private fun exists(path: String) = myFixture.findFileInTempDir(path) != null
@@ -1313,6 +1313,91 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
         val templateCatalogText =
             KobwebModuleWriter::class.java.getResource("/kobweb/templates/libs.versions.toml")!!.readText()
         assertThat(textOf("gradle/libs.versions.toml")).isEqualTo(templateCatalogText)
+    }
+
+    fun testVersionOverridesAreUsedInNewCatalog() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+
+        WriteCommandAction.runWriteCommandAction(project) {
+            KobwebModuleWriter(
+                project,
+                rootDir,
+                versionOverrides = mapOf("kobweb" to "0.26.0", "kotlin" to "2.5.0", "dokka" to "2.2.0"),
+            ).writeLibrary(
+                "mylib",
+                KobwebLibraryOptions(
+                    group = "com.example.mylib",
+                    useSilk = true,
+                    useServer = false,
+                    useMarkdown = false,
+                    generateReadme = false,
+                    addSampleCode = false,
+                ),
+            )
+        }
+
+        val catalogText = textOf("gradle/libs.versions.toml")
+        assertThat(catalogText).contains("kobweb = \"0.26.0\"")
+        assertThat(catalogText).contains("kotlin = \"2.5.0\"")
+        assertThat(catalogText).contains("compose-runtime = \"1.12.0\"")
+        assertThat(catalogText).doesNotContain("dokka")
+    }
+
+    fun testVersionOverridesOnlyFillInMissingVersions() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+        myFixture.addFileToProject(
+            "gradle/libs.versions.toml",
+            """
+            [versions]
+            kobweb = "0.24.0"
+            kotlin = "2.3.10"
+
+            [libraries]
+            kobweb-core = { module = "com.varabyte.kobweb:kobweb-core", version.ref = "kobweb" }
+
+            [plugins]
+            kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+            """.trimIndent()
+        )
+
+        WriteCommandAction.runWriteCommandAction(project) {
+            KobwebModuleWriter(
+                project,
+                rootDir,
+                versionOverrides = mapOf("kobweb" to "0.26.0", "kotlin" to "2.5.0", "kotlinx-serialization" to "1.12.0"),
+            ).writeWorker(
+                "worker",
+                KobwebWorkerOptions(
+                    group = "com.example.mysite.worker",
+                    name = "Echo",
+                    useCustomTypes = true,
+                    generateReadme = false,
+                ),
+            )
+        }
+
+        // The build's own Kobweb and Kotlin versions are kept, and only the missing serialization version is added
+        assertThat(textOf("gradle/libs.versions.toml")).isEqualTo(
+            """
+            [versions]
+            kobweb = "0.24.0"
+            kotlin = "2.3.10"
+            kotlinx-serialization = "1.12.0"
+
+            [libraries]
+            kobweb-core = { module = "com.varabyte.kobweb:kobweb-core", version.ref = "kobweb" }
+            kobweb-worker = { group = "com.varabyte.kobweb", name = "kobweb-worker", version.ref = "kobweb" }
+            kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+            kobwebx-serialization-kotlinx = { group = "com.varabyte.kobwebx", name = "kobwebx-serialization-kotlinx", version.ref = "kobweb" }
+
+            [plugins]
+            kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+            kobweb-worker = { id = "com.varabyte.kobweb.worker", version.ref = "kobweb" }
+            kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+            """.trimIndent()
+        )
     }
 
     fun testNestedModuleDirectoryGetsNestedGradlePath() {

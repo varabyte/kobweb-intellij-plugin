@@ -89,6 +89,7 @@ dependencies {
             "com.intellij.modules.json",
             "org.jetbrains.plugins.yaml",
             "org.jetbrains.idea.gradle.dsl",
+            "org.toml.lang",
         )
 
         pluginVerifier()
