@@ -6,12 +6,12 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.jetbrains.jsonSchema.extension.JsonSchemaFileProvider
 import com.jetbrains.jsonSchema.extension.JsonSchemaProviderFactory
 import com.jetbrains.jsonSchema.extension.SchemaType
+import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_RAW_FILES_URL_BASE
 import com.varabyte.kobweb.intellij.util.kobweb.conf.isKobwebConf
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 
 /** The same URL that SchemaStore's catalog lists, so IntelliJ treats both as one schema. */
-private const val KOBWEB_CONF_SCHEMA_URL =
-    "https://raw.githubusercontent.com/varabyte/kobweb/main/schemas/kobweb-conf.schema.json"
+private const val KOBWEB_CONF_SCHEMA_URL = "$KOBWEB_RAW_FILES_URL_BASE/main/schemas/kobweb-conf.schema.json"
 
 /**
  * Applies Kobweb's schema to `.kobweb/conf.yaml` files.
