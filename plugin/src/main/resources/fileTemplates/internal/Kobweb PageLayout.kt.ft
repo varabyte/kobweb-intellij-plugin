@@ -1,0 +1,45 @@
+package ${PACKAGE}.components.layouts
+
+#if ($USE_SILK)
+import androidx.compose.runtime.*
+import com.varabyte.kobweb.compose.foundation.layout.Column
+import com.varabyte.kobweb.compose.ui.Alignment
+import com.varabyte.kobweb.compose.ui.Modifier
+import com.varabyte.kobweb.compose.ui.modifiers.*
+import com.varabyte.kobweb.core.layout.Layout
+import org.jetbrains.compose.web.css.cssRem
+
+@Layout
+@Composable
+fun PageLayout(content: @Composable () -> Unit) {
+    // TODO: Add the parts that all your pages share, like a header and a footer
+    Column(
+        Modifier.fillMaxSize().padding(2.cssRem),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        content()
+    }
+}
+#else
+import androidx.compose.runtime.*
+import com.varabyte.kobweb.core.layout.Layout
+import org.jetbrains.compose.web.css.*
+import org.jetbrains.compose.web.dom.Div
+
+@Layout
+@Composable
+fun PageLayout(content: @Composable () -> Unit) {
+    // TODO: Add the parts that all your pages share, like a header and a footer
+    Div(attrs = {
+        style {
+            display(DisplayStyle.Flex)
+            flexDirection(FlexDirection.Column)
+            alignItems(AlignItems.Center)
+            minHeight(100.vh)
+            padding(2.cssRem)
+        }
+    }) {
+        content()
+    }
+}
+#end

@@ -1,0 +1,46 @@
+#if ($USE_SILK)#set ($SILK_COMMENT = "")#else#set ($SILK_COMMENT = "// ")#end
+#if ($USE_MARKDOWN)#set ($MARKDOWN_COMMENT = "")#else#set ($MARKDOWN_COMMENT = "// ")#end
+import com.varabyte.kobweb.gradle.application.util.configAsKobwebApplication
+
+plugins {
+    alias(${KOTLIN_MULTIPLATFORM_PLUGIN})
+    alias(${COMPOSE_COMPILER_PLUGIN})
+    alias(${KOBWEB_APPLICATION_PLUGIN})
+    ${MARKDOWN_COMMENT}alias(${KOBWEBX_MARKDOWN_PLUGIN})
+}
+
+group = "${GROUP}"
+version = "1.0-SNAPSHOT"
+
+kobweb {
+    app {
+        index {
+            description.set("Powered by Kobweb")
+        }
+    }
+}
+
+kotlin {
+    configAsKobwebApplication("${APP_NAME}"#if ($USE_SERVER), includeServer = true#end)
+
+    sourceSets {
+#if ($USE_SERVER)
+//        commonMain.dependencies {
+//          // Add shared dependencies between JS and JVM here
+//        }
+#end
+        jsMain.dependencies {
+            implementation(${COMPOSE_RUNTIME})
+            implementation(${COMPOSE_HTML_CORE})
+            implementation(${KOBWEB_CORE})
+            ${SILK_COMMENT}implementation(${KOBWEB_SILK})
+            ${SILK_COMMENT}implementation(${SILK_ICONS_FA})
+            ${MARKDOWN_COMMENT}implementation(${KOBWEBX_MARKDOWN})
+        }
+#if ($USE_SERVER)
+        jvmMain.dependencies {
+            compileOnly(${KOBWEB_API}) // Provided by Kobweb backend at runtime
+        }
+#end
+    }
+}
