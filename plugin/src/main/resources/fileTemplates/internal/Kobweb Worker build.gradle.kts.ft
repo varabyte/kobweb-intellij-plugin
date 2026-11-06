@@ -1,0 +1,23 @@
+#if ($USE_CUSTOM_TYPES)#set ($SERIALIZATION_COMMENT = "")#else#set ($SERIALIZATION_COMMENT = "// ")#end
+import com.varabyte.kobweb.gradle.worker.util.configAsKobwebWorker
+
+plugins {
+    alias(${KOTLIN_MULTIPLATFORM_PLUGIN})
+    alias(${KOBWEB_WORKER_PLUGIN})
+    ${SERIALIZATION_COMMENT}alias(${KOTLINX_SERIALIZATION_PLUGIN})
+}
+
+group = "${GROUP}"
+version = "1.0-SNAPSHOT"
+
+kotlin {
+    configAsKobwebWorker()
+
+    sourceSets {
+        jsMain.dependencies {
+            implementation(${KOBWEB_WORKER})
+            ${SERIALIZATION_COMMENT}implementation(${KOTLINX_SERIALIZATION_JSON})
+            ${SERIALIZATION_COMMENT}implementation(${KOBWEBX_SERIALIZATION_KOTLINX})
+        }
+    }
+}

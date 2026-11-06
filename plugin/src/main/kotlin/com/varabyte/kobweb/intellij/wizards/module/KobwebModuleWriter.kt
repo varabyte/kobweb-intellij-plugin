@@ -39,6 +39,19 @@ data class KobwebLibraryOptions(
 )
 
 /**
+ * The choices a user makes for a new Kobweb worker module.
+ *
+ * @property name The worker's name, e.g. `Echo` for an `EchoWorkerFactory` (from which Kobweb generates `EchoWorker`).
+ * @property useCustomTypes Whether the worker sends and receives its own serializable classes rather than strings.
+ */
+data class KobwebWorkerOptions(
+    val group: String,
+    val name: String,
+    val useCustomTypes: Boolean,
+    val generateReadme: Boolean,
+)
+
+/**
  * Writes new Kobweb modules into an existing Gradle build.
  *
  * Besides the module's own files, this adds the version catalog entries the module needs (creating
@@ -162,6 +175,41 @@ class KobwebModuleWriter(private val project: Project, private val rootDir: Virt
     }
 
     /**
+     * Writes a worker module into [moduleDir], a path relative to [rootDir] (e.g. `"worker"` or `"workers/echo"`).
+     *
+     * Must be called inside a write command.
+     *
+     * @return the new module's build script.
+     */
+    fun writeWorker(moduleDir: String, options: KobwebWorkerOptions): VirtualFile {
+        val packagePath = options.group.replace('.', '/')
+        val properties = mapOf(
+            "MODULE_NAME" to moduleDir.substringAfterLast('/'),
+            "GRADLE_PATH" to moduleDir.toGradlePath(),
+            "GROUP" to options.group,
+            "PACKAGE" to options.group,
+            "PACKAGE_PATH" to packagePath,
+            "NAME" to options.name,
+            "USE_CUSTOM_TYPES" to options.useCustomTypes,
+            "INPUT_EXAMPLE" to if (options.useCustomTypes) "${options.name}Input(\"Hello\")" else "\"Hello\"",
+        ) + addCatalogEntries(WORKER_TEMPLATE_LIBRARIES, WORKER_TEMPLATE_PLUGINS)
+
+        val moduleRoot = VfsUtil.createDirectoryIfMissing(rootDir, moduleDir)
+        val buildFile = moduleRoot.writeTemplate("build.gradle.kts", "Kobweb Worker build.gradle.kts", properties)
+        moduleRoot.writeTemplate(
+            "src/jsMain/kotlin/$packagePath/${options.name}WorkerFactory.kt",
+            "Kobweb Worker WorkerFactory.kt",
+            properties,
+        )
+        if (options.generateReadme) {
+            moduleRoot.writeTemplate("README.md", "Kobweb Worker README.md", properties)
+        }
+
+        includeInGradleSettings(moduleDir)
+        return buildFile
+    }
+
+    /**
      * Adds the given entries of the template catalog to the build's catalog, if it doesn't have them yet.
      *
      * @param libraries Template property names mapped to library aliases in the template catalog.
@@ -213,7 +261,7 @@ class KobwebModuleWriter(private val project: Project, private val rootDir: Virt
         ProjectBuildModel.get(project).versionCatalogsModel.getVersionCatalogModel(this, CATALOG_NAME)
 
     private fun includeInGradleSettings(moduleDir: String) {
-        val gradlePath = ":" + moduleDir.replace('/', ':')
+        val gradlePath = moduleDir.toGradlePath()
         val settingsFile = SETTINGS_FILE_NAMES.firstNotNullOfOrNull { rootDir.findChild(it) }
             ?: error("No settings script found in ${rootDir.path}")
         val settings = GradleSettingsModel.get(settingsFile, project)
@@ -291,5 +339,22 @@ class KobwebModuleWriter(private val project: Project, private val rootDir: Virt
             "KOBWEB_LIBRARY_PLUGIN" to "kobweb-library",
             "KOBWEBX_MARKDOWN_PLUGIN" to "kobwebx-markdown",
         )
+
+        /** Template property name to its alias in the template catalog. */
+        val WORKER_TEMPLATE_LIBRARIES = mapOf(
+            "KOBWEB_WORKER" to "kobweb-worker",
+            "KOTLINX_SERIALIZATION_JSON" to "kotlinx-serialization-json",
+            "KOBWEBX_SERIALIZATION_KOTLINX" to "kobwebx-serialization-kotlinx",
+        )
+
+        /** Template property name to its alias in the template catalog. */
+        val WORKER_TEMPLATE_PLUGINS = mapOf(
+            "KOTLIN_MULTIPLATFORM_PLUGIN" to "kotlin-multiplatform",
+            "KOBWEB_WORKER_PLUGIN" to "kobweb-worker",
+            "KOTLINX_SERIALIZATION_PLUGIN" to "kotlinx-serialization",
+        )
     }
 }
+
+/** The Gradle path of the module in this directory, e.g. `:libs:mylib` for `libs/mylib`. */
+private fun String.toGradlePath() = ":" + replace('/', ':')

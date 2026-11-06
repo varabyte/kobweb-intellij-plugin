@@ -21,6 +21,12 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
         }
     }
 
+    private fun writeWorker(rootDir: VirtualFile, moduleDir: String, options: KobwebWorkerOptions) {
+        WriteCommandAction.runWriteCommandAction(project) {
+            KobwebModuleWriter(project, rootDir).writeWorker(moduleDir, options)
+        }
+    }
+
     private fun exists(path: String) = myFixture.findFileInTempDir(path) != null
 
     /** The text of a file, including changes that haven't been saved to disk yet. */
@@ -633,6 +639,184 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
         )
         // The same layout as an app's sample code, which the app test checks in full
         assertThat(exists("mylib/src/jsMain/kotlin/com/example/mylib/components/layouts/PageLayout.kt")).isTrue()
+    }
+
+    fun testWorkerWithStrings() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+
+        writeWorker(
+            rootDir,
+            "worker",
+            KobwebWorkerOptions(
+                group = "com.example.mysite.worker",
+                name = "Echo",
+                useCustomTypes = false,
+                generateReadme = true,
+            ),
+        )
+
+        assertThat(textOf("worker/build.gradle.kts")).isEqualTo(
+            """
+            import com.varabyte.kobweb.gradle.worker.util.configAsKobwebWorker
+
+            plugins {
+                alias(libs.plugins.kotlin.multiplatform)
+                alias(libs.plugins.kobweb.worker)
+                // alias(libs.plugins.kotlinx.serialization)
+            }
+
+            group = "com.example.mysite.worker"
+            version = "1.0-SNAPSHOT"
+
+            kotlin {
+                configAsKobwebWorker()
+
+                sourceSets {
+                    jsMain.dependencies {
+                        implementation(libs.kobweb.worker)
+                        // implementation(libs.kotlinx.serialization.json)
+                        // implementation(libs.kobwebx.serialization.kotlinx)
+                    }
+                }
+            }
+
+            """.trimIndent()
+        )
+        assertThat(textOf("worker/src/jsMain/kotlin/com/example/mysite/worker/EchoWorkerFactory.kt")).isEqualTo(
+            """
+            package com.example.mysite.worker
+
+            import com.varabyte.kobweb.worker.OutputDispatcher
+            import com.varabyte.kobweb.worker.WorkerFactory
+            import com.varabyte.kobweb.worker.WorkerStrategy
+            import com.varabyte.kobweb.worker.createPassThroughSerializer
+
+            // Kobweb generates the `EchoWorker` class from this factory, which sites use to talk to the worker
+            internal class EchoWorkerFactory : WorkerFactory<String, String> {
+                override fun createStrategy(postOutput: OutputDispatcher<String>) = WorkerStrategy<String> { input ->
+                    postOutput(input) // TODO: Add real worker logic here
+                }
+
+                override fun createIOSerializer() = createPassThroughSerializer()
+            }
+
+            """.trimIndent()
+        )
+        assertThat(textOf("worker/README.md")).isEqualTo(
+            """
+            # worker
+
+            A Kobweb worker, which runs code in the background of a site
+            (see https://kobweb.varabyte.com/docs/concepts/foundation/workers).
+
+            Its logic goes in `src/jsMain/kotlin/com/example/mysite/worker/EchoWorkerFactory.kt`.
+            Kobweb generates the `EchoWorker` class from it.
+
+            To use the worker from a Kobweb application, add it to the application's dependencies:
+
+            ```kotlin
+            jsMain.dependencies {
+                implementation(project(":worker"))
+            }
+            ```
+
+            Then create it in a composable and send it input:
+
+            ```kotlin
+            val worker = rememberWorker { EchoWorker { output -> println(output) } }
+            LaunchedEffect(Unit) {
+                worker.postInput("Hello")
+            }
+            ```
+
+            """.trimIndent()
+        )
+        assertThat(textOf("settings.gradle.kts")).isEqualTo(
+            """
+            rootProject.name = "mysite"
+            include(":worker")
+
+            """.trimIndent()
+        )
+        // The catalog gets the serialization entries too, so users can switch to custom classes later
+        assertThat(textOf("gradle/libs.versions.toml")).contains("kotlinx-serialization-json")
+    }
+
+    fun testWorkerWithCustomTypes() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+
+        writeWorker(
+            rootDir,
+            "worker",
+            KobwebWorkerOptions(
+                group = "com.example.mysite.worker",
+                name = "ImageProcessor",
+                useCustomTypes = true,
+                generateReadme = false,
+            ),
+        )
+
+        assertThat(textOf("worker/build.gradle.kts")).isEqualTo(
+            """
+            import com.varabyte.kobweb.gradle.worker.util.configAsKobwebWorker
+
+            plugins {
+                alias(libs.plugins.kotlin.multiplatform)
+                alias(libs.plugins.kobweb.worker)
+                alias(libs.plugins.kotlinx.serialization)
+            }
+
+            group = "com.example.mysite.worker"
+            version = "1.0-SNAPSHOT"
+
+            kotlin {
+                configAsKobwebWorker()
+
+                sourceSets {
+                    jsMain.dependencies {
+                        implementation(libs.kobweb.worker)
+                        implementation(libs.kotlinx.serialization.json)
+                        implementation(libs.kobwebx.serialization.kotlinx)
+                    }
+                }
+            }
+
+            """.trimIndent()
+        )
+        val factoryPath = "worker/src/jsMain/kotlin/com/example/mysite/worker/ImageProcessorWorkerFactory.kt"
+        assertThat(textOf(factoryPath)).isEqualTo(
+            """
+            package com.example.mysite.worker
+
+            import com.varabyte.kobweb.serialization.createIOSerializer
+            import com.varabyte.kobweb.worker.OutputDispatcher
+            import com.varabyte.kobweb.worker.WorkerFactory
+            import com.varabyte.kobweb.worker.WorkerStrategy
+            import kotlinx.serialization.Serializable
+            import kotlinx.serialization.json.Json
+
+            // TODO: Change these to the data your worker needs
+            @Serializable
+            data class ImageProcessorInput(val message: String)
+
+            @Serializable
+            data class ImageProcessorOutput(val message: String)
+
+            // Kobweb generates the `ImageProcessorWorker` class from this factory, which sites use to talk to the worker
+            internal class ImageProcessorWorkerFactory : WorkerFactory<ImageProcessorInput, ImageProcessorOutput> {
+                override fun createStrategy(postOutput: OutputDispatcher<ImageProcessorOutput>) =
+                    WorkerStrategy<ImageProcessorInput> { input ->
+                        postOutput(ImageProcessorOutput(input.message)) // TODO: Add real worker logic here
+                    }
+
+                override fun createIOSerializer() = Json.createIOSerializer<ImageProcessorInput, ImageProcessorOutput>()
+            }
+
+            """.trimIndent()
+        )
+        assertThat(exists("worker/README.md")).isFalse()
     }
 
     fun testMissingCatalogIsCreatedFromTheTemplateCatalog() {
