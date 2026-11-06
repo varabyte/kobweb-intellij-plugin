@@ -9,6 +9,8 @@ import com.intellij.openapi.project.ProjectManager
 import com.intellij.psi.PsiFileFactory
 import com.intellij.psi.util.childrenOfType
 import com.intellij.util.io.HttpRequests
+import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_RAW_FILES_URL_BASE
+import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_REPO_URL
 import com.varabyte.kobweb.intellij.util.network.RemoteFile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -25,8 +27,6 @@ import java.io.IOException
 import kotlin.time.Duration
 
 private const val NETWORK_TIMEOUT_MS = 5000
-private const val KOBWEB_REPO_URL = "https://github.com/varabyte/kobweb"
-private const val KOBWEB_RAW_FILES_URL = "https://raw.githubusercontent.com/varabyte/kobweb"
 private const val LATEST_RELEASE_URL = "$KOBWEB_REPO_URL/releases/latest"
 
 /**
@@ -114,7 +114,7 @@ class KobwebReleaseVersionsService(private val coroutineScope: CoroutineScope) {
 
     private fun fetchLatestVersions(): Map<String, String>? {
         val tag = fetchLatestReleaseTag() ?: return null
-        val catalogUrl = "$KOBWEB_RAW_FILES_URL/$tag/gradle/libs.versions.toml"
+        val catalogUrl = "$KOBWEB_RAW_FILES_URL_BASE/$tag/gradle/libs.versions.toml"
         val catalogText = RemoteFile(catalogUrl).download()?.decodeToString() ?: return null
         return readVersions(ProjectManager.getInstance().defaultProject, catalogText)
             .takeIf { it.isNotEmpty() }

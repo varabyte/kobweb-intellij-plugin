@@ -1,6 +1,7 @@
 package com.varabyte.kobweb.intellij.util.kobweb.silk
 
 import com.intellij.openapi.roots.ProjectFileIndex
+import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_REPO_URL
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.resolution.successfulFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
@@ -242,7 +243,7 @@ sealed interface SvgIconCall {
     class SilkIcon(function: KtNamedFunction) : NamedIcon(function) {
         /** A link to the icon's source in the Kobweb repo, where each icon has its own file. */
         val sourceUrl: String =
-            "https://github.com/varabyte/kobweb/blob/main/frontend/silk-widgets/src/jsMain/kotlin/" +
+            "$KOBWEB_REPO_URL/blob/main/frontend/silk-widgets/src/jsMain/kotlin/" +
                 "${SILK_SVG_ICONS_PACKAGE.asString().replace('.', '/')}/${function.containingFile.name}"
     }
 
