@@ -43,7 +43,7 @@ class KobwebModuleStep(
 ) : AbstractNewProjectWizardMultiStepBase(baseStep) {
     override val label = UxGlobals.textBundle.message("wizard.kobweb.module.type")
 
-    internal val nameProperty get() = baseStep.nameProperty
+    internal val moduleNameProperty get() = baseStep.nameProperty
     internal val groupProperty = propertyGraph.lazyProperty(::suggestGroup)
     internal val useSilkProperty = propertyGraph.property(true)
     internal val useServerProperty = propertyGraph.property(false)
@@ -66,6 +66,7 @@ class KobwebModuleStep(
         return linkedMapOf(
             bundle.message("wizard.kobweb.module.type.app") to KobwebAppStep(this),
             bundle.message("wizard.kobweb.module.type.library") to KobwebLibraryStep(this),
+            bundle.message("wizard.kobweb.module.type.worker") to KobwebWorkerStep(this),
         )
     }
 

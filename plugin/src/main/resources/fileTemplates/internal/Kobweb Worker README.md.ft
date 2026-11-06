@@ -1,0 +1,24 @@
+# ${MODULE_NAME}
+
+A Kobweb worker, which runs code in the background of a site
+(see https://kobweb.varabyte.com/docs/concepts/foundation/workers).
+
+Its logic goes in `src/jsMain/kotlin/${PACKAGE_PATH}/${NAME}WorkerFactory.kt`.
+Kobweb generates the `${NAME}Worker` class from it.
+
+To use the worker from a Kobweb application, add it to the application's dependencies:
+
+```kotlin
+jsMain.dependencies {
+    implementation(project("${GRADLE_PATH}"))
+}
+```
+
+Then create it in a composable and send it input:
+
+```kotlin
+val worker = rememberWorker { ${NAME}Worker { output -> println(output) } }
+LaunchedEffect(Unit) {
+    worker.postInput(${INPUT_EXAMPLE})
+}
+```

@@ -14,7 +14,7 @@ class KobwebAppStep(private val parent: KobwebModuleStep) : AbstractNewProjectWi
 
     init {
         // Follows the module name until the user edits it
-        titleProperty.dependsOn(parent.nameProperty, ::suggestTitle)
+        titleProperty.dependsOn(parent.moduleNameProperty, ::suggestTitle)
     }
 
     override fun setupUI(builder: Panel) {
@@ -54,7 +54,7 @@ class KobwebAppStep(private val parent: KobwebModuleStep) : AbstractNewProjectWi
 
     /** Suggests a title from the module's name, the way `kobweb create` does (e.g. "My Site" for `my-site`). */
     private fun suggestTitle(): String =
-        parent.nameProperty.get()
+        parent.moduleNameProperty.get()
             .split(Regex("""\W"""))
             .filter { it.isNotBlank() }
             .joinToString(" ") { word -> word.replaceFirstChar { it.titlecase() } }

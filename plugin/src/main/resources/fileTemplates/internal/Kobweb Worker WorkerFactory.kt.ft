@@ -1,0 +1,41 @@
+package ${PACKAGE}
+
+#if ($USE_CUSTOM_TYPES)
+import com.varabyte.kobweb.serialization.createIOSerializer
+import com.varabyte.kobweb.worker.OutputDispatcher
+import com.varabyte.kobweb.worker.WorkerFactory
+import com.varabyte.kobweb.worker.WorkerStrategy
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+
+// TODO: Change these to the data your worker needs
+@Serializable
+data class ${NAME}Input(val message: String)
+
+@Serializable
+data class ${NAME}Output(val message: String)
+
+// Kobweb generates the `${NAME}Worker` class from this factory, which sites use to talk to the worker
+internal class ${NAME}WorkerFactory : WorkerFactory<${NAME}Input, ${NAME}Output> {
+    override fun createStrategy(postOutput: OutputDispatcher<${NAME}Output>) =
+        WorkerStrategy<${NAME}Input> { input ->
+            postOutput(${NAME}Output(input.message)) // TODO: Add real worker logic here
+        }
+
+    override fun createIOSerializer() = Json.createIOSerializer<${NAME}Input, ${NAME}Output>()
+}
+#else
+import com.varabyte.kobweb.worker.OutputDispatcher
+import com.varabyte.kobweb.worker.WorkerFactory
+import com.varabyte.kobweb.worker.WorkerStrategy
+import com.varabyte.kobweb.worker.createPassThroughSerializer
+
+// Kobweb generates the `${NAME}Worker` class from this factory, which sites use to talk to the worker
+internal class ${NAME}WorkerFactory : WorkerFactory<String, String> {
+    override fun createStrategy(postOutput: OutputDispatcher<String>) = WorkerStrategy<String> { input ->
+        postOutput(input) // TODO: Add real worker logic here
+    }
+
+    override fun createIOSerializer() = createPassThroughSerializer()
+}
+#end

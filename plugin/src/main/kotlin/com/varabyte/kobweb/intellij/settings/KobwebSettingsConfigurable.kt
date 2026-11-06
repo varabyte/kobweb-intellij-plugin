@@ -4,18 +4,13 @@ import com.intellij.openapi.options.BoundConfigurable
 import com.intellij.openapi.options.SearchableConfigurable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogPanel
-import com.intellij.openapi.ui.popup.JBPopup
-import com.intellij.openapi.ui.popup.JBPopupFactory
-import com.intellij.openapi.util.Disposer
-import com.intellij.ui.awt.RelativePoint
 import com.intellij.ui.dsl.builder.Cell
 import com.intellij.ui.dsl.builder.bind
 import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.panel
-import com.varabyte.kobweb.intellij.util.idea.swing.KotlinCodeTextField
+import com.varabyte.kobweb.intellij.util.idea.swing.installCodeTooltip
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
-import java.awt.event.MouseAdapter
-import java.awt.event.MouseEvent
+import org.intellij.lang.annotations.Language
 import javax.swing.JComponent
 
 class KobwebSettingsConfigurable(private val project: Project)
@@ -23,39 +18,8 @@ class KobwebSettingsConfigurable(private val project: Project)
     override fun createPanel(): DialogPanel {
         val appState = KobwebAppSettingsService.getInstance().state
 
-        fun JComponent.installCodeTooltip(code: String) {
-            var activePopup: JBPopup? = null
-            addMouseListener(object : MouseAdapter() {
-                override fun mouseEntered(e: MouseEvent) {
-                    if (activePopup?.isVisible == true) return
-
-                    val codeDisposable = Disposer.newDisposable()
-                    // disposable should be set before createPanel is called
-                    val codeTextField = KotlinCodeTextField(code, project, codeDisposable)
-
-                    activePopup = JBPopupFactory.getInstance()
-                        .createComponentPopupBuilder(codeTextField, null)
-                        .setRequestFocus(false)
-                        .setCancelOnClickOutside(true)
-                        .setCancelOnOtherWindowOpen(true)
-                        .createPopup()
-                        .also { popup ->
-                            Disposer.register(popup, codeDisposable)
-                            popup.show(RelativePoint.getSouthOf(this@installCodeTooltip))
-                        }
-                }
-
-                override fun mouseExited(e: MouseEvent) {
-                    activePopup?.cancel()
-                    activePopup = null
-                }
-            })
-        }
-
-        fun <T : JComponent> Cell<T>.installCodeTooltip(code: String): Cell<T> {
-            component.installCodeTooltip(code)
-            return this
-        }
+        fun <T : JComponent> Cell<T>.installCodeTooltip(@Language("kotlin") code: String) =
+            installCodeTooltip(project, code)
 
         return panel {
             group("Extract CssStyle") {

@@ -14,7 +14,7 @@ import com.intellij.ui.JBColor
 import com.intellij.util.ui.JBUI
 import javax.swing.ScrollPaneConstants
 
-class KotlinCodeTextField(code: String, project: Project, disposable: Disposable) :
+class KotlinCodeTextField(code: String, project: Project?, disposable: Disposable) :
     EditorTextField(code, project, FileTypeManager.getInstance().getFileTypeByExtension("kt")) {
 
     private fun Editor.applyDiffHighlighting() {
