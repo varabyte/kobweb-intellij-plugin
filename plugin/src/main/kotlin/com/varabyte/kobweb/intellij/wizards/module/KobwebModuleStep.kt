@@ -13,6 +13,7 @@ import com.intellij.openapi.observable.util.bindBooleanStorage
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ValidationInfo
+import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
@@ -54,6 +55,8 @@ class KobwebModuleStep(
         propertyGraph.property(true).bindBooleanStorage(ADD_SAMPLE_CODE_PROPERTY_NAME)
 
     init {
+        // Follows the selected type until the user edits it, e.g. `site` for an application
+        baseStep.nameProperty.dependsOn(stepProperty, ::suggestModuleName)
         // Follows the module name and location until the user edits it
         groupProperty.dependsOn(baseStep.nameProperty, ::suggestGroup)
         groupProperty.dependsOn(baseStep.pathProperty, ::suggestGroup)
@@ -165,6 +168,28 @@ class KobwebModuleStep(
 
         ExternalSystemUtil.refreshProject(gradleRoot.path, ImportSpecBuilder(project, GradleConstants.SYSTEM_ID))
         OpenFileDescriptor(project, buildFile).navigate(/* requestFocus = */ true)
+    }
+
+    /**
+     * Suggests a name for the new module based on its type, numbered if a module or directory already uses it (e.g.
+     * `site1` when there's already a `site`).
+     */
+    private fun suggestModuleName(): String {
+        val defaultName = when (steps[step]) {
+            is KobwebAppStep -> "site"
+            is KobwebLibraryStep -> "library"
+            is KobwebWorkerStep -> "worker"
+            else -> baseStep.defaultName
+        }
+        // The base step suggests a new name from this one when the location changes
+        baseStep.defaultName = defaultName
+
+        val moduleNames = context.project?.let { project ->
+            ModuleManager.getInstance(project).modules.map { it.name }.toSet()
+        }.orEmpty()
+        return FileUtil.createSequentFileName(Path(baseStep.path).toFile(), defaultName, "") { file ->
+            !file.exists() && file.name !in moduleNames
+        }
     }
 
     /**

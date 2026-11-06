@@ -32,6 +32,7 @@ class KobwebWorkerStep(private val parent: KobwebModuleStep) : AbstractNewProjec
                     textField()
                         .bindText(workerNameProperty)
                         .columns(COLUMNS_MEDIUM)
+                        .applyToComponent { emptyText.text = bundle.message("wizard.kobweb.module.worker.name.hint") }
                         .comment(bundle.message("wizard.kobweb.module.worker.name.comment"))
                         .validationOnInput { field -> validateName(field.text) }
                         .validationOnApply { field -> validateName(field.text) }
@@ -79,14 +80,14 @@ class KobwebWorkerStep(private val parent: KobwebModuleStep) : AbstractNewProjec
      * Suggests a worker name from the module's name, e.g. `ImageProcessor` for `image-processor` or
      * `image-processor-worker`.
      *
-     * A module that's just called `worker` gets `Worker`, which the name field warns about.
+     * A module that's just called `worker` gets no suggestion, so users pick a name that says what the worker does.
      */
     private fun suggestName(): String {
         val pascalName = parent.moduleNameProperty.get()
             .split(Regex("""[\W_]"""))
             .filter { it.isNotBlank() }
             .joinToString("") { word -> word.replaceFirstChar { it.titlecase() } }
-        return pascalName.removeSuffix("Worker").ifEmpty { pascalName }
+        return pascalName.removeSuffix("Worker")
     }
 
     private fun ValidationInfoBuilder.validateName(name: String) = when {
