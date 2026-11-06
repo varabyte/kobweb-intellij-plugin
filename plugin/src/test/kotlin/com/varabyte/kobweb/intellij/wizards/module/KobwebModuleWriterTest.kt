@@ -27,6 +27,16 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
         }
     }
 
+    private fun addAsDependency(
+        rootDir: VirtualFile,
+        moduleDir: String,
+        dependentDirs: List<String>,
+        includeJvm: Boolean,
+    ): List<String> =
+        WriteCommandAction.runWriteCommandAction<List<String>>(project) {
+            KobwebModuleWriter(project, rootDir).addAsDependency(moduleDir, dependentDirs, includeJvm)
+        }
+
     private fun exists(path: String) = myFixture.findFileInTempDir(path) != null
 
     /** The text of a file, including changes that haven't been saved to disk yet. */
@@ -817,6 +827,303 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
             """.trimIndent()
         )
         assertThat(exists("worker/README.md")).isFalse()
+    }
+
+    fun testModuleIsAddedToApplicationDependencies() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+        myFixture.addFileToProject(
+            "site/build.gradle.kts",
+            """
+            kotlin {
+                configAsKobwebApplication("mysite")
+                sourceSets {
+                    jsMain.dependencies {
+                        implementation(libs.kobweb.core)
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val skippedDirs = addAsDependency(rootDir, "libs/mylib", listOf("site"), includeJvm = false)
+
+        assertThat(skippedDirs).isEmpty()
+        assertThat(textOf("site/build.gradle.kts")).isEqualTo(
+            """
+            kotlin {
+                configAsKobwebApplication("mysite")
+                sourceSets {
+                    jsMain.dependencies {
+                        implementation(libs.kobweb.core)
+                        implementation(project(":libs:mylib"))
+                    }
+                }
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testModuleIsAddedToSeveralDependents() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+        myFixture.addFileToProject(
+            "site/build.gradle.kts",
+            """
+            kotlin {
+                sourceSets {
+                    jsMain.dependencies {
+                        implementation(libs.kobweb.core)
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "core/build.gradle.kts",
+            """
+            kotlin {
+                sourceSets {
+                    jsMain {
+                        dependencies {
+                            implementation(libs.kobweb.core)
+                        }
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val skippedDirs = addAsDependency(rootDir, "worker", listOf("site", "core"), includeJvm = false)
+
+        assertThat(skippedDirs).isEmpty()
+        assertThat(textOf("site/build.gradle.kts")).isEqualTo(
+            """
+            kotlin {
+                sourceSets {
+                    jsMain.dependencies {
+                        implementation(libs.kobweb.core)
+                        implementation(project(":worker"))
+                    }
+                }
+            }
+            """.trimIndent()
+        )
+        assertThat(textOf("core/build.gradle.kts")).isEqualTo(
+            """
+            kotlin {
+                sourceSets {
+                    jsMain {
+                        dependencies {
+                            implementation(libs.kobweb.core)
+                            implementation(project(":worker"))
+                        }
+                    }
+                }
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testExistingDependencyIsNotAddedAgain() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+        myFixture.addFileToProject(
+            "site/build.gradle.kts",
+            """
+            kotlin {
+                sourceSets {
+                    jsMain.dependencies {
+                        implementation(project(":worker"))
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val skippedDirs = addAsDependency(rootDir, "worker", listOf("site"), includeJvm = false)
+
+        assertThat(skippedDirs).isEmpty()
+        assertThat(textOf("site/build.gradle.kts")).isEqualTo(
+            """
+            kotlin {
+                sourceSets {
+                    jsMain.dependencies {
+                        implementation(project(":worker"))
+                    }
+                }
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testDependentWithoutRecognizedJsMainBlockIsSkipped() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+        myFixture.addFileToProject(
+            "site/build.gradle.kts",
+            """
+            kotlin {
+                sourceSets {
+                    val jsMain by getting {
+                        dependencies {
+                            implementation(libs.kobweb.core)
+                        }
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "admin/build.gradle.kts",
+            """
+            kotlin {
+                configAsKobwebApplication("admin")
+            }
+            """.trimIndent(),
+        )
+
+        val skippedDirs = addAsDependency(rootDir, "worker", listOf("site", "admin"), includeJvm = false)
+
+        assertThat(skippedDirs).containsExactly("site", "admin")
+        assertThat(textOf("site/build.gradle.kts")).isEqualTo(
+            """
+            kotlin {
+                sourceSets {
+                    val jsMain by getting {
+                        dependencies {
+                            implementation(libs.kobweb.core)
+                        }
+                    }
+                }
+            }
+            """.trimIndent()
+        )
+        assertThat(textOf("admin/build.gradle.kts")).isEqualTo(
+            """
+            kotlin {
+                configAsKobwebApplication("admin")
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testFullstackModuleIsAlsoAddedToJvmDependencies() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+        myFixture.addFileToProject(
+            "site/build.gradle.kts",
+            """
+            kotlin {
+                configAsKobwebApplication("mysite", includeServer = true)
+                sourceSets {
+                    jsMain.dependencies {
+                        implementation(libs.kobweb.core)
+                    }
+                    jvmMain.dependencies {
+                        compileOnly(libs.kobweb.api) // Provided by Kobweb backend at runtime
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val skippedDirs = addAsDependency(rootDir, "mylib", listOf("site"), includeJvm = true)
+
+        assertThat(skippedDirs).isEmpty()
+        assertThat(textOf("site/build.gradle.kts")).isEqualTo(
+            """
+            kotlin {
+                configAsKobwebApplication("mysite", includeServer = true)
+                sourceSets {
+                    jsMain.dependencies {
+                        implementation(libs.kobweb.core)
+                        implementation(project(":mylib"))
+                    }
+                    jvmMain.dependencies {
+                        implementation(project(":mylib"))
+                        compileOnly(libs.kobweb.api) // Provided by Kobweb backend at runtime
+                    }
+                }
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testFullstackModuleIsOnlyAddedToJsDependenciesOfJsOnlyDependent() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+        myFixture.addFileToProject(
+            "site/build.gradle.kts",
+            """
+            kotlin {
+                configAsKobwebApplication("mysite")
+                sourceSets {
+                    jsMain.dependencies {
+                        implementation(libs.kobweb.core)
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val skippedDirs = addAsDependency(rootDir, "mylib", listOf("site"), includeJvm = true)
+
+        assertThat(skippedDirs).isEmpty()
+        assertThat(textOf("site/build.gradle.kts")).isEqualTo(
+            """
+            kotlin {
+                configAsKobwebApplication("mysite")
+                sourceSets {
+                    jsMain.dependencies {
+                        implementation(libs.kobweb.core)
+                        implementation(project(":mylib"))
+                    }
+                }
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testJsOnlyModuleIsNotAddedToJvmDependencies() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+        myFixture.addFileToProject(
+            "site/build.gradle.kts",
+            """
+            kotlin {
+                configAsKobwebApplication("mysite", includeServer = true)
+                sourceSets {
+                    jsMain.dependencies {
+                        implementation(libs.kobweb.core)
+                    }
+                    jvmMain.dependencies {
+                        compileOnly(libs.kobweb.api)
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val skippedDirs = addAsDependency(rootDir, "mylib", listOf("site"), includeJvm = false)
+
+        assertThat(skippedDirs).isEmpty()
+        assertThat(textOf("site/build.gradle.kts")).isEqualTo(
+            """
+            kotlin {
+                configAsKobwebApplication("mysite", includeServer = true)
+                sourceSets {
+                    jsMain.dependencies {
+                        implementation(libs.kobweb.core)
+                        implementation(project(":mylib"))
+                    }
+                    jvmMain.dependencies {
+                        compileOnly(libs.kobweb.api)
+                    }
+                }
+            }
+            """.trimIndent()
+        )
     }
 
     fun testMissingCatalogIsCreatedFromTheTemplateCatalog() {

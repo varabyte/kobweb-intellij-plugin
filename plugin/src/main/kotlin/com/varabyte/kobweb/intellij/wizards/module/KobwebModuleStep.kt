@@ -3,20 +3,28 @@ package com.varabyte.kobweb.intellij.wizards.module
 import com.intellij.ide.wizard.AbstractNewProjectWizardMultiStepBase
 import com.intellij.ide.wizard.NewProjectWizardBaseStep
 import com.intellij.ide.wizard.NewProjectWizardStep
-import com.intellij.openapi.externalSystem.ExternalSystemModulePropertyManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.externalSystem.ExternalSystemModulePropertyManager
 import com.intellij.openapi.externalSystem.importing.ImportSpecBuilder
 import com.intellij.openapi.externalSystem.util.ExternalSystemUtil
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.module.Module
-import com.intellij.openapi.observable.util.bindBooleanStorage
 import com.intellij.openapi.module.ModuleManager
+import com.intellij.openapi.observable.properties.GraphProperty
+import com.intellij.openapi.observable.util.bindBooleanStorage
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ValidationInfo
+import com.intellij.openapi.ui.popup.JBPopup
+import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.ui.CheckBoxList
+import com.intellij.ui.ListSpeedSearch
+import com.intellij.ui.ScrollPaneFactory
+import com.intellij.ui.components.DropDownLink
 import com.intellij.ui.dsl.builder.COLUMNS_MEDIUM
 import com.intellij.ui.dsl.builder.Panel
 import com.intellij.ui.dsl.builder.TopGap
@@ -24,9 +32,13 @@ import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.bindText
 import com.intellij.ui.dsl.builder.columns
 import com.intellij.ui.layout.ValidationInfoBuilder
+import com.intellij.util.ui.JBUI
+import com.varabyte.kobweb.intellij.model.KobwebProjectType
+import com.varabyte.kobweb.intellij.notification.KobwebNotifier
 import com.varabyte.kobweb.intellij.project.KobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
+import org.jetbrains.plugins.gradle.service.project.GradleProjectResolverUtil
 import org.jetbrains.plugins.gradle.settings.GradleSettings
 import org.jetbrains.plugins.gradle.util.GradleConstants
 import java.nio.file.Path
@@ -53,6 +65,19 @@ class KobwebModuleStep(
         propertyGraph.property(true).bindBooleanStorage(GENERATE_README_PROPERTY_NAME)
     internal val addSampleCodeProperty =
         propertyGraph.property(true).bindBooleanStorage(ADD_SAMPLE_CODE_PROPERTY_NAME)
+
+    /**
+     * Whether other existing application and/or library modules should depend on the new module.
+     *
+     * A library is never selected by default, since chaining Kobweb libraries is fairly uncommon. Meanwhile, an
+     * application is selected only if it's the only one in the build. This way, users never have to uncheck more than
+     * a single box if they want to continue without any dependents.
+     */
+    private val dependentProperties: Map<DependentModule, GraphProperty<Boolean>> by lazy {
+        val dependents = findDependents()
+        val onlyApplication = dependents.singleOrNull { it.type == KobwebProjectType.Application }
+        dependents.associateWith { propertyGraph.property(it == onlyApplication) }
+    }
 
     init {
         // Follows the selected type until the user edits it, e.g. `site` for an application
@@ -153,21 +178,136 @@ class KobwebModuleStep(
     }
 
     /**
-     * Writes the new module with [write], which gets a path relative to the build's root (e.g. `"site"`) and returns
-     * the module's build script. Then syncs Gradle and opens the build script.
+     * Adds a row for choosing which of the build's applications and libraries should depend on the new module: a
+     * checkbox if there's just one of them, or otherwise a link that opens a list of them. Adds nothing if there are
+     * none.
+     *
+     * It always takes a single row, so builds with many modules don't vertically stretch the wizard.
      */
-    internal fun writeModule(project: Project, write: KobwebModuleWriter.(moduleDir: String) -> VirtualFile) {
+    internal fun Panel.dependentsRow() {
+        val bundle = UxGlobals.textBundle
+        val single = dependentProperties.entries.singleOrNull()
+        if (single != null) {
+            row {
+                checkBox(bundle.message("wizard.kobweb.module.add.as.dependency.of", single.key.gradlePath))
+                    .bindSelected(single.value)
+            }.topGap(TopGap.MEDIUM)
+        } else if (dependentProperties.isNotEmpty()) {
+            row(bundle.message("wizard.kobweb.module.add.as.dependency")) {
+                // The popup is rebuilt from the properties on each click, so it always shows the current choice
+                val link = DropDownLink(dependentsSummary()) { createDependentsPopup() }
+                for (property in dependentProperties.values) {
+                    property.afterChange { link.text = dependentsSummary() }
+                }
+                cell(link)
+            }.topGap(TopGap.MEDIUM)
+        }
+    }
+
+    /** A short description of the chosen dependents, e.g. `:site, :auth, and 3 more`. */
+    private fun dependentsSummary(): String {
+        val bundle = UxGlobals.textBundle
+        val paths = selectedDependents.map { it.gradlePath }
+        return when {
+            paths.isEmpty() -> bundle.message("wizard.kobweb.module.dependents.none")
+            paths.size <= MAX_SUMMARIZED_DEPENDENTS -> paths.joinToString(", ")
+            else -> bundle.message(
+                "wizard.kobweb.module.dependents.more",
+                paths.take(MAX_SUMMARIZED_DEPENDENTS).joinToString(", "),
+                paths.size - MAX_SUMMARIZED_DEPENDENTS,
+            )
+        }
+    }
+
+    private fun createDependentsPopup(): JBPopup {
+        val bundle = UxGlobals.textBundle
+        val list = CheckBoxList<DependentModule>()
+        for ((dependent, property) in dependentProperties) {
+            val typeKey = when (dependent.type) {
+                KobwebProjectType.Application -> "wizard.kobweb.module.dependent.application"
+                else -> "wizard.kobweb.module.dependent.library"
+            }
+            list.addItem(dependent, bundle.message(typeKey, dependent.gradlePath), property.get())
+        }
+        list.setCheckBoxListListener { index, selected ->
+            list.getItemAt(index)?.let { dependentProperties.getValue(it).set(selected) }
+        }
+        list.visibleRowCount = dependentProperties.size.coerceAtMost(MAX_VISIBLE_DEPENDENTS)
+        // Without this, the longest label ends right at the popup's edge
+        list.border = JBUI.Borders.empty(4, 4, 4, 12)
+        ListSpeedSearch.installOn(list) { it.text }
+        return JBPopupFactory.getInstance()
+            .createComponentPopupBuilder(ScrollPaneFactory.createScrollPane(list, /* withoutBorder = */ true), list)
+            .setRequestFocus(true)
+            .createPopup()
+    }
+
+    /** The modules chosen in [dependentsRow]. */
+    internal val selectedDependents: List<DependentModule>
+        get() = dependentProperties.filterValues { it.get() }.keys.toList()
+
+    /**
+     * Writes the new module with [write], which gets a path relative to the build's root (e.g. `"site"`) and returns
+     * the module's build script, and adds it as a dependency of [dependents]. Then syncs Gradle and opens the build
+     * script.
+     *
+     * @param includeJvm Whether the new module has a JVM target, so it's also added to the dependents' `jvmMain`
+     *   dependencies.
+     */
+    internal fun writeModule(
+        project: Project,
+        dependents: List<DependentModule>,
+        includeJvm: Boolean,
+        write: KobwebModuleWriter.(moduleDir: String) -> VirtualFile,
+    ) {
         val gradleRoot = project.findGradleRoot(moduleDir) ?: return
         val relativeModuleDir = gradleRoot.toNioPath().relativize(moduleDir).invariantSeparatorsPathString
+        val writer = KobwebModuleWriter(project, gradleRoot)
 
-        val buildFile = WriteCommandAction.writeCommandAction(project)
+        val result = WriteCommandAction.writeCommandAction(project)
             .withName(UxGlobals.textBundle.message("wizard.kobweb.module.command"))
-            .compute<VirtualFile, Throwable> {
-                KobwebModuleWriter(project, gradleRoot).write(relativeModuleDir)
+            .compute<WriteModuleResult, Throwable> {
+                WriteModuleResult(
+                    buildFile = writer.write(relativeModuleDir),
+                    skippedDependentDirs = writer.addAsDependency(
+                        relativeModuleDir,
+                        dependents.map { it.dir },
+                        includeJvm,
+                    ),
+                )
             }
 
         ExternalSystemUtil.refreshProject(gradleRoot.path, ImportSpecBuilder(project, GradleConstants.SYSTEM_ID))
-        OpenFileDescriptor(project, buildFile).navigate(/* requestFocus = */ true)
+        OpenFileDescriptor(project, result.buildFile).navigate(/* requestFocus = */ true)
+
+        val gradlePath = writer.gradlePathOf(relativeModuleDir)
+        for (dependent in dependents.filter { it.dir in result.skippedDependentDirs }) {
+            notifyDependencyNotAdded(project, writer, dependent, gradlePath)
+        }
+    }
+
+    private fun notifyDependencyNotAdded(
+        project: Project,
+        writer: KobwebModuleWriter,
+        dependent: DependentModule,
+        gradlePath: String,
+    ) {
+        val bundle = UxGlobals.textBundle
+        val builder = KobwebNotifier.Builder(
+            bundle.message("wizard.kobweb.module.dependency.not.added", dependent.gradlePath, gradlePath)
+        ).type(NotificationType.WARNING)
+        val dependentBuildFile = writer.findBuildFile(dependent.dir)
+        if (dependentBuildFile != null) {
+            val actionText = bundle.message(
+                "wizard.kobweb.module.dependency.not.added.open",
+                dependentBuildFile.name,
+                dependent.gradlePath,
+            )
+            builder.addAction(actionText) {
+                OpenFileDescriptor(project, dependentBuildFile).navigate(/* requestFocus = */ true)
+            }
+        }
+        builder.notify(project)
     }
 
     /**
@@ -222,12 +362,57 @@ class KobwebModuleStep(
         return listOfNotNull(buildGroup, modulePackage).joinToString(".")
     }
 
+    /** The build's Kobweb applications and libraries, applications first. */
+    private fun findDependents(): List<DependentModule> {
+        val project = context.project ?: return emptyList()
+        val gradleRoot = project.findGradleRoot(moduleDir) ?: return emptyList()
+        return ModuleManager.getInstance(project).modules
+            .asSequence()
+            .filter { it.externalProperties.getRootProjectPath() == gradleRoot.path }
+            .mapNotNull { it.findKobwebProject() }
+            .filter { it.type == KobwebProjectType.Application || it.type == KobwebProjectType.Library }
+            .mapNotNull { kobwebProject ->
+                val module = (kobwebProject.source as? KobwebProject.Source.Local)?.module ?: return@mapNotNull null
+                val gradlePath = GradleProjectResolverUtil.getGradleIdentityPathOrNull(module) ?: return@mapNotNull null
+                val dir = module.externalProperties.getLinkedProjectPath() ?: return@mapNotNull null
+                DependentModule(
+                    gradlePath,
+                    gradleRoot.toNioPath().relativize(Path(dir)).invariantSeparatorsPathString,
+                    kobwebProject.type,
+                )
+            }
+            .distinct()
+            .sortedWith(compareBy({ it.type != KobwebProjectType.Application }, { it.gradlePath }))
+            .toList()
+    }
+
+    /**
+     * The result of [writeModule]'s write command.
+     *
+     * @property skippedDependentDirs The dependents whose build script couldn't be edited.
+     */
+    private class WriteModuleResult(val buildFile: VirtualFile, val skippedDependentDirs: List<String>)
+
     private companion object {
+        /** The popup of dependents scrolls past this many. */
+        const val MAX_VISIBLE_DEPENDENTS = 10
+
+        /** The dependents row names this many of the chosen dependents, then counts the rest. */
+        const val MAX_SUMMARIZED_DEPENDENTS = 2
+
         // These options are remembered across projects, as IntelliJ does for its own "Add sample code" option
         const val GENERATE_README_PROPERTY_NAME = "kobweb.wizard.module.generateReadme"
         const val ADD_SAMPLE_CODE_PROPERTY_NAME = "kobweb.wizard.module.addSampleCode"
     }
 }
+
+/**
+ * An application or library in the build that can depend on the new module.
+ *
+ * @property gradlePath e.g. `:site`
+ * @property dir The module's directory, relative to the build's root, e.g. `"site"`.
+ */
+internal data class DependentModule(val gradlePath: String, val dir: String, val type: KobwebProjectType)
 
 private val Module.externalProperties get() = ExternalSystemModulePropertyManager.getInstance(this)
 

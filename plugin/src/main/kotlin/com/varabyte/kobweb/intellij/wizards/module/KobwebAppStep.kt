@@ -49,7 +49,10 @@ class KobwebAppStep(private val parent: KobwebModuleStep) : AbstractNewProjectWi
             generateReadme = parent.generateReadmeProperty.get(),
             addSampleCode = parent.addSampleCodeProperty.get(),
         )
-        parent.writeModule(project) { moduleDir -> writeApp(moduleDir, options) }
+        // An application is the end of the dependency chain: other modules never depend on it.
+        parent.writeModule(project, dependents = emptyList(), includeJvm = false) { moduleDir ->
+            writeApp(moduleDir, options)
+        }
     }
 
     /** Suggests a title from the module's name, the way `kobweb create` does (e.g. "My Site" for `my-site`). */

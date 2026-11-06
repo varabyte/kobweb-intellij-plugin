@@ -14,6 +14,7 @@ class KobwebLibraryStep(private val parent: KobwebModuleStep) : AbstractNewProje
             builder.kobwebConfigurationGroup {
                 featureRows()
             }
+            builder.dependentsRow()
         }
     }
 
@@ -26,6 +27,8 @@ class KobwebLibraryStep(private val parent: KobwebModuleStep) : AbstractNewProje
             generateReadme = parent.generateReadmeProperty.get(),
             addSampleCode = parent.addSampleCodeProperty.get(),
         )
-        parent.writeModule(project) { moduleDir -> writeLibrary(moduleDir, options) }
+        parent.writeModule(project, parent.selectedDependents, includeJvm = options.useServer) { moduleDir ->
+            writeLibrary(moduleDir, options)
+        }
     }
 }

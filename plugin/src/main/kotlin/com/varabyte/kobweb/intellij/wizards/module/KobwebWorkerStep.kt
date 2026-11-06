@@ -63,6 +63,7 @@ class KobwebWorkerStep(private val parent: KobwebModuleStep) : AbstractNewProjec
                     }.rowComment(bundle.message("wizard.kobweb.module.worker.types.comment"))
                 }.bind({ useCustomTypesProperty.get() }, { useCustomTypesProperty.set(it) })
             }
+            builder.dependentsRow()
         }
     }
 
@@ -73,7 +74,9 @@ class KobwebWorkerStep(private val parent: KobwebModuleStep) : AbstractNewProjec
             useCustomTypes = useCustomTypesProperty.get(),
             generateReadme = parent.generateReadmeProperty.get(),
         )
-        parent.writeModule(project) { moduleDir -> writeWorker(moduleDir, options) }
+        parent.writeModule(project, parent.selectedDependents, includeJvm = false) { moduleDir ->
+            writeWorker(moduleDir, options)
+        }
     }
 
     /**
