@@ -70,6 +70,13 @@ Before publishing, you should make sure you've reviewed the following checklist:
 * The `intellij-platform` version is up-to-date.
   * See [this page](https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin.html) for the latest version.
 * *(Optional)* Set other versions, e.g. kotlin, to latest also.
+* The `[versions]` in the Kobweb module templates' version catalog
+  ([libs.versions.toml](plugin/src/main/resources/kobweb/templates/libs.versions.toml)) match the ones in Kobweb's
+  [latest release](https://github.com/varabyte/kobweb/releases/latest) (see `gradle/libs.versions.toml` at its tag).
+  The plugin downloads the latest release's versions when creating a module, but uses these if it can't.
+* *(Optional)* Regenerate the Silk icon preview data with `./gradlew :tools:icon-previews-generator:generate`, and
+  publish it to the [varabyte/data](https://github.com/varabyte/data) repo if it changed (see
+  [the generator's build script](tools/icon-previews-generator/build.gradle.kts) for details).
 * The `intellijPlatform.intellijIdeaCommunity(<version>)` declaration in the `dependencies` block of the
   `build.gradle.kts` file is set to as low a version as possible (to maximize compatibility). Our current goal is to
   support the last three major versions, as a compromise to keep our APIs moving forward while still supporting a large
