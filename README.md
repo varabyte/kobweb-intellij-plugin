@@ -74,6 +74,10 @@ Before publishing, you should make sure you've reviewed the following checklist:
   ([libs.versions.toml](plugin/src/main/resources/kobweb/templates/libs.versions.toml)) match the ones in Kobweb's
   [latest release](https://github.com/varabyte/kobweb/releases/latest) (see `gradle/libs.versions.toml` at its tag).
   The plugin downloads the latest release's versions when creating a module, but uses these if it can't.
+* Likewise, `NEW_PROJECT_GRADLE_VERSION` in
+  [KobwebModuleStep.kt](plugin/src/main/kotlin/com/varabyte/kobweb/intellij/wizards/module/KobwebModuleStep.kt)
+  matches the Gradle version in `gradle/wrapper/gradle-wrapper.properties` at the latest release's tag. New projects
+  use it for their Gradle wrapper if the plugin can't download the latest release's.
 * *(Optional)* Regenerate the Silk icon preview data with `./gradlew :tools:icon-previews-generator:generate`, and
   publish it to the [varabyte/data](https://github.com/varabyte/data) repo if it changed (see
   [the generator's build script](tools/icon-previews-generator/build.gradle.kts) for details).

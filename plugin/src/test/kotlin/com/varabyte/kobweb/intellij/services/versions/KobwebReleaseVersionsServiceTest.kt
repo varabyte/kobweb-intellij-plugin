@@ -56,4 +56,38 @@ class KobwebReleaseVersionsServiceTest : BasePlatformTestCase() {
 
         assertThat(versions).isEmpty()
     }
+
+    fun testGradleVersionIsReadFromWrapperProperties() {
+        val version = KobwebReleaseVersionsService.readGradleVersion(
+            """
+            distributionBase=GRADLE_USER_HOME
+            distributionPath=wrapper/dists
+            distributionUrl=https\://services.gradle.org/distributions/gradle-9.7.0-bin.zip
+            networkTimeout=10000
+            validateDistributionUrl=true
+            zipStoreBase=GRADLE_USER_HOME
+            zipStorePath=wrapper/dists
+            """.trimIndent()
+        )
+
+        assertThat(version).isEqualTo("9.7.0")
+    }
+
+    fun testGradleVersionIsReadFromAllDistributionsAndPrereleases() {
+        val service = KobwebReleaseVersionsService
+        val distributionsUrl = "https\\://services.gradle.org/distributions"
+
+        assertThat(service.readGradleVersion("distributionUrl=$distributionsUrl/gradle-9.7.0-all.zip"))
+            .isEqualTo("9.7.0")
+        assertThat(service.readGradleVersion("distributionUrl=$distributionsUrl/gradle-9.8.0-rc-1-bin.zip"))
+            .isEqualTo("9.8.0-rc-1")
+    }
+
+    fun testWrapperPropertiesWithoutGradleVersionHaveNone() {
+        val service = KobwebReleaseVersionsService
+
+        assertThat(service.readGradleVersion("distributionBase=GRADLE_USER_HOME")).isNull()
+        assertThat(service.readGradleVersion("distributionUrl=https\\://example.com/my-gradle.zip")).isNull()
+        assertThat(service.readGradleVersion("distributionUrl=https\\://example.com/gradle-latest-bin.zip")).isNull()
+    }
 }

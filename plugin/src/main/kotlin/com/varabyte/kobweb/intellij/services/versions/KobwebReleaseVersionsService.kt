@@ -22,19 +22,29 @@ import org.toml.lang.psi.TomlFile
 import org.toml.lang.psi.TomlLiteral
 import org.toml.lang.psi.TomlTable
 import org.toml.lang.psi.ext.TomlLiteralKind
+import org.gradle.util.GradleVersion
 import org.toml.lang.psi.ext.kind
 import java.io.IOException
+import java.util.Properties
 import kotlin.time.Duration
 
 private const val NETWORK_TIMEOUT_MS = 5000
 private const val LATEST_RELEASE_URL = "$KOBWEB_REPO_URL/releases/latest"
 
 /**
- * Fetches the versions that the latest Kobweb release uses (Kobweb itself, Kotlin, Compose, etc.), so new modules get
- * up-to-date versions even if this plugin hasn't been updated since that release.
+ * The versions that a Kobweb release was built with.
  *
- * The versions come from Kobweb's own version catalog at the release's tag, so they always match the versions Kobweb
- * was built and tested with.
+ * @property catalogVersions The `[versions]` table of Kobweb's version catalog, e.g. `"kobweb"` to `"0.25.1"`.
+ * @property gradleVersion The Gradle version of Kobweb's wrapper, e.g. `"9.7.0"`, or null if it couldn't be read.
+ */
+data class KobwebReleaseVersions(val catalogVersions: Map<String, String>, val gradleVersion: String?)
+
+/**
+ * Fetches the versions that the latest Kobweb release uses (Kobweb itself, Kotlin, Compose, Gradle, etc.), so new
+ * modules and projects get up-to-date versions even if this plugin hasn't been updated since that release.
+ *
+ * The versions come from Kobweb's own version catalog and Gradle wrapper at the release's tag, so they always match the
+ * versions Kobweb was built and tested with.
  */
 @Service(Service.Level.APP)
 class KobwebReleaseVersionsService(private val coroutineScope: CoroutineScope) {
@@ -64,17 +74,28 @@ class KobwebReleaseVersionsService(private val coroutineScope: CoroutineScope) {
                     }
                     .toMap()
             }
+
+        /**
+         * The Gradle version of a `gradle-wrapper.properties` file's distribution, e.g. `"9.7.0"` for
+         * `distributionUrl=https\://services.gradle.org/distributions/gradle-9.7.0-bin.zip`, or null if it has none.
+         */
+        internal fun readGradleVersion(wrapperPropertiesText: String): String? {
+            val properties = Properties().apply { load(wrapperPropertiesText.reader()) }
+            val distributionUrl = properties.getProperty("distributionUrl") ?: return null
+            val version = Regex("""/gradle-(.+)-(?:bin|all)\.zip$""").find(distributionUrl)?.groupValues?.get(1)
+            return version?.takeIf { runCatching { GradleVersion.version(it) }.isSuccess }
+        }
     }
 
     private val logger = logger<KobwebReleaseVersionsService>()
 
     /** The latest release's versions, once a fetch succeeds. */
     @Volatile
-    private var latestVersions: Map<String, String>? = null
+    private var latestVersions: KobwebReleaseVersions? = null
 
     /** The current or last fetch. A failed one (which leaves [latestVersions] null) is retried by [startFetch]. */
     @Volatile
-    private var fetch: Deferred<Map<String, String>?>? = null
+    private var fetch: Deferred<KobwebReleaseVersions?>? = null
 
     /** Starts fetching the latest release's versions in the background, unless they're fetched or being fetched. */
     fun prefetch() {
@@ -88,7 +109,7 @@ class KobwebReleaseVersionsService(private val coroutineScope: CoroutineScope) {
      * If this returns null, callers can wait for the fetch with [awaitLatestVersions], or use the versions bundled with
      * this plugin.
      */
-    fun latestVersionsIfFetched(): Map<String, String>? = latestVersions
+    fun latestVersionsIfFetched(): KobwebReleaseVersions? = latestVersions
 
     /**
      * The latest release's versions, waiting up to [timeout] for them to be fetched. Call [prefetch] earlier to wait
@@ -96,13 +117,13 @@ class KobwebReleaseVersionsService(private val coroutineScope: CoroutineScope) {
      *
      * @return null if the fetch failed or timed out.
      */
-    suspend fun awaitLatestVersions(timeout: Duration): Map<String, String>? {
+    suspend fun awaitLatestVersions(timeout: Duration): KobwebReleaseVersions? {
         val fetch = startFetch() ?: return latestVersions
         return withTimeoutOrNull(timeout) { fetch.await() }
     }
 
     /** Starts a fetch unless the versions are fetched or being fetched, returning the fetch in progress, if any. */
-    private fun startFetch(): Deferred<Map<String, String>?>? {
+    private fun startFetch(): Deferred<KobwebReleaseVersions?>? {
         synchronized(this) {
             if (latestVersions != null) return null
             if (fetch?.isActive != true) {
@@ -112,13 +133,31 @@ class KobwebReleaseVersionsService(private val coroutineScope: CoroutineScope) {
         }
     }
 
-    private fun fetchLatestVersions(): Map<String, String>? {
+    private fun fetchLatestVersions(): KobwebReleaseVersions? {
         val tag = fetchLatestReleaseTag() ?: return null
         val catalogUrl = "$KOBWEB_RAW_FILES_URL_BASE/$tag/gradle/libs.versions.toml"
         val catalogText = RemoteFile(catalogUrl).download()?.decodeToString() ?: return null
-        return readVersions(ProjectManager.getInstance().defaultProject, catalogText)
+        val catalogVersions = readVersions(ProjectManager.getInstance().defaultProject, catalogText)
             .takeIf { it.isNotEmpty() }
-            .also { if (it == null) logger.warn("Found no versions in $catalogUrl") }
+            ?: run {
+                logger.warn("Found no versions in $catalogUrl")
+                return null
+            }
+        return KobwebReleaseVersions(catalogVersions, gradleVersion = fetchGradleVersion(tag))
+    }
+
+    /**
+     * The Gradle version of the wrapper at [tag], or null if it can't be read.
+     *
+     * We use Kobweb's own Gradle version rather than Gradle's latest release, since Kobweb keeps it reasonably up to
+     * date and its builds (including its playground project) are tested with it. Gradle's latest release, by contrast,
+     * isn't always supported by the Kotlin Gradle plugin yet.
+     */
+    private fun fetchGradleVersion(tag: String): String? {
+        val wrapperUrl = "$KOBWEB_RAW_FILES_URL_BASE/$tag/gradle/wrapper/gradle-wrapper.properties"
+        val wrapperText = RemoteFile(wrapperUrl).download()?.decodeToString() ?: return null
+        return readGradleVersion(wrapperText)
+            .also { if (it == null) logger.warn("Found no Gradle version in $wrapperUrl") }
     }
 
     /** Reads the latest release's tag from where GitHub redirects its "latest release" page to. */
