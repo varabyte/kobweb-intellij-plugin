@@ -1,10 +1,14 @@
 package com.varabyte.kobweb.intellij.wizards.module
 
+import com.intellij.ide.starters.local.generator.AssetsProcessor
 import com.intellij.ide.wizard.AbstractNewProjectWizardMultiStepBase
 import com.intellij.ide.wizard.NewProjectWizardBaseStep
 import com.intellij.ide.wizard.NewProjectWizardStep
+import com.intellij.ide.wizard.runAfterOpened
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.components.service
 import com.intellij.openapi.externalSystem.ExternalSystemModulePropertyManager
 import com.intellij.openapi.externalSystem.importing.ImportSpecBuilder
 import com.intellij.openapi.externalSystem.util.ExternalSystemUtil
@@ -20,6 +24,7 @@ import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.ide.progress.runWithModalProgressBlocking
 import com.intellij.ui.CheckBoxList
@@ -37,10 +42,17 @@ import com.intellij.util.ui.JBUI
 import com.varabyte.kobweb.intellij.model.KobwebProjectType
 import com.varabyte.kobweb.intellij.notification.KobwebNotifier
 import com.varabyte.kobweb.intellij.project.KobwebProject
+import com.varabyte.kobweb.intellij.services.project.KobwebProjectScopeService
 import com.varabyte.kobweb.intellij.services.versions.KobwebReleaseVersionsService
+import com.varabyte.kobweb.intellij.util.idea.wizard.DeferredSetupStep
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.gradle.util.GradleVersion
 import org.jetbrains.plugins.gradle.service.project.GradleProjectResolverUtil
+import org.jetbrains.plugins.gradle.service.project.open.linkAndSyncGradleProject
+import org.jetbrains.plugins.gradle.service.project.wizard.AssetsGradle
 import org.jetbrains.plugins.gradle.settings.GradleSettings
 import org.jetbrains.plugins.gradle.util.GradleConstants
 import java.nio.file.Path
@@ -52,11 +64,15 @@ import kotlin.time.Duration.Companion.seconds
  * The step of the Kobweb wizard that asks which kind of module to create, showing that kind's options below it.
  *
  * It also holds the options that all kinds share, so they keep their values when users switch between kinds. The
- * module's name and location come from the [NewProjectWizardBaseStep] before it.
+ * module's name and location come from the [NewProjectWizardBaseStep].
+ *
+ * When creating a new project, the base step names the project instead, and this step only offers an application,
+ * which goes into the project's [NEW_PROJECT_MODULE_NAME] directory.
  */
 class KobwebModuleStep(
+    private val gitStep: DeferredSetupStep,
     private val baseStep: NewProjectWizardBaseStep,
-) : AbstractNewProjectWizardMultiStepBase(baseStep) {
+) : AbstractNewProjectWizardMultiStepBase(gitStep) {
     override val label = UxGlobals.textBundle.message("wizard.kobweb.module.type")
 
     internal val moduleNameProperty get() = baseStep.nameProperty
@@ -83,17 +99,25 @@ class KobwebModuleStep(
     }
 
     init {
-        // Follows the selected type until the user edits it, e.g. `site` for an application
-        baseStep.nameProperty.dependsOn(stepProperty, ::suggestModuleName)
+        // In a new project, the name field is the project's name, and the module is always [NEW_PROJECT_MODULE_NAME]
+        if (!context.isCreatingNewProject) {
+            // Follows the selected type until the user edits it, e.g. `site` for an application
+            baseStep.nameProperty.dependsOn(stepProperty, ::suggestModuleName)
+        }
         // Follows the module name and location until the user edits it
         groupProperty.dependsOn(baseStep.nameProperty, ::suggestGroup)
         groupProperty.dependsOn(baseStep.pathProperty, ::suggestGroup)
     }
 
-    private val moduleDir: Path get() = Path(baseStep.path, baseStep.name)
+    private val moduleDir: Path
+        get() = if (context.isCreatingNewProject) Path(baseStep.path, baseStep.name, NEW_PROJECT_MODULE_NAME)
+        else Path(baseStep.path, baseStep.name)
 
     override fun initSteps(): Map<String, NewProjectWizardStep> {
         val bundle = UxGlobals.textBundle
+        if (context.isCreatingNewProject) {
+            return linkedMapOf(bundle.message("wizard.kobweb.module.type.app") to KobwebAppStep(this))
+        }
         return linkedMapOf(
             bundle.message("wizard.kobweb.module.type.app") to KobwebAppStep(this),
             bundle.message("wizard.kobweb.module.type.library") to KobwebLibraryStep(this),
@@ -103,25 +127,24 @@ class KobwebModuleStep(
 
     override fun setupUI(builder: Panel) {
         val bundle = UxGlobals.textBundle
-        val gradleRoot = context.project?.findGradleRoot(moduleDir)
-        when {
-            context.isCreatingNewProject -> bundle.message("wizard.kobweb.project.unsupported")
-            gradleRoot == null -> bundle.message("wizard.kobweb.module.error.not.gradle")
-            else -> null
-        }?.let { message ->
+        val gradleRoot = if (context.isCreatingNewProject) null else context.project?.findGradleRoot(moduleDir) ?: run {
+            val message = bundle.message("wizard.kobweb.module.error.not.gradle")
             builder.row { label(message).validationOnApply { error(message) } }
             return
         }
-        // If gradleRoot were null, we would have returned above. Kotlin code analysis doesn't seem to detect this.
-        gradleRoot!!
 
         // Fetched while users fill in the form, so it's usually ready by the time they click Create
         KobwebReleaseVersionsService.instance.prefetch()
 
         super.setupUI(builder)
-        if (gradleRoot.findFileByRelativePath("gradle/libs.versions.toml") == null) {
+        if (gradleRoot != null && gradleRoot.findFileByRelativePath("gradle/libs.versions.toml") == null) {
             builder.row { comment(bundle.message("wizard.kobweb.module.catalog.created")) }
         }
+    }
+
+    /** Leaves out the type switcher when there's only one type to pick, e.g. when creating a new project. */
+    override fun setupSwitcherUi(builder: Panel) {
+        if (steps.size > 1) super.setupSwitcherUi(builder)
     }
 
     /**
@@ -137,7 +160,7 @@ class KobwebModuleStep(
                 .validationOnApply { field -> validateGroup(field.text, exampleGroup) }
                 // The location field belongs to an earlier step, so check here that it's still inside the build
                 .validationOnApply {
-                    if (context.project?.findGradleRoot(moduleDir) != null) null
+                    if (context.isCreatingNewProject || context.project?.findGradleRoot(moduleDir) != null) null
                     else error(bundle.message("wizard.kobweb.module.error.not.gradle"))
                 }
         }
@@ -257,6 +280,8 @@ class KobwebModuleStep(
      * the module's build script, and adds it as a dependency of [dependents]. Then syncs Gradle and opens the build
      * script.
      *
+     * When creating a new project, this writes the project's root files too (see [writeNewProject]).
+     *
      * @param includeJvm Whether the new module has a JVM target, so it's also added to the dependents' `jvmMain`
      *   dependencies.
      */
@@ -266,6 +291,11 @@ class KobwebModuleStep(
         includeJvm: Boolean,
         write: KobwebModuleWriter.(moduleDir: String) -> VirtualFile,
     ) {
+        if (context.isCreatingNewProject) {
+            writeNewProject(project, write)
+            return
+        }
+
         val gradleRoot = project.findGradleRoot(moduleDir) ?: return
         val relativeModuleDir = gradleRoot.toNioPath().relativize(moduleDir).invariantSeparatorsPathString
         val writer = KobwebModuleWriter(project, gradleRoot, versionOverrides = awaitLatestKobwebVersions(project))
@@ -290,6 +320,53 @@ class KobwebModuleStep(
         for (dependent in dependents.filter { it.dir in result.skippedDependentDirs }) {
             notifyDependencyNotAdded(project, writer, dependent, gradlePath)
         }
+    }
+
+    /**
+     * Writes a new project with the application [write] writes. Most of its files are only written once the project
+     * opens, since the Gradle DSL can't edit files before then. Git's setup waits for them, so the new repository
+     * includes them, and then the project is linked to Gradle.
+     */
+    private fun writeNewProject(project: Project, write: KobwebModuleWriter.(moduleDir: String) -> VirtualFile) {
+        val rootDir = createProjectRoot()
+        val projectName = baseStep.name
+        @Suppress("UnstableApiUsage") // `runAfterOpened` is what IJ wizards themselves use; should be fine. If this
+        // ever breaks, we can write our own solution instead.
+        runAfterOpened(project) { openedProject ->
+            openedProject.service<KobwebProjectScopeService>().launch("Kobweb new project setup") {
+                val versions = KobwebReleaseVersionsService.instance
+                    .awaitLatestVersions(LATEST_VERSIONS_TIMEOUT)
+                    .orEmpty()
+                withContext(Dispatchers.EDT) {
+                    val writer = KobwebModuleWriter(openedProject, rootDir, versions)
+                    val buildFile = WriteCommandAction.writeCommandAction(openedProject)
+                        .withName(UxGlobals.textBundle.message("wizard.kobweb.module.command"))
+                        .compute<VirtualFile, Throwable> {
+                            writer.writeProjectRoot(projectName)
+                            writer.write(NEW_PROJECT_MODULE_NAME)
+                        }
+                    OpenFileDescriptor(openedProject, buildFile).navigate(/* requestFocus = */ true)
+                }
+                gitStep.setupProjectLater(openedProject)
+                linkAndSyncGradleProject(openedProject, rootDir)
+            }
+        }
+    }
+
+    /**
+     * Creates the new project's directory with a Gradle wrapper, which needs nothing specific to Kobweb, so it comes
+     * from IntelliJ's own wizards.
+     */
+    private fun createProjectRoot(): VirtualFile {
+        val rootPath = Path(baseStep.path, baseStep.name)
+        val wrapperAssets = AssetsGradle.getGradleWrapperAssets(GradleVersion.version(NEW_PROJECT_GRADLE_VERSION))
+        // `AssetsProcessor` is what IJ wizards themselves use; should be fine. If this ever breaks, we can write our
+        // own solution instead.
+        @Suppress("UnstableApiUsage")
+        AssetsProcessor.getInstance().generateSources(rootPath, wrapperAssets, emptyMap())
+        val rootDir = checkNotNull(LocalFileSystem.getInstance().refreshAndFindFileByNioFile(rootPath))
+        VfsUtil.markDirtyAndRefresh(/* async = */ false, /* recursive = */ true, /* reloadChildren = */ true, rootDir)
+        return rootDir
     }
 
     /**
@@ -360,8 +437,17 @@ class KobwebModuleStep(
      * If a root group can't be detected, we iterate through all Kobweb projects in this codebase and try to determine
      * a common shared group from all of them. If nothing can be found, the final suggestion will just be the new
      * module's name.
+     *
+     * In a new project, the build's group is [NEW_PROJECT_GROUP] plus the project's name, e.g.
+     * `org.example.myproject.site`.
      */
     private fun suggestGroup(): String {
+        fun String.toPackage() = lowercase().filter { it.isLetterOrDigit() }.takeIf { it.isNotEmpty() }
+
+        if (context.isCreatingNewProject) {
+            return listOfNotNull(NEW_PROJECT_GROUP, baseStep.name.toPackage(), NEW_PROJECT_MODULE_NAME)
+                .joinToString(".")
+        }
         val project = context.project
         val gradleRoot = project?.findGradleRoot(moduleDir)
         val buildGroup = if (project != null && gradleRoot != null) {
@@ -377,8 +463,7 @@ class KobwebModuleStep(
                 .distinct()
                 .commonGroupPrefix()
         } else null
-        val modulePackage = baseStep.name.lowercase().filter { it.isLetterOrDigit() }.takeIf { it.isNotEmpty() }
-        return listOfNotNull(buildGroup, modulePackage).joinToString(".")
+        return listOfNotNull(buildGroup, baseStep.name.toPackage()).joinToString(".")
     }
 
     /** The build's Kobweb applications and libraries, applications first. */
@@ -412,19 +497,28 @@ class KobwebModuleStep(
      */
     private class WriteModuleResult(val buildFile: VirtualFile, val skippedDependentDirs: List<String>)
 
-    private companion object {
+    internal companion object {
+        /** The directory of a new project's application module, as `kobweb create app` names it. */
+        const val NEW_PROJECT_MODULE_NAME = "site"
+
+        /** The group that a new project's groups start with, followed by the project's name. */
+        private const val NEW_PROJECT_GROUP = "org.example"
+
+        /** The Gradle version of a new project's wrapper: the one Kobweb's latest release was built with. */
+        private const val NEW_PROJECT_GRADLE_VERSION = "9.7.0"
+
         /** How long Create waits for the latest Kobweb versions, if they're still being fetched. */
-        val LATEST_VERSIONS_TIMEOUT = 2.seconds
+        private val LATEST_VERSIONS_TIMEOUT = 2.seconds
 
         /** The popup of dependents scrolls past this many. */
-        const val MAX_VISIBLE_DEPENDENTS = 10
+        private const val MAX_VISIBLE_DEPENDENTS = 10
 
         /** The dependents row names this many of the chosen dependents, then counts the rest. */
-        const val MAX_SUMMARIZED_DEPENDENTS = 2
+        private const val MAX_SUMMARIZED_DEPENDENTS = 2
 
         // These options are remembered across projects, as IntelliJ does for its own "Add sample code" option
-        const val GENERATE_README_PROPERTY_NAME = "kobweb.wizard.module.generateReadme"
-        const val ADD_SAMPLE_CODE_PROPERTY_NAME = "kobweb.wizard.module.addSampleCode"
+        private const val GENERATE_README_PROPERTY_NAME = "kobweb.wizard.module.generateReadme"
+        private const val ADD_SAMPLE_CODE_PROPERTY_NAME = "kobweb.wizard.module.addSampleCode"
     }
 }
 

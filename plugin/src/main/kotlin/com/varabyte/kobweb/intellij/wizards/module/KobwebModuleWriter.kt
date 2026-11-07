@@ -54,7 +54,8 @@ data class KobwebWorkerOptions(
 )
 
 /**
- * Writes new Kobweb modules into an existing Gradle build.
+ * Writes new Kobweb modules into a Gradle build, which is either an existing one or a new one started by
+ * [writeProjectRoot].
  *
  * Besides the module's own files, this adds the version catalog entries the module needs (creating
  * `gradle/libs.versions.toml` if the build doesn't have one) and includes the module in the build's settings script.
@@ -69,6 +70,19 @@ class KobwebModuleWriter(
     private val rootDir: VirtualFile,
     private val versionOverrides: Map<String, String>,
 ) {
+    /**
+     * Writes the root files of a new Kobweb project: its settings script, `gradle.properties` and `.gitignore`. Its
+     * modules are then added like those of any other build, e.g. with [writeApp].
+     *
+     * Must be called inside a write command.
+     */
+    fun writeProjectRoot(projectName: String) {
+        val properties = mapOf("PROJECT_NAME" to projectName)
+        rootDir.writeTemplate("settings.gradle.kts", "Kobweb Project settings.gradle.kts", properties)
+        rootDir.writeTemplate("gradle.properties", "Kobweb Project gradle.properties", properties)
+        rootDir.writeTemplate(".gitignore", "Kobweb Project gitignore", properties)
+    }
+
     /**
      * Writes an app module into [moduleDir], a path relative to [rootDir] (e.g. `"site"` or `"apps/site"`).
      *

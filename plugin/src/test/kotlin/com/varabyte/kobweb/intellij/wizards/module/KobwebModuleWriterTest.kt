@@ -1293,6 +1293,103 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
         )
     }
 
+    fun testNewProject() {
+        val rootDir = myFixture.tempDirFixture.getFile("")!!
+
+        WriteCommandAction.runWriteCommandAction(project) {
+            val writer = KobwebModuleWriter(project, rootDir, versionOverrides = emptyMap())
+            writer.writeProjectRoot("myproject")
+            writer.writeApp(
+                "site",
+                KobwebAppOptions(
+                    group = "org.example.myproject.site",
+                    title = "My Project",
+                    useSilk = true,
+                    useServer = false,
+                    useMarkdown = false,
+                    generateReadme = false,
+                    addSampleCode = false,
+                ),
+            )
+        }
+
+        assertThat(textOf("settings.gradle.kts")).isEqualTo(
+            """
+            pluginManagement {
+                repositories {
+                    gradlePluginPortal()
+                }
+            }
+
+            dependencyResolutionManagement {
+                repositories {
+                    mavenCentral()
+                    google()
+                }
+            }
+
+            // The following block registers dependencies to enable Kobweb snapshot support. It is safe to delete or comment out
+            // this block if you never plan to use them.
+            gradle.settingsEvaluated {
+                fun RepositoryHandler.kobwebSnapshots() {
+                    maven("https://central.sonatype.com/repository/maven-snapshots/") {
+                        mavenContent {
+                            includeGroupByRegex("com\\.varabyte\\.kobweb.*")
+                            snapshotsOnly()
+                        }
+                    }
+                }
+
+                pluginManagement.repositories { kobwebSnapshots() }
+                dependencyResolutionManagement.repositories { kobwebSnapshots() }
+            }
+
+            rootProject.name = "myproject"
+            include(":site")
+
+            """.trimIndent()
+        )
+        assertThat(textOf("build.gradle.kts")).isEqualTo(
+            """
+            plugins {
+                alias(libs.plugins.kotlin.multiplatform) apply false
+            }
+
+            """.trimIndent()
+        )
+        assertThat(textOf("gradle.properties")).isEqualTo(
+            """
+            kotlin.code.style=official
+            org.gradle.caching=true
+            org.gradle.configuration-cache=true
+
+            """.trimIndent()
+        )
+        assertThat(textOf(".gitignore")).isEqualTo(
+            """
+            # General ignores
+            .DS_Store
+            build
+            out
+            kotlin-js-store
+
+            # IntelliJ ignores
+            *.iml
+            /*.ipr
+            .idea
+
+            # Gradle ignores
+            .gradle
+
+            # Kotlin ignores
+            .kotlin
+
+            """.trimIndent()
+        )
+        assertThat(exists("gradle/libs.versions.toml")).isTrue()
+        assertThat(exists("site/build.gradle.kts")).isTrue()
+    }
+
     fun testMissingCatalogIsCreatedFromTheTemplateCatalog() {
         val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
             .virtualFile.parent

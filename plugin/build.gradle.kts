@@ -86,6 +86,7 @@ dependencies {
         bundledPlugins(
             "org.jetbrains.kotlin",
             "org.jetbrains.plugins.gradle",
+            "com.intellij.java", // For the New Project wizard's Gradle wrapper generation
             "com.intellij.modules.json",
             "org.jetbrains.plugins.yaml",
             "org.jetbrains.idea.gradle.dsl",
