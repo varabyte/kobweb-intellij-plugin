@@ -150,6 +150,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
             fun initStyles(ctx: InitSilkContext) {
                 ctx.stylesheet.registerStyleBase("html, body") { Modifier.fillMaxHeight() }
                 ctx.stylesheet.registerStyleBase("body") {
+                    @Suppress("SpellCheckingInspection")
                     Modifier
                         .fontFamily(
                             "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
@@ -427,6 +428,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
             object AppStyleSheet : StyleSheet() {
                 init {
                     "body" style {
+                        @Suppress("SpellCheckingInspection")
                         fontFamily(
                             "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
                             "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", "sans-serif"
