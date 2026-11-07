@@ -22,7 +22,6 @@ import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.openapi.ui.popup.JBPopup
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.util.io.FileUtil
-import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
@@ -46,6 +45,8 @@ import com.varabyte.kobweb.intellij.services.project.KobwebProjectScopeService
 import com.varabyte.kobweb.intellij.services.versions.KobwebReleaseVersionsService
 import com.varabyte.kobweb.intellij.util.idea.wizard.DeferredSetupStep
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
+import com.varabyte.kobweb.intellij.util.kotlin.isPackageSegment
+import com.varabyte.kobweb.intellij.util.kotlin.toPackageSegment
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -442,10 +443,8 @@ class KobwebModuleStep(
      * `org.example.myproject.site`.
      */
     private fun suggestGroup(): String {
-        fun String.toPackage() = lowercase().filter { it.isLetterOrDigit() }.takeIf { it.isNotEmpty() }
-
         if (context.isCreatingNewProject) {
-            return listOfNotNull(NEW_PROJECT_GROUP, baseStep.name.toPackage(), NEW_PROJECT_MODULE_NAME)
+            return listOfNotNull(NEW_PROJECT_GROUP, baseStep.name.toPackageSegment(), NEW_PROJECT_MODULE_NAME)
                 .joinToString(".")
         }
         val project = context.project
@@ -463,7 +462,7 @@ class KobwebModuleStep(
                 .distinct()
                 .commonGroupPrefix()
         } else null
-        return listOfNotNull(buildGroup, baseStep.name.toPackage()).joinToString(".")
+        return listOfNotNull(buildGroup, baseStep.name.toPackageSegment()).joinToString(".")
     }
 
     /** The build's Kobweb applications and libraries, applications first. */
@@ -560,7 +559,7 @@ private fun List<String>.commonGroupPrefix(): String? {
 }
 
 private fun ValidationInfoBuilder.validateGroup(group: String, exampleGroup: String): ValidationInfo? =
-    if (group.isNotEmpty() && group.split('.').all { StringUtil.isJavaIdentifier(it) }) null
+    if (group.isNotEmpty() && group.split('.').all { it.isPackageSegment() }) null
     else error(UxGlobals.textBundle.message("wizard.kobweb.module.error.invalid.group", exampleGroup))
 
 /** The root directory of the Gradle build that [moduleDir] is inside of, or null if it isn't inside one. */
