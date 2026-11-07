@@ -324,22 +324,23 @@ class KobwebModuleStep(
     }
 
     /**
-     * Writes a new project with the application [write] writes. Most of its files are only written once the project
-     * opens, since the Gradle DSL can't edit files before then. Git's setup waits for them, so the new repository
-     * includes them, and then the project is linked to Gradle.
+     * Writes a new project with the application [write] writes. Its files are only written once the project opens,
+     * since the Gradle DSL can't edit files before then. Git's setup waits for them, so the new repository includes
+     * them, and then the project is linked to Gradle.
      */
     private fun writeNewProject(project: Project, write: KobwebModuleWriter.(moduleDir: String) -> VirtualFile) {
-        val rootDir = createProjectRoot()
+        val rootPath = Path(baseStep.path, baseStep.name)
         val projectName = baseStep.name
         @Suppress("UnstableApiUsage") // `runAfterOpened` is what IJ wizards themselves use; should be fine. If this
         // ever breaks, we can write our own solution instead.
         runAfterOpened(project) { openedProject ->
             openedProject.service<KobwebProjectScopeService>().launch("Kobweb new project setup") {
-                val versions = KobwebReleaseVersionsService.instance
-                    .awaitLatestVersions(LATEST_VERSIONS_TIMEOUT)
-                    .orEmpty()
+                val versions = KobwebReleaseVersionsService.instance.awaitLatestVersions(LATEST_VERSIONS_TIMEOUT)
+                val rootDir = withContext(Dispatchers.IO) {
+                    createGradleWrapper(rootPath, versions?.gradleVersion ?: NEW_PROJECT_GRADLE_VERSION)
+                }
                 withContext(Dispatchers.EDT) {
-                    val writer = KobwebModuleWriter(openedProject, rootDir, versions)
+                    val writer = KobwebModuleWriter(openedProject, rootDir, versions?.catalogVersions.orEmpty())
                     val buildFile = WriteCommandAction.writeCommandAction(openedProject)
                         .withName(UxGlobals.textBundle.message("wizard.kobweb.module.command"))
                         .compute<VirtualFile, Throwable> {
@@ -355,12 +356,11 @@ class KobwebModuleStep(
     }
 
     /**
-     * Creates the new project's directory with a Gradle wrapper, which needs nothing specific to Kobweb, so it comes
-     * from IntelliJ's own wizards.
+     * Writes a Gradle wrapper for [gradleVersion] into the new project's [rootPath], returning the root directory. The
+     * wrapper needs nothing specific to Kobweb, so it comes from IntelliJ's own wizards.
      */
-    private fun createProjectRoot(): VirtualFile {
-        val rootPath = Path(baseStep.path, baseStep.name)
-        val wrapperAssets = AssetsGradle.getGradleWrapperAssets(GradleVersion.version(NEW_PROJECT_GRADLE_VERSION))
+    private fun createGradleWrapper(rootPath: Path, gradleVersion: String): VirtualFile {
+        val wrapperAssets = AssetsGradle.getGradleWrapperAssets(GradleVersion.version(gradleVersion))
         // `AssetsProcessor` is what IJ wizards themselves use; should be fine. If this ever breaks, we can write our
         // own solution instead.
         @Suppress("UnstableApiUsage")
@@ -376,11 +376,11 @@ class KobwebModuleStep(
      */
     private fun awaitLatestKobwebVersions(project: Project): Map<String, String> {
         val service = KobwebReleaseVersionsService.instance
-        service.latestVersionsIfFetched()?.let { return it }
+        service.latestVersionsIfFetched()?.let { return it.catalogVersions }
         val title = UxGlobals.textBundle.message("wizard.kobweb.module.fetching.versions")
         return runWithModalProgressBlocking(project, title) {
             service.awaitLatestVersions(LATEST_VERSIONS_TIMEOUT)
-        }.orEmpty()
+        }?.catalogVersions.orEmpty()
     }
 
     private fun notifyDependencyNotAdded(
@@ -503,7 +503,10 @@ class KobwebModuleStep(
         /** The group that a new project's groups start with, followed by the project's name. */
         private const val NEW_PROJECT_GROUP = "org.example"
 
-        /** The Gradle version of a new project's wrapper: the one Kobweb's latest release was built with. */
+        /**
+         * The Gradle version of a new project's wrapper if the latest Kobweb release's can't be fetched: the one
+         * Kobweb's latest release (at the time this plugin was released) was built with.
+         */
         private const val NEW_PROJECT_GRADLE_VERSION = "9.7.0"
 
         /** How long Create waits for the latest Kobweb versions, if they're still being fetched. */
