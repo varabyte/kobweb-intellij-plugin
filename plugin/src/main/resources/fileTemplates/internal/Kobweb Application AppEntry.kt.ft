@@ -12,10 +12,20 @@ import com.varabyte.kobweb.silk.init.InitSilkContext
 import com.varabyte.kobweb.silk.init.registerStyleBase
 import com.varabyte.kobweb.silk.style.common.SmoothColorStyle
 import com.varabyte.kobweb.silk.style.toModifier
+import org.jetbrains.compose.web.css.*
 
 @InitSilk
 fun initStyles(ctx: InitSilkContext) {
     ctx.stylesheet.registerStyleBase("html, body") { Modifier.fillMaxHeight() }
+    ctx.stylesheet.registerStyleBase("body") {
+        Modifier
+            .fontFamily(
+                "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
+                "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", "sans-serif"
+            )
+            .fontSize(18.px)
+            .lineHeight(1.5)
+    }
 }
 
 @App
@@ -31,11 +41,26 @@ fun AppEntry(content: @Composable () -> Unit) {
 import androidx.compose.runtime.*
 import com.varabyte.kobweb.core.App
 import com.varabyte.kobweb.core.KobwebApp
+import org.jetbrains.compose.web.css.*
+
+object AppStyleSheet : StyleSheet() {
+    init {
+        "body" style {
+            fontFamily(
+                "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
+                "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", "sans-serif"
+            )
+            fontSize(18.px)
+            lineHeight("1.5")
+        }
+    }
+}
 
 @App
 @Composable
 fun AppEntry(content: @Composable () -> Unit) {
     KobwebApp {
+        Style(AppStyleSheet)
         content()
     }
 }
