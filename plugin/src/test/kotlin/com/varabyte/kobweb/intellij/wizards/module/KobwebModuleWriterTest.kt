@@ -227,7 +227,14 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
             """
             # site
 
-            A Kobweb application. To run it, open a terminal in this folder and type `kobweb run`, then visit http://localhost:8080.
+            A Kobweb application. To run it, open a terminal in this folder and type
+
+            ```bash
+            $ kobweb run
+            ```
+
+            and then visit http://localhost:8080.
+
             (See https://kobweb.varabyte.com/docs/getting-started/getting-kobweb for how to install the `kobweb` command.)
 
             Its code goes in these places:
