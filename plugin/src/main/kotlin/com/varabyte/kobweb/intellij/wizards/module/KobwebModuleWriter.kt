@@ -13,6 +13,7 @@ import com.varabyte.kobweb.intellij.util.gradle.catalog.findLibraryAlias
 import com.varabyte.kobweb.intellij.util.gradle.catalog.findPluginAlias
 import com.varabyte.kobweb.intellij.util.gradle.catalog.libraryAccessor
 import com.varabyte.kobweb.intellij.util.gradle.catalog.pluginAccessor
+import com.varabyte.kobweb.intellij.util.kobweb.conf.KOBWEB_CONF_PATH
 import com.varabyte.kobweb.intellij.util.text.camelCaseToKebabCase
 
 /**
@@ -109,7 +110,7 @@ class KobwebModuleWriter(
         val moduleRoot = VfsUtil.createDirectoryIfMissing(rootDir, moduleDir)
         val kotlinDir = "src/jsMain/kotlin/$packagePath"
         val buildFile = moduleRoot.writeTemplate("build.gradle.kts", "Kobweb Application build.gradle.kts", properties)
-        moduleRoot.writeTemplate(".kobweb/conf.yaml", "Kobweb Application conf.yaml", properties)
+        moduleRoot.writeTemplate(KOBWEB_CONF_PATH, "Kobweb Application conf.yaml", properties)
         moduleRoot.writeTemplate(".gitignore", "Kobweb Application gitignore", properties)
         moduleRoot.writeTemplate("$kotlinDir/AppEntry.kt", "Kobweb Application AppEntry.kt", properties)
         if (options.generateReadme) {
