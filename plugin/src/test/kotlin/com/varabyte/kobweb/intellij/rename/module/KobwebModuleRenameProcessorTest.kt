@@ -2,6 +2,8 @@
 
 package com.varabyte.kobweb.intellij.rename.module
 
+import com.intellij.notification.Notification
+import com.intellij.notification.Notifications
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.LangDataKeys
 import com.intellij.openapi.actionSystem.impl.SimpleDataContext
@@ -193,6 +195,231 @@ class KobwebModuleRenameProcessorTest : BasePlatformTestCase() {
               files:
                 dev:
                   script: "build/kotlin-webpack/js/developmentExecutable/myproject.js"
+            """.trimIndent(),
+        )
+    }
+
+    fun testRenamingLibraryUpdatesDependents() {
+        myFixture.addFileToProject(
+            "settings.gradle.kts",
+            """
+            include(":website")
+            include(":library")
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "website/build.gradle.kts",
+            """
+            kotlin {
+                configAsKobwebApplication("website")
+                sourceSets {
+                    jsMain.dependencies {
+                        implementation(project(":library"))
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "library/build.gradle.kts",
+            """
+            kotlin {
+                configAsKobwebLibrary()
+            }
+            """.trimIndent(),
+        )
+        registerKobwebModule("library", ":library", KobwebProjectType.Library)
+
+        renameDir("library", "sitelib")
+
+        assertThat(textOf("settings.gradle.kts")).isEqualTo(
+            """
+            include(":website")
+            include(":sitelib")
+            """.trimIndent(),
+        )
+        assertThat(textOf("website/build.gradle.kts")).isEqualTo(
+            """
+            kotlin {
+                configAsKobwebApplication("website")
+                sourceSets {
+                    jsMain.dependencies {
+                        implementation(project(":sitelib"))
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+    }
+
+    fun testRenamingLibraryUpdatesTopLevelDependencies() {
+        myFixture.addFileToProject(
+            "settings.gradle.kts",
+            """
+            include(":backend")
+            include(":library")
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "backend/build.gradle.kts",
+            """
+            dependencies {
+                implementation(project(":library"))
+            }
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "library/build.gradle.kts",
+            """
+            kotlin {
+                configAsKobwebLibrary()
+            }
+            """.trimIndent(),
+        )
+        registerKobwebModule("library", ":library", KobwebProjectType.Library)
+
+        renameDir("library", "sitelib")
+
+        assertThat(textOf("backend/build.gradle.kts")).isEqualTo(
+            """
+            dependencies {
+                implementation(project(":sitelib"))
+            }
+            """.trimIndent(),
+        )
+    }
+
+    fun testRenamingLibraryUpdatesSourceSetDeclaredByGetting() {
+        myFixture.addFileToProject(
+            "settings.gradle.kts",
+            """
+            include(":backend")
+            include(":library")
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "backend/build.gradle.kts",
+            """
+            kotlin {
+                sourceSets {
+                    val jsMain by getting {
+                        dependencies {
+                            implementation(project(":library"))
+                        }
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "library/build.gradle.kts",
+            """
+            kotlin {
+                configAsKobwebLibrary()
+            }
+            """.trimIndent(),
+        )
+        registerKobwebModule("library", ":library", KobwebProjectType.Library)
+
+        renameDir("library", "sitelib")
+
+        assertThat(textOf("backend/build.gradle.kts")).isEqualTo(
+            """
+            kotlin {
+                sourceSets {
+                    val jsMain by getting {
+                        dependencies {
+                            implementation(project(":sitelib"))
+                        }
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+    }
+
+    fun testRenamingLibraryWarnsAboutProjectAccessors() {
+        myFixture.addFileToProject(
+            "settings.gradle.kts",
+            """
+            include(":backend")
+            include(":library")
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "backend/build.gradle.kts",
+            """
+            dependencies {
+                implementation(projects.library)
+            }
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "library/build.gradle.kts",
+            """
+            kotlin {
+                configAsKobwebLibrary()
+            }
+            """.trimIndent(),
+        )
+        registerKobwebModule("library", ":library", KobwebProjectType.Library)
+        val notifications = mutableListOf<Notification>()
+        project.messageBus.connect(testRootDisposable).subscribe(
+            Notifications.TOPIC,
+            object : Notifications {
+                override fun notify(notification: Notification) {
+                    notifications.add(notification)
+                }
+            },
+        )
+
+        renameDir("library", "sitelib")
+
+        assertThat(textOf("backend/build.gradle.kts")).isEqualTo(
+            """
+            dependencies {
+                implementation(projects.library)
+            }
+            """.trimIndent(),
+        )
+        assertThat(notifications.map { it.content }).containsExactly(
+            "Type-safe project accessors aren't renamed. Change <code>projects.library</code> to <code>projects.sitelib</code> by hand."
+        )
+    }
+
+    fun testRenamingLibraryUpdatesGroovyDependents() {
+        myFixture.addFileToProject(
+            "settings.gradle.kts",
+            """
+            include(":backend")
+            include(":library")
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "backend/build.gradle",
+            """
+            dependencies {
+                implementation project(':library')
+            }
+            """.trimIndent(),
+        )
+        myFixture.addFileToProject(
+            "library/build.gradle.kts",
+            """
+            kotlin {
+                configAsKobwebLibrary()
+            }
+            """.trimIndent(),
+        )
+        registerKobwebModule("library", ":library", KobwebProjectType.Library)
+
+        renameDir("library", "sitelib")
+
+        assertThat(textOf("backend/build.gradle")).isEqualTo(
+            """
+            dependencies {
+                implementation project(':sitelib')
+            }
             """.trimIndent(),
         )
     }

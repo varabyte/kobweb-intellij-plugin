@@ -1,12 +1,18 @@
 package com.varabyte.kobweb.intellij.rename.module
 
+import com.android.tools.idea.gradle.dsl.api.GradleBuildModel
 import com.android.tools.idea.gradle.dsl.api.GradleSettingsModel
+import com.android.tools.idea.gradle.dsl.api.ProjectBuildModel
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.externalSystem.importing.ImportSpecBuilder
 import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil
 import com.intellij.openapi.externalSystem.util.ExternalSystemUtil
 import com.intellij.openapi.module.ModuleManager
+import com.intellij.openapi.fileEditor.OpenFileDescriptor
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.psi.ElementManipulators
 import com.intellij.psi.PsiDirectory
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
@@ -16,10 +22,14 @@ import com.intellij.refactoring.listeners.RefactoringElementListener
 import com.intellij.refactoring.rename.RenamePsiDirectoryProcessor
 import com.intellij.usageView.UsageInfo
 import com.varabyte.kobweb.intellij.model.KobwebProjectType
+import com.varabyte.kobweb.intellij.notification.KobwebNotifier
 import com.varabyte.kobweb.intellij.project.KobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.conf.KOBWEB_CONF_PATH
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
+import com.varabyte.kobweb.intellij.util.text.capitalized
+import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.psi.KtCallExpression
+import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtPsiFactory
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
@@ -31,6 +41,15 @@ import org.jetbrains.plugins.gradle.util.GradleConstants
 
 private val SETTINGS_FILE_NAMES = listOf("settings.gradle.kts", "settings.gradle")
 private const val BUILD_FILE_NAME = "build.gradle.kts"
+
+/** The names a module's build script can have, Kotlin first. */
+private val BUILD_FILE_NAMES = listOf(BUILD_FILE_NAME, "build.gradle")
+
+/** The Gradle function for depending on another module of the build, e.g. `project(":library")`. */
+private const val PROJECT_FUNCTION = "project"
+
+/** The root of Gradle's type-safe project accessors, e.g. `projects.library`. */
+private const val PROJECTS_ACCESSOR = "projects"
 
 /** The Kobweb configuration function, and its name parameter, for each type of module that has one. */
 private val NAME_PARAMS = mapOf(
@@ -74,9 +93,14 @@ class KobwebModuleRenameProcessor : RenamePsiDirectoryProcessor() {
 
         val settingsFile = module.rootDir.findSettingsFile()
         if (settingsFile != null) {
+            val newGradlePath = module.gradlePath.substringBeforeLast(':') + ":$newName"
             val settings = GradleSettingsModel.get(settingsFile, dir.project)
-            settings.replaceModulePath(module.gradlePath, module.gradlePath.substringBeforeLast(':') + ":$newName")
+            val unchangedBuildFiles = settings.renameDependencies(dir.project, module.rootDir, module.gradlePath, newGradlePath)
+            settings.replaceModulePath(module.gradlePath, newGradlePath)
             settings.applyChanges()
+            if (unchangedBuildFiles.isNotEmpty()) {
+                notifyAccessorsNotRenamed(dir.project, unchangedBuildFiles, module.gradlePath, newGradlePath)
+            }
         }
 
         if (isNamedAfterFolder) {
@@ -119,6 +143,106 @@ class KobwebModuleRenameProcessor : RenamePsiDirectoryProcessor() {
         val rootPath = ExternalSystemApiUtil.getExternalRootProjectPath(module) ?: return null
         val rootDir = generateSequence(virtualFile.parent) { it.parent }.firstOrNull { it.path == rootPath } ?: return null
         return KobwebModule(kobwebProject.type, gradlePath, rootDir)
+    }
+
+    /**
+     * Changes every `project(oldPath)` dependency in the build scripts of this build's modules to [newPath].
+     *
+     * @return the build scripts that still refer to the module through a type-safe project accessor (e.g.
+     *   `projects.library`), which aren't renamed.
+     */
+    private fun GradleSettingsModel.renameDependencies(
+        project: Project,
+        rootDir: VirtualFile,
+        oldPath: String,
+        newPath: String,
+    ): List<VirtualFile> {
+        val unchangedBuildFiles = mutableListOf<VirtualFile>()
+        for (path in modulePaths()) {
+            if (path == oldPath) continue
+            val moduleDir = moduleDirectory(path)?.invariantSeparatorsPath?.removePrefix(rootDir.path)?.removePrefix("/")
+                ?: continue
+            val buildFile = BUILD_FILE_NAMES.firstNotNullOfOrNull { rootDir.findFileByRelativePath("$moduleDir/$it") }
+                ?: continue
+            val kotlinScript = PsiManager.getInstance(project).findFile(buildFile) as? KtFile
+            if (kotlinScript != null) {
+                kotlinScript.renameProjectCalls(oldPath, newPath)
+                if (kotlinScript.hasProjectAccessor(oldPath)) unchangedBuildFiles.add(buildFile)
+            } else {
+                ProjectBuildModel.get(project).getModuleBuildModel(buildFile).renameModuleDependencies(oldPath, newPath)
+            }
+        }
+        return unchangedBuildFiles
+    }
+
+    /**
+     * Changes every `project(":oldPath")` call in this Kotlin build script to [newPath].
+     *
+     * The Gradle DSL isn't used for Kotlin scripts, since it misses dependencies declared in some common ways, e.g. in
+     * `val jsMain by getting { dependencies { ... } }`.
+     */
+    private fun KtFile.renameProjectCalls(oldPath: String, newPath: String) {
+        for (call in collectDescendantsOfType<KtCallExpression>()) {
+            if (call.calleeExpression?.text != PROJECT_FUNCTION) continue
+            val path = call.valueArguments.singleOrNull()?.getArgumentExpression() as? KtStringTemplateExpression ?: continue
+            if (path.hasInterpolation() || path.plainContent != oldPath) continue
+            ElementManipulators.handleContentChange(path, newPath)
+        }
+    }
+
+    /**
+     * Whether this Kotlin build script refers to the module at [gradlePath] through a type-safe project accessor, e.g.
+     * `projects.libs.myLib` for `:libs:my-lib`.
+     */
+    private fun KtFile.hasProjectAccessor(gradlePath: String): Boolean {
+        val accessor = gradlePath.toProjectAccessor()
+        return collectDescendantsOfType<KtDotQualifiedExpression>()
+            .any { expression -> expression.text.filterNot { it.isWhitespace() } == accessor }
+    }
+
+    /**
+     * Changes every `project(oldPath)` dependency in this (Groovy) build script to [newPath], both in its top-level
+     * `dependencies` block and in its Kotlin source sets' ones.
+     */
+    private fun GradleBuildModel.renameModuleDependencies(oldPath: String, newPath: String) {
+        val dependencyBlocks = listOf(dependencies()) + kotlin().sourceSets().map { it.dependencies() }
+        for (dependency in dependencyBlocks.flatMap { it.modules() }) {
+            if (dependency.path().forceString() != oldPath) continue
+            // Only the path's string is replaced, since the DSL can rewrite surrounding blocks when it saves a change
+            // (e.g. `jsMain.dependencies { ... }` into `create("jsMain") { dependencies { ... } }`)
+            val pathString = dependency.path().expressionPsiElement ?: continue
+            ElementManipulators.handleContentChange(pathString, newPath)
+        }
+    }
+
+    /** Warns that [buildFiles] still refer to the module at [oldPath] through a type-safe project accessor. */
+    private fun notifyAccessorsNotRenamed(project: Project, buildFiles: List<VirtualFile>, oldPath: String, newPath: String) {
+        val bundle = UxGlobals.textBundle
+        val builder = KobwebNotifier.Builder(
+            bundle.message(
+                "rename.module.accessors.not.renamed",
+                oldPath.toProjectAccessor(),
+                newPath.toProjectAccessor(),
+            )
+        ).type(NotificationType.WARNING)
+        for (buildFile in buildFiles) {
+            builder.addAction(bundle.message("rename.module.accessors.not.renamed.open", buildFile.parent.name, buildFile.name)) {
+                OpenFileDescriptor(project, buildFile).navigate(/* requestFocus = */ true)
+            }
+        }
+        builder.notify(project)
+    }
+
+    /**
+     * The type-safe project accessor Gradle generates for the module at this Gradle path, e.g. `projects.libs.myLib`
+     * for `:libs:my-lib`. Gradle turns kebab-case and snake_case names into camelCase ones.
+     */
+    private fun String.toProjectAccessor(): String {
+        fun String.toAccessorName(): String {
+            val parts = split('-', '_')
+            return parts.first() + parts.drop(1).joinToString("") { it.capitalized() }
+        }
+        return (listOf(PROJECTS_ACCESSOR) + removePrefix(":").split(':').map { it.toAccessorName() }).joinToString(".")
     }
 
     private fun VirtualFile.findSettingsFile(): VirtualFile? = SETTINGS_FILE_NAMES.firstNotNullOfOrNull { findChild(it) }
