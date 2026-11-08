@@ -3,4 +3,11 @@
     <!-- The Gradle DSL reads version catalogs only when the TOML plugin is enabled too, and Kobweb modules need a version
          catalog -->
     <depends optional="true" config-file="kobweb-withGradleDslAndToml.xml">org.toml.lang</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Must come before IntelliJ's own directory rename processor, which would otherwise handle the module's folder -->
+        <renamePsiElementProcessor implementation="com.varabyte.kobweb.intellij.rename.module.KobwebModuleRenameProcessor" order="first"/>
+        <!-- Must come after IntelliJ's own "Rename module" handler, which it replaces (see its KDoc) -->
+        <renameHandler implementation="com.varabyte.kobweb.intellij.rename.module.KobwebModuleRenameHandler" order="last"/>
+    </extensions>
 </idea-plugin>

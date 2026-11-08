@@ -11,7 +11,7 @@ import com.varabyte.kobweb.intellij.services.conf.KobwebConfReader
 import org.jetbrains.kotlin.idea.base.util.module
 
 /** Where a Kobweb site keeps its configuration, relative to its Gradle project's folder. */
-private const val KOBWEB_CONF_PATH = ".kobweb/conf.yaml"
+const val KOBWEB_CONF_PATH = ".kobweb/conf.yaml"
 
 /**
  * Returns the `.kobweb/conf.yaml` file that configures the Kobweb site this element belongs to (e.g. its title and
