@@ -7,6 +7,7 @@ import com.intellij.ide.fileTemplates.FileTemplateManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.util.text.SemVer
 import com.varabyte.kobweb.intellij.util.gradle.catalog.VersionCatalog
 import com.varabyte.kobweb.intellij.util.gradle.catalog.copyEntriesIfAbsent
 import com.varabyte.kobweb.intellij.util.gradle.catalog.findLibraryAlias
@@ -93,6 +94,14 @@ class KobwebModuleWriter(
      */
     fun writeApp(moduleDir: String, options: KobwebAppOptions): VirtualFile {
         val packagePath = options.group.replace('.', '/')
+        val catalogEntries = addCatalogEntries(APP_TEMPLATE_LIBRARIES, APP_TEMPLATE_PLUGINS)
+        // Checked after adding the entries above, so that a new catalog's Kobweb version is already in place
+        val useIconsBlock = findOrCreateUserCatalog().supportsIconsBlock()
+        val iconCatalogEntries = if (useIconsBlock) {
+            emptyMap()
+        } else {
+            addCatalogEntries(mapOf("SILK_ICONS_FA" to "silk-icons-fa"), plugins = emptyMap())
+        }
         val properties = mapOf(
             "MODULE_NAME" to moduleDir.substringAfterLast('/'),
             "GROUP" to options.group,
@@ -105,7 +114,8 @@ class KobwebModuleWriter(
             "USE_SILK" to options.useSilk,
             "USE_SERVER" to options.useServer,
             "USE_MARKDOWN" to options.useMarkdown,
-        ) + addCatalogEntries(APP_TEMPLATE_LIBRARIES, APP_TEMPLATE_PLUGINS)
+            "USE_ICONS_BLOCK" to useIconsBlock,
+        ) + catalogEntries + iconCatalogEntries
 
         val moduleRoot = VfsUtil.createDirectoryIfMissing(rootDir, moduleDir)
         val kotlinDir = "src/jsMain/kotlin/$packagePath"
@@ -347,6 +357,22 @@ class KobwebModuleWriter(
         }
     }
 
+    /**
+     * Whether this catalog's Kobweb version (going by its `kobweb-core` entry) supports `icons { ... }` blocks, which
+     * generate icon bindings in the build itself instead of using a `silk-icons-*` artifact.
+     *
+     * False if the version can't be read, since the artifacts work with every version.
+     */
+    private fun VersionCatalog.supportsIconsBlock(): Boolean {
+        val entry = libraries.values.find { it.id == KOBWEB_CORE_ID } ?: return false
+        val version = when (val entryVersion = entry.version) {
+            is VersionCatalog.Version.Ref -> versions[entryVersion.key]
+            is VersionCatalog.Version.Literal -> entryVersion.value
+            null -> null
+        }
+        return SemVer.parseFromText(version)?.isGreaterOrEqualThan(0, 25, 2) == true
+    }
+
     private fun VirtualFile.toCatalogModel() =
         ProjectBuildModel.get(project).versionCatalogsModel.getVersionCatalogModel(this, CATALOG_NAME)
 
@@ -431,6 +457,7 @@ class KobwebModuleWriter(
         val SETTINGS_FILE_NAMES = listOf("settings.gradle.kts", "settings.gradle")
         val BUILD_FILE_NAMES = listOf("build.gradle.kts", "build.gradle")
         const val KOTLIN_MULTIPLATFORM_PLUGIN_ID = "org.jetbrains.kotlin.multiplatform"
+        const val KOBWEB_CORE_ID = "com.varabyte.kobweb:kobweb-core"
 
         /** Template property name to its alias in the template catalog. */
         val APP_TEMPLATE_LIBRARIES = mapOf(
@@ -438,7 +465,6 @@ class KobwebModuleWriter(
             "COMPOSE_HTML_CORE" to "compose-html-core",
             "KOBWEB_CORE" to "kobweb-core",
             "KOBWEB_SILK" to "kobweb-silk",
-            "SILK_ICONS_FA" to "silk-icons-fa",
             "KOBWEBX_MARKDOWN" to "kobwebx-markdown",
             "KOBWEB_API" to "kobweb-api",
         )

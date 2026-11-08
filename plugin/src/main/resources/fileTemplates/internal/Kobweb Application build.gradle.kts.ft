@@ -17,6 +17,14 @@ kobweb {
         index {
             description.set("Powered by Kobweb")
         }
+#if ($USE_SILK && $USE_ICONS_BLOCK)
+        // Uncomment the following block to generate Kotlin bindings for an icon set.
+        // We support Font Awesome (fa), Material Symbols (ms), and Lucide (lucide).
+        // Afterwards, run `./gradlew kobwebFetchIcons` and check in the files it writes to kobweb-store/icons.
+        // icons {
+        //     fa()
+        // }
+#end
     }
 }
 
@@ -34,7 +42,9 @@ kotlin {
             implementation(${COMPOSE_HTML_CORE})
             implementation(${KOBWEB_CORE})
             ${SILK_COMMENT}implementation(${KOBWEB_SILK})
+#if (!$USE_ICONS_BLOCK)
             ${SILK_COMMENT}implementation(${SILK_ICONS_FA})
+#end
             ${MARKDOWN_COMMENT}implementation(${KOBWEBX_MARKDOWN})
         }
 #if ($USE_SERVER)

@@ -1531,6 +1531,164 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
         )
     }
 
+    fun testAppSuggestsIconsBlockFromKobweb0_25_2() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+
+        WriteCommandAction.runWriteCommandAction(project) {
+            KobwebModuleWriter(project, rootDir, versionOverrides = mapOf("kobweb" to "0.25.2")).writeApp(
+                "site",
+                KobwebAppOptions(
+                    group = "com.example.mysite",
+                    title = "My Site",
+                    useSilk = true,
+                    useServer = false,
+                    useMarkdown = false,
+                    generateReadme = false,
+                    addSampleCode = false,
+                ),
+            )
+        }
+
+        assertThat(textOf("site/build.gradle.kts")).isEqualTo(
+            """
+            import com.varabyte.kobweb.gradle.application.util.configAsKobwebApplication
+
+            plugins {
+                alias(libs.plugins.kotlin.multiplatform)
+                alias(libs.plugins.compose.compiler)
+                alias(libs.plugins.kobweb.application)
+                // alias(libs.plugins.kobwebx.markdown)
+            }
+
+            group = "com.example.mysite"
+            version = "1.0-SNAPSHOT"
+
+            kobweb {
+                app {
+                    index {
+                        description.set("Powered by Kobweb")
+                    }
+                    // Uncomment the following block to generate Kotlin bindings for an icon set.
+                    // We support Font Awesome (fa), Material Symbols (ms), and Lucide (lucide).
+                    // Afterwards, run `./gradlew kobwebFetchIcons` and check in the files it writes to kobweb-store/icons.
+                    // icons {
+                    //     fa()
+                    // }
+                }
+            }
+
+            kotlin {
+                configAsKobwebApplication("mysite")
+
+                sourceSets {
+                    jsMain.dependencies {
+                        implementation(libs.compose.runtime)
+                        implementation(libs.compose.html.core)
+                        implementation(libs.kobweb.core)
+                        implementation(libs.kobweb.silk)
+                        // implementation(libs.kobwebx.markdown)
+                    }
+                }
+            }
+
+            """.trimIndent()
+        )
+    }
+
+    fun testAppWithoutSilkDoesNotSuggestIconsBlock() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+
+        WriteCommandAction.runWriteCommandAction(project) {
+            KobwebModuleWriter(project, rootDir, versionOverrides = mapOf("kobweb" to "0.25.2")).writeApp(
+                "site",
+                KobwebAppOptions(
+                    group = "com.example.mysite",
+                    title = "My Site",
+                    useSilk = false,
+                    useServer = false,
+                    useMarkdown = false,
+                    generateReadme = false,
+                    addSampleCode = false,
+                ),
+            )
+        }
+
+        val buildText = textOf("site/build.gradle.kts")
+        assertThat(buildText).doesNotContain("icons")
+    }
+
+    fun testAppDoesNotAddSilkIconsToCatalogWithKobwebSnapshot() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+        myFixture.addFileToProject(
+            "gradle/libs.versions.toml",
+            """
+            [versions]
+            kobweb = "0.25.2-SNAPSHOT"
+
+            [libraries]
+            kobweb-core = { module = "com.varabyte.kobweb:kobweb-core", version.ref = "kobweb" }
+            """.trimIndent()
+        )
+
+        writeApp(
+            rootDir,
+            "site",
+            KobwebAppOptions(
+                group = "com.example.mysite",
+                title = "My Site",
+                useSilk = true,
+                useServer = false,
+                useMarkdown = false,
+                generateReadme = false,
+                addSampleCode = false,
+            ),
+        )
+
+        assertThat(textOf("gradle/libs.versions.toml")).doesNotContain("silk-icons")
+        val buildText = textOf("site/build.gradle.kts")
+        assertThat(buildText).contains("// icons {")
+        assertThat(buildText).doesNotContain("silk.icons")
+    }
+
+    fun testAppUsesSilkIconsArtifactWhenCatalogHasOlderKobweb() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+        myFixture.addFileToProject(
+            "gradle/libs.versions.toml",
+            """
+            [versions]
+            kobweb = "0.25.1"
+
+            [libraries]
+            kobweb-core = { module = "com.varabyte.kobweb:kobweb-core", version.ref = "kobweb" }
+            """.trimIndent()
+        )
+
+        // The build's own Kobweb version decides, not the latest release's
+        WriteCommandAction.runWriteCommandAction(project) {
+            KobwebModuleWriter(project, rootDir, versionOverrides = mapOf("kobweb" to "0.26.0")).writeApp(
+                "site",
+                KobwebAppOptions(
+                    group = "com.example.mysite",
+                    title = "My Site",
+                    useSilk = true,
+                    useServer = false,
+                    useMarkdown = false,
+                    generateReadme = false,
+                    addSampleCode = false,
+                ),
+            )
+        }
+
+        assertThat(textOf("gradle/libs.versions.toml")).contains("silk-icons-fa")
+        val buildText = textOf("site/build.gradle.kts")
+        assertThat(buildText).contains("implementation(libs.silk.icons.fa)")
+        assertThat(buildText).doesNotContain("icons {")
+    }
+
     fun testNestedModuleDirectoryGetsNestedGradlePath() {
         val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
             .virtualFile.parent
