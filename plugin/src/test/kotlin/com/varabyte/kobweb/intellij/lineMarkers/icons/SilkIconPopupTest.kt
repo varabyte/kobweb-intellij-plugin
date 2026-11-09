@@ -2,6 +2,8 @@ package com.varabyte.kobweb.intellij.lineMarkers.icons
 
 import com.intellij.psi.util.PsiTreeUtil
 import com.varabyte.kobweb.intellij.iconpreviews.IconShape
+import com.varabyte.kobweb.intellij.model.AppBlock
+import com.varabyte.kobweb.intellij.model.IconsBlock
 import com.varabyte.kobweb.intellij.services.icons.IconPreview
 import com.varabyte.kobweb.intellij.test.fixtures.KobwebApplicationTestCase
 import com.varabyte.kobweb.intellij.test.util.analyzeOnEdt
@@ -54,6 +56,39 @@ class SilkIconPopupTest : KobwebApplicationTestCase() {
             import com.varabyte.kobweb.silk.components.icons.fa.*
 
             fun test() { FaSquare(style = IconStyle.FILLED) }
+            """.trimIndent(),
+        )
+    }
+
+    fun testChoosingStyleUsesGeneratedStyleEnum() {
+        registerKobwebProject(app = AppBlock(icons = IconsBlock(rootPackage = ".components.icons", iconSets = listOf("fa"))))
+        // A stand-in for the bindings Kobweb generates for `kobweb { app { icons { fa() } } }`
+        myFixture.addFileToProject(
+            "components/icons/fa/FaIcons.kt",
+            """
+            package $TEST_GROUP.components.icons.fa
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+
+            enum class FaIconStyle { FILLED, OUTLINE }
+
+            @Composable
+            fun FaSquare(modifier: Modifier = Modifier, style: FaIconStyle = FaIconStyle.OUTLINE) {}
+            """.trimIndent()
+        )
+
+        doTest(
+            """
+            import $TEST_GROUP.components.icons.fa.*
+
+            fun test() { FaSquare() }
+            """.trimIndent(),
+            targetStyle = faStyle("FILLED"),
+            """
+            import $TEST_GROUP.components.icons.fa.*
+
+            fun test() { FaSquare(style = FaIconStyle.FILLED) }
             """.trimIndent(),
         )
     }

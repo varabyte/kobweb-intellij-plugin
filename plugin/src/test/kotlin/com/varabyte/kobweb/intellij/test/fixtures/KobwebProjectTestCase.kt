@@ -17,8 +17,10 @@ import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.fixtures.DefaultLightProjectDescriptor
 import com.intellij.testFramework.runInEdtAndWait
 import com.intellij.util.PathUtil
+import com.varabyte.kobweb.intellij.model.AppBlock
 import com.varabyte.kobweb.intellij.model.KobwebModel
 import com.varabyte.kobweb.intellij.model.KobwebProjectType
+import com.varabyte.kobweb.intellij.model.LibraryBlock
 import com.varabyte.kobweb.intellij.model.WorkerBlock
 import com.varabyte.kobweb.intellij.project.KobwebProject
 import com.varabyte.kobweb.intellij.project.KobwebProject.Source.Local
@@ -123,13 +125,21 @@ abstract class KobwebProjectTestCase(private val projectType: KobwebProjectType)
         pagesPackage: String = KobwebModel.DEFAULT_PAGES_PACKAGE,
         apiPackage: String = KobwebModel.DEFAULT_API_PACKAGE,
         publicPath: String = KobwebModel.DEFAULT_PUBLIC_PATH,
+        app: AppBlock? = if (projectType == KobwebProjectType.Application) AppBlock() else null,
+        library: LibraryBlock? = if (projectType == KobwebProjectType.Library) LibraryBlock() else null,
         worker: WorkerBlock? = if (projectType == KobwebProjectType.Worker) WorkerBlock() else null,
     ) {
+        if (app != null && projectType != KobwebProjectType.Application) {
+            error("Cannot set app values for a non-application project")
+        }
+        if (library != null && projectType != KobwebProjectType.Library) {
+            error("Cannot set library values for a non-library project")
+        }
         if (worker != null && projectType != KobwebProjectType.Worker) {
             error("Cannot set worker values for a non-worker project")
         }
 
-        val kobwebProject = KobwebProject("test-shell", projectType, Local(this.module), group, pagesPackage, apiPackage, publicPath, worker)
+        val kobwebProject = KobwebProject("test-shell", projectType, Local(this.module), group, pagesPackage, apiPackage, publicPath, app, library, worker)
         val kobwebProjectsCache = project.service<KobwebProjectCacheService>()
         kobwebModules.forEach { module -> kobwebProjectsCache.add(module, kobwebProject) }
 

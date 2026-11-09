@@ -1,7 +1,10 @@
 package com.varabyte.kobweb.intellij.model.gradle.tooling
 
+import com.varabyte.kobweb.intellij.model.AppBlock
+import com.varabyte.kobweb.intellij.model.IconsBlock
 import com.varabyte.kobweb.intellij.model.KobwebModel
 import com.varabyte.kobweb.intellij.model.KobwebProjectType
+import com.varabyte.kobweb.intellij.model.LibraryBlock
 import com.varabyte.kobweb.intellij.model.WorkerBlock
 import org.gradle.api.Project
 import org.gradle.api.plugins.ExtensionAware
@@ -15,6 +18,8 @@ private class KobwebModelImpl(
     override val pagesPackage: String?,
     override val apiPackage: String?,
     override val publicPath: String?,
+    override val app: AppBlock?,
+    override val library: LibraryBlock?,
     override val worker: WorkerBlock?,
 ) : KobwebModel
 
@@ -68,7 +73,29 @@ private fun Project.findPublicPath(): String {
     return kobwebBlock?.getPropertyValue("getPublicPath") ?: KobwebModel.DEFAULT_PUBLIC_PATH
 }
 
+/**
+ * Read the `icons { ... }` block inside a `kobweb { app { ... } }` or `kobweb { library { ... } }` block, or null if it
+ * has none (e.g. the project uses a Kobweb version from before icons could be generated).
+ */
+private fun ExtensionAware.findIconsBlock(): IconsBlock? {
+    val iconsBlock = extensions.findByName("icons") as? ExtensionAware ?: return null
+    val rootPackage = iconsBlock.getPropertyValue("getRootPackage") ?: return null
+    val iconSets = try {
+        iconsBlock.javaClass.getMethod("getIconSets").invoke(iconsBlock) as? Map<*, *> ?: return null
+    } catch (_: Exception) {
+        return null
+    }
+    return IconsBlock(rootPackage, iconSets.keys.map { it.toString() })
+}
+
+private fun Project.findKobwebSubblock(name: String) = kobwebBlock?.extensions?.findByName(name) as? ExtensionAware
+
+private fun Project.createAppBlock() = AppBlock(icons = findKobwebSubblock("app")?.findIconsBlock())
+
+private fun Project.createLibraryBlock() = LibraryBlock(icons = findKobwebSubblock("library")?.findIconsBlock())
+
 private fun Project.createWorkerBlock() = WorkerBlock(fqcn = findWorkerFqcn())
+
 
 private fun Project.toKobwebModel(): KobwebModel? {
     val projectType = with(pluginManager) {
@@ -86,7 +113,9 @@ private fun Project.toKobwebModel(): KobwebModel? {
         findPagesPackage(),
         findApiPackage(),
         findPublicPath(),
-        if (projectType == KobwebProjectType.Worker) createWorkerBlock() else null
+        if (projectType == KobwebProjectType.Application) createAppBlock() else null,
+        if (projectType == KobwebProjectType.Library) createLibraryBlock() else null,
+        if (projectType == KobwebProjectType.Worker) createWorkerBlock() else null,
     )
 }
 

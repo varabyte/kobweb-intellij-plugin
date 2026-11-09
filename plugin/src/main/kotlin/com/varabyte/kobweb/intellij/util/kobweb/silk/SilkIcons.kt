@@ -1,7 +1,10 @@
 package com.varabyte.kobweb.intellij.util.kobweb.silk
 
 import com.intellij.openapi.roots.ProjectFileIndex
+import com.intellij.psi.PsiElement
 import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_REPO_URL
+import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
+import com.varabyte.kobweb.intellij.util.kobweb.project.qualifiedIconPackages
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.resolution.successfulFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
@@ -31,7 +34,8 @@ class SilkIconStyle(val id: String, val enumEntry: String?) {
 }
 
 /**
- * The icon sets provided by Kobweb's `silk-icons-*` modules.
+ * The icon sets Kobweb provides bindings for, either through its `silk-icons-*` modules or by generating them in a
+ * user's build (via `kobweb { app { icons { ... } } }`).
  *
  * @property id The icon set's ID in icon preview data. This intentionally matches Kobweb's own naming for the set (e.g.
  *   `silk-icons-fa`, the `...icons.fa` package, and the `Fa` function prefix), which [packageName] and [functionPrefix]
@@ -80,6 +84,7 @@ enum class SilkIconSet(
         listOf(SilkIconStyle("lucide", null)),
     );
 
+    /** The package of this set's `silk-icons-*` module. Builds that generate their own bindings choose their own. */
     val packageName = FqName("com.varabyte.kobweb.silk.components.icons.$id")
     val functionPrefix = id.replaceFirstChar { it.uppercase() }
 
@@ -171,7 +176,9 @@ fun KtCallExpression.asSilkIconCall(): SilkIconCall? = with(kaSession) {
     val callableId = call.symbol.callableId ?: return null
     if (callableId.classId != null) return null
 
-    val iconSet = SilkIconSet.entries.find { it.packageName == callableId.packageName } ?: return null
+    val iconSet = SilkIconSet.entries.find { it.packageName == callableId.packageName }
+        ?: call.symbol.psi?.findGeneratedIconSet(callableId.packageName)
+        ?: return null
     val functionName = callableId.callableName.asString()
     if (!functionName.startsWith(iconSet.functionPrefix) || functionName in iconSet.helperFunctions) return null
 
@@ -204,6 +211,14 @@ fun KtCallExpression.asSilkIconCall(): SilkIconCall? = with(kaSession) {
             .mapNotNull { (expression, param) -> (expression.parent as? KtValueArgument)?.let { it to param.name } }
             .toMap(),
     )
+}
+
+/**
+ * The icon set whose bindings this declaration's Kobweb project generates into [packageName], if any.
+ */
+private fun PsiElement.findGeneratedIconSet(packageName: FqName): SilkIconSet? {
+    val id = findKobwebProject()?.qualifiedIconPackages?.entries?.find { it.value == packageName }?.key ?: return null
+    return SilkIconSet.entries.find { it.id == id }
 }
 
 /** The package of the SVG icons Silk defines in code (e.g. `ArrowBackIcon`), as opposed to its icon font modules. */
