@@ -1,11 +1,28 @@
 package com.varabyte.kobweb.intellij.util.kotlin
 
+import org.jetbrains.kotlin.analysis.api.KaSession
+import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.psiUtil.isIdentifier
 import javax.lang.model.SourceVersion
 
 fun FqName.child(relative: FqName): FqName {
     return if (isRoot) relative else FqName("${asString()}.${relative.asString()}")
+}
+
+/**
+ * Returns true if a top-level class, type alias, function, or property with this fully qualified name is visible from
+ * the module being analyzed.
+ *
+ * Call it inside an `analyze { ... }` block, which provides the `KaSession`.
+ */
+context(kaSession: KaSession)
+fun FqName.isDeclared(): Boolean = with(kaSession) {
+    if (isRoot) return@with false
+    val classId = ClassId.topLevel(this@isDeclared)
+    findClass(classId) != null
+        || findTypeAlias(classId) != null
+        || findTopLevelCallables(parent(), shortName()).any()
 }
 
 /**

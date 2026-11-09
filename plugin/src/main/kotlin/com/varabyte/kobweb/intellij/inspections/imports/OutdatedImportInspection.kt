@@ -8,15 +8,14 @@ import com.varabyte.kobweb.intellij.quickfixes.imports.MigrateImportQuickFix
 import com.varabyte.kobweb.intellij.services.imports.ImportMigrationService
 import com.varabyte.kobweb.intellij.util.kobweb.imports.ImportMigrations
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
+import com.varabyte.kobweb.intellij.util.kotlin.isDeclared
 import com.varabyte.kobweb.intellij.util.psi.replaceImportedFqName
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
-import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.analyzeCopy
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaDanglingFileResolutionMode
 import org.jetbrains.kotlin.analysis.api.resolution.KaSuccessCallInfo
 import org.jetbrains.kotlin.idea.references.mainReference
-import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtFile
@@ -73,19 +72,6 @@ private fun ImportMigrations.findMigration(importDirective: KtImportDirective): 
     val fqName = importDirective.importedFqName ?: return null
     val targets = findMigrationTargets(fqName).ifEmpty { return null }
     return analyze(importDirective) { targets.firstOrNull { it.isDeclared() } }
-}
-
-/**
- * Returns true if a top-level class, type alias, function, or property with this fully qualified name is visible from
- * the module being analyzed.
- */
-context(kaSession: KaSession)
-private fun FqName.isDeclared(): Boolean = with(kaSession) {
-    if (isRoot) return@with false
-    val classId = ClassId.topLevel(this@isDeclared)
-    findClass(classId) != null
-        || findTypeAlias(classId) != null
-        || findTopLevelCallables(parent(), shortName()).any()
 }
 
 /**

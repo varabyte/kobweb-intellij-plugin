@@ -1,0 +1,29 @@
+<html lang="en">
+<body>
+Reports icons imported from a prebuilt Silk icon artifact (e.g. <code>silk-icons-fa</code>) when the module generates
+the same icon set itself, with an <code>icons { ... }</code> block in its build script.
+<p>
+Both have the same icons with the same names, so the quick fix just changes the import.
+<p>
+A module usually only has both while migrating from the artifact to generated icons. Once nothing imports from the
+artifact anymore, remove its dependency from the build script.
+<pre><code>
+// build.gradle.kts
+kobweb {
+    app {
+        icons {
+            fa()
+        }
+    }
+}
+
+// Before
+import com.varabyte.kobweb.silk.components.icons.fa.FaHouse
+
+// After
+import com.example.components.icons.fa.FaHouse
+</code></pre>
+<!-- tooltip end -->
+<p>Running <b>Code | Code Cleanup</b> fixes every such import in the project at once.</p>
+</body>
+</html>

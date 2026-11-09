@@ -211,7 +211,8 @@ fun KtFile.removeImportIfUnused(fqn: FqName) {
 }
 
 /**
- * Changes this import to import [newFqName] instead, keeping its alias (if any).
+ * Changes this import to import [newFqName] instead, keeping its alias (if any). For a star import (e.g. `import a.b.*`),
+ * [newFqName] is the new package to import everything from.
  *
  * The new import is placed according to the user's Kotlin import layout settings. If the file already has that exact
  * import, this one is simply deleted, to avoid a duplicate.
@@ -219,8 +220,9 @@ fun KtFile.removeImportIfUnused(fqn: FqName) {
 fun KtImportDirective.replaceImportedFqName(newFqName: FqName) {
     val file = containingKtFile
     val alias = aliasName?.let(Name::identifier)
+    val allUnder = isAllUnder
     delete()
-    file.addImport(newFqName, alias = alias)
+    file.addImport(newFqName, allUnder = allUnder, alias = alias)
 }
 
 /**
