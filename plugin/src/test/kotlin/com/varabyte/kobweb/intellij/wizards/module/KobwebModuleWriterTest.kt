@@ -1298,6 +1298,53 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
         )
     }
 
+    fun testFullstackModuleIsAddedToCommonDependenciesOfLibrary() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+        myFixture.addFileToProject(
+            "core/build.gradle.kts",
+            """
+            kotlin {
+                configAsKobwebLibrary(includeServer = true)
+                sourceSets {
+                    commonMain.dependencies {
+                        // Add shared dependencies between JS and JVM here
+                    }
+                    jsMain.dependencies {
+                        implementation(libs.kobweb.core)
+                    }
+                    jvmMain.dependencies {
+                        compileOnly(libs.kobweb.api) // Provided by Kobweb backend at runtime
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val skippedDirs = addAsDependency(rootDir, "mylib", listOf("core"), includeJvm = true)
+
+        assertThat(skippedDirs).isEmpty()
+        assertThat(textOf("core/build.gradle.kts")).isEqualTo(
+            """
+            kotlin {
+                configAsKobwebLibrary(includeServer = true)
+                sourceSets {
+                    commonMain.dependencies {
+                        implementation(project(":mylib"))
+                        // Add shared dependencies between JS and JVM here
+                    }
+                    jsMain.dependencies {
+                        implementation(libs.kobweb.core)
+                    }
+                    jvmMain.dependencies {
+                        compileOnly(libs.kobweb.api) // Provided by Kobweb backend at runtime
+                    }
+                }
+            }
+            """.trimIndent()
+        )
+    }
+
     fun testJsOnlyModuleIsNotAddedToCommonDependencies() {
         val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
             .virtualFile.parent
