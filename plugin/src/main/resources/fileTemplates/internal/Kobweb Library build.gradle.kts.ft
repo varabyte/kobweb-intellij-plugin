@@ -17,9 +17,9 @@ kotlin {
 
     sourceSets {
 #if ($USE_SERVER)
-//        commonMain.dependencies {
-//          // Add shared dependencies between JS and JVM here
-//        }
+        commonMain.dependencies {
+            // Add shared dependencies between JS and JVM here
+        }
 #end
         jsMain.dependencies {
             implementation(${COMPOSE_RUNTIME})

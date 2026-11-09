@@ -397,9 +397,9 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
                 configAsKobwebApplication("mysite", includeServer = true)
 
                 sourceSets {
-            //        commonMain.dependencies {
-            //          // Add shared dependencies between JS and JVM here
-            //        }
+                    commonMain.dependencies {
+                        // Add shared dependencies between JS and JVM here
+                    }
                     jsMain.dependencies {
                         implementation(libs.compose.runtime)
                         implementation(libs.compose.html.core)
@@ -512,9 +512,9 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
                 configAsKobwebLibrary(includeServer = true)
 
                 sourceSets {
-            //        commonMain.dependencies {
-            //          // Add shared dependencies between JS and JVM here
-            //        }
+                    commonMain.dependencies {
+                        // Add shared dependencies between JS and JVM here
+                    }
                     jsMain.dependencies {
                         implementation(libs.compose.runtime)
                         implementation(libs.compose.html.core)
@@ -1244,6 +1244,94 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
                     jvmMain.dependencies {
                         implementation(project(":mylib"))
                         compileOnly(libs.kobweb.api) // Provided by Kobweb backend at runtime
+                    }
+                }
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testFullstackModuleIsAddedToCommonDependencies() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+        myFixture.addFileToProject(
+            "site/build.gradle.kts",
+            """
+            kotlin {
+                configAsKobwebApplication("mysite", includeServer = true)
+                sourceSets {
+                    commonMain.dependencies {
+                        // Add shared dependencies between JS and JVM here
+                    }
+                    jsMain.dependencies {
+                        implementation(libs.kobweb.core)
+                    }
+                    jvmMain.dependencies {
+                        compileOnly(libs.kobweb.api) // Provided by Kobweb backend at runtime
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val skippedDirs = addAsDependency(rootDir, "mylib", listOf("site"), includeJvm = true)
+
+        assertThat(skippedDirs).isEmpty()
+        assertThat(textOf("site/build.gradle.kts")).isEqualTo(
+            """
+            kotlin {
+                configAsKobwebApplication("mysite", includeServer = true)
+                sourceSets {
+                    commonMain.dependencies {
+                        implementation(project(":mylib"))
+                        // Add shared dependencies between JS and JVM here
+                    }
+                    jsMain.dependencies {
+                        implementation(libs.kobweb.core)
+                    }
+                    jvmMain.dependencies {
+                        compileOnly(libs.kobweb.api) // Provided by Kobweb backend at runtime
+                    }
+                }
+            }
+            """.trimIndent()
+        )
+    }
+
+    fun testJsOnlyModuleIsNotAddedToCommonDependencies() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+        myFixture.addFileToProject(
+            "site/build.gradle.kts",
+            """
+            kotlin {
+                configAsKobwebApplication("mysite", includeServer = true)
+                sourceSets {
+                    commonMain.dependencies {
+                        // Add shared dependencies between JS and JVM here
+                    }
+                    jsMain.dependencies {
+                        implementation(libs.kobweb.core)
+                    }
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val skippedDirs = addAsDependency(rootDir, "mylib", listOf("site"), includeJvm = false)
+
+        assertThat(skippedDirs).isEmpty()
+        assertThat(textOf("site/build.gradle.kts")).isEqualTo(
+            """
+            kotlin {
+                configAsKobwebApplication("mysite", includeServer = true)
+                sourceSets {
+                    commonMain.dependencies {
+                        // Add shared dependencies between JS and JVM here
+                    }
+                    jsMain.dependencies {
+                        implementation(libs.kobweb.core)
+                        implementation(project(":mylib"))
                     }
                 }
             }

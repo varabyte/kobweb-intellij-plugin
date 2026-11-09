@@ -252,10 +252,11 @@ class KobwebModuleWriter(
      *
      * Must be called inside a write command.
      *
-     * @param includeJvm Whether to also add it to the dependents' `jvmMain` dependencies, for a module with a JVM
-     *   target. Dependents without a `jvmMain` block are left alone: most of them are JS-only.
-     * @return the dependents whose build script couldn't be edited, because it has no `jsMain` block the DSL can find
-     *   (e.g. it uses `val jsMain by getting`, or has no such block at all).
+     * @param includeJvm Whether the module also has a JVM target. If so, it goes into a dependent's `commonMain`
+     *   dependencies if it has that block, since both of the dependent's targets can then use it. Otherwise, it's also
+     *   added to the dependent's `jvmMain` dependencies, if it has that block: most dependents without one are JS-only.
+     * @return the dependents whose build script couldn't be edited, because it has none of those blocks the DSL can
+     *   find (e.g. it uses `val jsMain by getting`, or has no such block at all).
      */
     fun addAsDependency(moduleDir: String, dependentDirs: List<String>, includeJvm: Boolean): List<String> {
         val gradlePath = moduleDir.toGradlePath()
@@ -266,13 +267,19 @@ class KobwebModuleWriter(
             // the DSL doesn't find (e.g. `val jsMain by getting`, or none at all) would declare the source set a
             // second time, e.g. `create("jsMain")`, which fails the build.
             val sourceSets = buildModel?.kotlin()?.sourceSets().orEmpty()
-            val jsMain = sourceSets.find { it.name() == "jsMain" }
-            if (buildModel == null || jsMain == null) {
+            fun findSourceSet(name: String) = sourceSets.find { it.name() == name }
+            val commonMain = findSourceSet("commonMain")
+            val jsMain = findSourceSet("jsMain")
+            val targetSourceSets = when {
+                commonMain != null && includeJvm -> listOf(commonMain)
+                jsMain != null -> listOfNotNull(jsMain, if (includeJvm) findSourceSet("jvmMain") else null)
+                else -> emptyList()
+            }
+            if (buildModel == null || targetSourceSets.isEmpty()) {
                 skippedDirs.add(dependentDir)
                 continue
             }
-            val jvmMain = if (includeJvm) sourceSets.find { it.name() == "jvmMain" } else null
-            for (sourceSet in listOfNotNull(jsMain, jvmMain)) {
+            for (sourceSet in targetSourceSets) {
                 val dependencies = sourceSet.dependencies()
                 if (dependencies.modules().none { it.path().forceString() == gradlePath }) {
                     dependencies.addModule("implementation", gradlePath)
