@@ -60,8 +60,8 @@ enum class SilkIconSet(
         ),
         helperFunctions = setOf("FaIcon"),
     ),
-    MATERIAL_DESIGN_ICONS(
-        "mdi", "Material Design Icons",
+    MATERIAL_ICONS(
+        "mdi", "Material Icons",
         listOf(
             SilkIconStyle("mdi", "FILLED"),
             SilkIconStyle("mdio", "OUTLINED"),
@@ -97,7 +97,7 @@ enum class SilkIconSet(
         }
         // Selecting the icon (via its font family's name) opens its details in a side panel, and the style picks the
         // matching tab. These mirror the links Google Fonts itself creates.
-        MATERIAL_DESIGN_ICONS -> when (style.id) {
+        MATERIAL_ICONS -> when (style.id) {
             "mdio" -> googleFontsIconUrl("Material Icons", "Material Icons Outlined", "Outlined", iconName)
             "mdir" -> googleFontsIconUrl("Material Icons", "Material Icons Round", "Rounded", iconName)
             "mdis" -> googleFontsIconUrl("Material Icons", "Material Icons Sharp", "Sharp", iconName)
