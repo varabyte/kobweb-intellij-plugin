@@ -1,5 +1,6 @@
 package com.varabyte.kobweb.intellij.util.kobweb
 
+import com.varabyte.kobweb.intellij.model.IconsBlock
 import com.varabyte.truthish.assertThat
 import kotlinx.serialization.json.Json
 import org.junit.Test
@@ -169,5 +170,78 @@ class KobwebMetadataTest {
     fun readMalformedBackendMetadata() {
         assertThat(Json.readKobwebBackendMetadata("not json")).isNull()
         assertThat(Json.readKobwebBackendMetadata("[]")).isNull()
+    }
+
+    @Test
+    fun readIconsMetadata() {
+        val metadata = Json.readKobwebIconsMetadata(
+            """
+            {
+                "iconSets": {
+                    "fa": { "version": "6.5.2", "packageName": "com.example.components.icons.fa" },
+                    "lucide": { "version": "1.70.0", "packageName": "com.example.components.icons.lucide" }
+                }
+            }
+            """.trimIndent()
+        )!!
+
+        assertThat(metadata.iconSets.mapValues { it.value.packageName }).containsExactly(
+            "fa" to "com.example.components.icons.fa",
+            "lucide" to "com.example.components.icons.lucide",
+        )
+    }
+
+    @Test
+    fun readIconsMetadataSkipsMalformedIconSets() {
+        val metadata = Json.readKobwebIconsMetadata(
+            """
+            {
+                "iconSets": {
+                    "fa": { "version": "6.5.2", "packageName": "com.example.components.icons.fa" },
+                    "lucide": { "version": "1.70.0" }
+                }
+            }
+            """.trimIndent()
+        )!!
+
+        assertThat(metadata.iconSets.keys).containsExactly("fa")
+    }
+
+    @Test
+    fun readMalformedIconsMetadata() {
+        assertThat(Json.readKobwebIconsMetadata("not json")).isNull()
+        assertThat(Json.readKobwebIconsMetadata("[]")).isNull()
+    }
+
+    @Test
+    fun iconsMetadataToIconsBlock() {
+        val metadata = KobwebIconsMetadata(
+            mapOf(
+                "fa" to KobwebIconsMetadata.IconSet("com.example.components.icons.fa"),
+                "lucide" to KobwebIconsMetadata.IconSet("com.example.components.icons.lucide"),
+            )
+        )
+
+        assertThat(metadata.toIconsBlock()).isEqualTo(
+            IconsBlock(rootPackage = "com.example.components.icons", iconSets = listOf("fa", "lucide"))
+        )
+    }
+
+    @Test
+    fun iconsMetadataWithUnexpectedPackagesHasNoIconsBlock() {
+        // Kobweb always generates each icon set into a subpackage named after it, under one root package
+        val notNamedAfterSet = KobwebIconsMetadata(
+            mapOf("fa" to KobwebIconsMetadata.IconSet("com.example.components.icons.fontawesome"))
+        )
+        val differentRoots = KobwebIconsMetadata(
+            mapOf(
+                "fa" to KobwebIconsMetadata.IconSet("com.example.components.icons.fa"),
+                "lucide" to KobwebIconsMetadata.IconSet("com.example.widgets.lucide"),
+            )
+        )
+
+        assertThat(notNamedAfterSet.toIconsBlock()).isNull()
+        assertThat(differentRoots.toIconsBlock()).isNull()
+        assertThat(KobwebIconsMetadata(emptyMap()).toIconsBlock()).isNull()
     }
 }

@@ -29,7 +29,8 @@ import com.varabyte.kobweb.intellij.model.WorkerBlock
  *   from `kobweb { publicPath.set(...) }`. External projects get this from their Kobweb metadata, which only includes
  *   it as of newer Kobweb versions, so ones built with older versions have Kobweb's default (which they always used).
  * @property app Values from the `kobweb { app { ... } }` block. Only ever set for local application projects.
- * @property library Values from the `kobweb { library { ... } }` block. Only ever set for local library projects.
+ * @property library Values from the `kobweb { library { ... } }` block, for library projects. External libraries only
+ *   have the values their Kobweb metadata records (currently just their icons).
  * @property worker Values from the `kobweb { worker { ... } }` block. Only ever set for local worker projects.
  */
 data class KobwebProject(

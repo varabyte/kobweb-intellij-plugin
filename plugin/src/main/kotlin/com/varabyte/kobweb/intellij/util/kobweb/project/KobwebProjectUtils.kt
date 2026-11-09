@@ -6,6 +6,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
 import com.varabyte.kobweb.intellij.model.KobwebModel
 import com.varabyte.kobweb.intellij.model.KobwebProjectType
+import com.varabyte.kobweb.intellij.model.LibraryBlock
 import com.varabyte.kobweb.intellij.project.KobwebProject
 import com.varabyte.kobweb.intellij.project.findKobwebModel
 import com.varabyte.kobweb.intellij.services.project.KobwebProjectCacheService
@@ -15,7 +16,9 @@ import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_LIBRARY
 import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_WORKER
 import com.varabyte.kobweb.intellij.util.kobweb.PackageShortcuts
 import com.varabyte.kobweb.intellij.util.kobweb.isKobwebPluginEnabled
+import com.varabyte.kobweb.intellij.util.kobweb.readKobwebIconsMetadata
 import com.varabyte.kobweb.intellij.util.kobweb.readKobwebModuleMetadata
+import com.varabyte.kobweb.intellij.util.kobweb.toIconsBlock
 import com.varabyte.kobweb.intellij.util.module.toGradleModule
 import com.varabyte.kobweb.intellij.util.psi.containingKlib
 import org.jetbrains.kotlin.idea.base.util.module
@@ -85,6 +88,11 @@ private fun VirtualFile.findKobwebProject(kobwebProjectsCache: KobwebProjectCach
         KobwebProject.Source.External(klib),
         group = moduleMetadata?.group,
         publicPath = moduleMetadata?.publicPath ?: KobwebModel.DEFAULT_PUBLIC_PATH,
+        library = if (kobwebProjectType == KobwebProjectType.Library) {
+            LibraryBlock(icons = klib.readKobwebIconsMetadata()?.toIconsBlock())
+        } else {
+            null
+        },
     ).also { kobwebProjectsCache.add(it) }
 }
 
