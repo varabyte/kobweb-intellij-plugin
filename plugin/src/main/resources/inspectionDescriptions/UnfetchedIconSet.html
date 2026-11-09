@@ -1,0 +1,19 @@
+<html lang="en">
+<body>
+Reports icon sets in a build script's <code>icons { ... }</code> block whose data hasn't been fetched yet. The build
+fails until it is.
+<p>
+Use the quick fix to run the <code>kobwebFetchIcons</code> Gradle task, then check in the files it writes to
+<code>kobweb-store/icons</code>.
+<pre><code>
+kobweb {
+    app {
+        icons {
+            fa() // No data fetched yet
+        }
+    }
+}
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>

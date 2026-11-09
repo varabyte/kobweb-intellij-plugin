@@ -135,6 +135,13 @@
         <localInspection
                 language="kotlin"
                 groupKey="kobweb.name"
+                key="inspection.unfetched.icon.set.display.name"
+                enabledByDefault="true"
+                level="WEAK WARNING"
+                implementationClass="com.varabyte.kobweb.intellij.inspections.icons.UnfetchedIconSetInspection"/>
+        <localInspection
+                language="kotlin"
+                groupKey="kobweb.name"
                 key="inspection.conflicting.layout.annotations.display.name"
                 enabledByDefault="true"
                 level="ERROR"
@@ -239,6 +246,11 @@
         </intentionAction>
         <intentionAction>
             <className>com.varabyte.kobweb.intellij.intentions.layout.OptOutOfDefaultLayoutIntention</className>
+            <categoryKey>kobweb.name</categoryKey>
+            <language>kotlin</language>
+        </intentionAction>
+        <intentionAction>
+            <className>com.varabyte.kobweb.intellij.intentions.icons.FetchIconsIntention</className>
             <categoryKey>kobweb.name</categoryKey>
             <language>kotlin</language>
         </intentionAction>
