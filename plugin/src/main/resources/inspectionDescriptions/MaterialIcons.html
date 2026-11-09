@@ -1,0 +1,19 @@
+<html lang="en">
+<body>
+Reports Google's Material Icons icon set (<code>mdi()</code>) in a build script's <code>icons { ... }</code> block.
+Google has deprecated Material Icons in favor of Material Symbols (<code>ms()</code>), which has more icons and gets
+updates.
+<p>
+Icon names and styles differ between the two sets, so switching means updating the icons you use by hand.
+<pre><code>
+kobweb {
+    app {
+        icons {
+            mdi() // Consider ms() instead
+        }
+    }
+}
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>

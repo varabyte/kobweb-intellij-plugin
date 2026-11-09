@@ -142,6 +142,13 @@
         <localInspection
                 language="kotlin"
                 groupKey="kobweb.name"
+                key="inspection.material.icons.display.name"
+                enabledByDefault="true"
+                level="WEAK WARNING"
+                implementationClass="com.varabyte.kobweb.intellij.inspections.icons.MaterialIconsInspection"/>
+        <localInspection
+                language="kotlin"
+                groupKey="kobweb.name"
                 key="inspection.conflicting.layout.annotations.display.name"
                 enabledByDefault="true"
                 level="ERROR"
