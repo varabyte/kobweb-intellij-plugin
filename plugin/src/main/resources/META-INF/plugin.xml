@@ -135,20 +135,6 @@
         <localInspection
                 language="kotlin"
                 groupKey="kobweb.name"
-                key="inspection.unfetched.icon.set.display.name"
-                enabledByDefault="true"
-                level="WEAK WARNING"
-                implementationClass="com.varabyte.kobweb.intellij.inspections.icons.UnfetchedIconSetInspection"/>
-        <localInspection
-                language="kotlin"
-                groupKey="kobweb.name"
-                key="inspection.material.icons.display.name"
-                enabledByDefault="true"
-                level="WEAK WARNING"
-                implementationClass="com.varabyte.kobweb.intellij.inspections.icons.MaterialIconsInspection"/>
-        <localInspection
-                language="kotlin"
-                groupKey="kobweb.name"
                 key="inspection.conflicting.layout.annotations.display.name"
                 enabledByDefault="true"
                 level="ERROR"
@@ -231,14 +217,6 @@
                 level="WARNING"
                 cleanupTool="true"
                 implementationClass="com.varabyte.kobweb.intellij.inspections.imports.OutdatedImportInspection"/>
-        <localInspection
-                language="kotlin"
-                groupKey="kobweb.name"
-                key="inspection.legacy.icon.import.display.name"
-                enabledByDefault="true"
-                level="WEAK WARNING"
-                cleanupTool="true"
-                implementationClass="com.varabyte.kobweb.intellij.inspections.imports.LegacyIconImportInspection"/>
         <intentionAction>
             <className>com.varabyte.kobweb.intellij.intentions.style.ExtractCssStyleIntention</className>
             <categoryKey>kobweb.name</categoryKey>
@@ -261,11 +239,6 @@
         </intentionAction>
         <intentionAction>
             <className>com.varabyte.kobweb.intellij.intentions.layout.OptOutOfDefaultLayoutIntention</className>
-            <categoryKey>kobweb.name</categoryKey>
-            <language>kotlin</language>
-        </intentionAction>
-        <intentionAction>
-            <className>com.varabyte.kobweb.intellij.intentions.icons.FetchIconsIntention</className>
             <categoryKey>kobweb.name</categoryKey>
             <language>kotlin</language>
         </intentionAction>
