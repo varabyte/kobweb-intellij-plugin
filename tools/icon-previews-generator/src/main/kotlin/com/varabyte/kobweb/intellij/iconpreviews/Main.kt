@@ -1,5 +1,12 @@
 package com.varabyte.kobweb.intellij.iconpreviews
 
+import com.varabyte.kobweb.icons.model.fa.FaIconSet
+import com.varabyte.kobweb.icons.model.lucide.LucideIconSet
+import com.varabyte.kobweb.icons.model.mdi.MdiIconSet
+import com.varabyte.kobweb.icons.model.ms.MsIconSet
+import com.varabyte.kobweb.icons.parsers.fa.FaIcons
+import com.varabyte.kobweb.icons.parsers.lucide.LucideIcons
+import com.varabyte.kobweb.icons.parsers.mdi.GoogleCodepoints
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -19,98 +26,89 @@ fun main(args: Array<String>) {
     val sheetsDir = Path(options.getValue("sheets"))
     val downloader = Downloader(Path(options.getValue("cache")))
 
-    // Kobweb decides which icons exist; upstream fonts provide what they look like. Material fonts are served unpinned
-    // by Google Fonts at runtime, so using their latest commit matches what Kobweb sites actually show.
-    val kobweb = GitHubRepo.resolve("varabyte/kobweb", options["kobweb-ref"] ?: "main")
-    val material = GitHubRepo.resolve("google/material-design-icons", "master")
-    println("Using $kobweb and $material")
-
-    fun kobwebFile(path: String) = downloader.fetchText(kobweb.fileUrl(path))
+    // Every icon set comes straight from upstream, the same source Kobweb's codegen uses to create its `silk-icons-*`
+    // modules. Sets with versioned releases use the newest release of each major version (one set per major version),
+    // since releases within a major version only add icons; breaking changes like renamed icons, or new styles for
+    // existing icons, only come with a new major version. That way, the data covers whichever version a project's
+    // `silk-icons-*` dependency was created from.
+    //
+    // Material Icons and Material Symbols share a repo, which has no releases. Google Fonts serves their latest fonts
+    // to every site, so using the repo's latest commit matches what Kobweb sites actually show.
+    val material = GitHubRepo.resolve(MdiIconSet.gitHubRepo, "master")
     fun materialFile(path: String) = downloader.fetch(material.fileUrl(path))
 
-    // Icons Kobweb defines that we couldn't find a glyph for, collected across all icon sets
+    // Icons that upstream lists but we couldn't find a glyph for, collected across all icon sets
     val missing = mutableListOf<String>()
 
-    /** @property source Where the icons came from, for the manifest, e.g. "Font Awesome 6.5.2 (cdnjs)". */
+    /** @property source Where the icons came from, for the manifest, e.g. "Font Awesome 6.7.2 (FortAwesome/...)". */
     data class GeneratedIconSet(val iconSet: IconSet, val source: String)
 
-    fun fontAwesome(): GeneratedIconSet {
-        // Font Awesome is pinned by Kobweb (via the CDN link it adds to a site's <head>), so use that exact version
-        val siteIndexTask = "tools/gradle-plugins/application/src/main/kotlin/com/varabyte/kobweb/gradle/application/" +
-            "tasks/KobwebGenerateSiteIndexTask.kt"
-        val version = Regex("""font-awesome/(\d+\.\d+\.\d+)/""").find(kobwebFile(siteIndexTask))?.groupValues?.get(1)
-            ?: error("Could not find the Font Awesome version in Kobweb's KobwebGenerateSiteIndexTask.kt")
-        val baseUrl = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/$version"
-        val codepoints = FontIcons.parseFontAwesomeCodepoints(downloader.fetchText("$baseUrl/css/all.css"))
-        val fonts = mapOf("fas" to "fa-solid-900.ttf", "far" to "fa-regular-400.ttf", "fab" to "fa-brands-400.ttf")
-
-        val iconList = kobwebFile("frontend/silk-icons-fa/fa-icon-list.txt")
-        val namesByStyle = SilkIconList.parseNamesByStyle(iconList, separator = '-')
-        val styles = namesByStyle.map { (style, names) ->
-            val font = downloader.fetch("$baseUrl/webfonts/${fonts.getValue(style)}")
-            IconStyle(style, FontIcons.extract(font, names, codepoints, missing))
+    /** Font Awesome's newest release with this [major] version, as the "fa6" or "fa7" set. */
+    fun fontAwesome(major: Int): GeneratedIconSet {
+        val version = GitHubRepo.latestVersionTag(FaIconSet.gitHubRepo, major)
+        val repo = GitHubRepo.resolve(FaIconSet.gitHubRepo, version)
+        val icons = FaIcons.parse(downloader.fetchText(repo.fileUrl(FaIconSet.ICONS_JSON_PATH))).icons
+        val codepoints = icons.mapValues { (_, icon) -> icon.codepoint }
+        val styles = FaIconSet.styles.map { style ->
+            val names = FaIconSet.methodNamer.dropSeparatorCollisions(icons.filterValues { style in it.styles }.keys)
+            // Desktop fonts, since newer releases only ship web fonts as WOFF2, which Java can't read
+            val font = downloader.fetch(repo.fileUrl(style.fontPath(major)))
+            IconStyle(style.id, FontIcons.extract(font, names, codepoints, missing))
         }
-        return GeneratedIconSet(IconSet("fa", styles), "Font Awesome $version (cdnjs)")
+        return GeneratedIconSet(IconSet("fa$major", styles), "Font Awesome $version ($repo)")
     }
 
     fun materialDesignIcons(): GeneratedIconSet {
-        val fonts = mapOf(
-            "mdi" to "MaterialIcons-Regular.ttf",
-            "mdio" to "MaterialIconsOutlined-Regular.otf",
-            "mdir" to "MaterialIconsRound-Regular.otf",
-            "mdis" to "MaterialIconsSharp-Regular.otf",
-            "mdit" to "MaterialIconsTwoTone-Regular.otf",
-        )
-
-        val iconList = kobwebFile("frontend/silk-icons-mdi/md-icon-list.txt")
-        val namesByStyle = SilkIconList.parseNamesByStyle(iconList, separator = '_')
-        val styles = namesByStyle.map { (style, names) ->
-            val font = "font/${fonts.getValue(style)}"
-            val codepoints = FontIcons.parseGoogleCodepoints(
-                materialFile(font.substringBeforeLast('.') + ".codepoints").readText()
-            )
-            IconStyle(style, FontIcons.extract(materialFile(font), names, codepoints, missing))
+        val styles = MdiIconSet.styles.map { style ->
+            // Each font's codepoints file lists its icons, which Kobweb creates a function for each of
+            val codepoints = GoogleCodepoints.parse(materialFile(style.codepointsPath).readText()).codepoints
+            val names = MdiIconSet.methodNamer.dropSeparatorCollisions(codepoints.keys)
+            IconStyle(style.id, FontIcons.extract(materialFile(style.fontPath), names, codepoints, missing))
         }
         return GeneratedIconSet(IconSet("mdi", styles), material.toString())
     }
 
     fun materialSymbols(): GeneratedIconSet {
-        val fonts = mapOf("mso" to "Outlined", "msr" to "Rounded", "mss" to "Sharp")
-
-        // Every Material Symbols icon comes in every style, so one list of names applies to all three fonts
-        val iconList = kobwebFile("frontend/silk-icons-ms/ms-icon-list.txt")
-        val names = SilkIconList.parseNamesForAllStyles(iconList, separator = '_')
-        val styles = fonts.map { (style, fontStyle) ->
+        val styles = MsIconSet.styles.map { style ->
+            // Each font's codepoints file lists its icons, which Kobweb creates a function for each of
+            val codepoints = GoogleCodepoints.parse(materialFile(style.codepointsPath).readText()).codepoints
+            val names = MsIconSet.methodNamer.dropSeparatorCollisions(codepoints.keys)
             // Variable fonts; Java2D renders their default instance, which matches the default axes Kobweb renders with
-            val font = "variablefont/MaterialSymbols$fontStyle%5BFILL,GRAD,opsz,wght%5D"
-            val codepoints = FontIcons.parseGoogleCodepoints(materialFile("$font.codepoints").readText())
-            IconStyle(style, FontIcons.extract(materialFile("$font.ttf"), names, codepoints, missing))
+            IconStyle(style.id, FontIcons.extract(materialFile(style.fontPath), names, codepoints, missing))
         }
         return GeneratedIconSet(IconSet("ms", styles), material.toString())
     }
 
+    /**
+     * Lucide's newest 1.x release. When Lucide 2 comes out, it should get its own set alongside this one, the same way
+     * Font Awesome does.
+     */
     fun lucide(): GeneratedIconSet {
-        // Unlike the font-based sets, Kobweb's Lucide data includes each icon's geometry, not just its name
-        val lucide = LucideIcons.parse(kobwebFile("frontend/silk-icons-lucide/lucide-icons.json"))
-        return GeneratedIconSet(lucide.iconSet, "Lucide ${lucide.version} (from Kobweb's lucide-icons.json)")
+        val version = GitHubRepo.latestVersionTag(LucideIconSet.gitHubRepo, major = 1)
+        val repo = GitHubRepo.resolve(LucideIconSet.gitHubRepo, version)
+        // Unlike the font-based sets, Lucide's icons are SVGs, which we read straight out of the repo
+        val icons = LucideIcons.parseRepoZip(downloader.fetch(repo.archiveUrl()).inputStream())
+        return GeneratedIconSet(icons.toIconSet(), "Lucide $version ($repo)")
     }
 
-    val generated = listOf(fontAwesome(), materialDesignIcons(), materialSymbols(), lucide())
+    val fa6 = fontAwesome(6)
+    val generated = listOf(fa6, fontAwesome(7), materialDesignIcons(), materialSymbols(), lucide())
     val iconSets = generated.map { it.iconSet }
+    // Plugin versions up to 0.8.0 only know a single Font Awesome set, "fa", which they use for FA 6
+    val legacyFa = GeneratedIconSet(IconSet("fa", fa6.iconSet.styles), fa6.source)
 
-    // These are worth reporting (upstream may have removed an icon Kobweb still defines, which would also be broken in
-    // Kobweb itself), but not worth failing over, since the plugin simply won't show a preview for them.
+    // These are worth reporting (upstream's icon list and fonts disagree, so Kobweb's generated function for the icon
+    // would render nothing too), but not worth failing over, since the plugin simply won't show a preview for them.
     if (missing.isNotEmpty()) {
-        System.err.println("Warning: Could not find glyphs for ${missing.size} icon(s) Kobweb defines:")
+        System.err.println("Warning: Could not find glyphs for ${missing.size} icon(s):")
         missing.forEach { System.err.println("  $it") }
     }
 
     outDir.createDirectories()
     val manifest = buildJsonObject {
         put("formatVersion", IconPreviewFormat.VERSION)
-        put("kobwebCommit", kobweb.sha)
         putJsonObject("sets") {
-            for ((iconSet, source) in generated) {
+            for ((iconSet, source) in generated + legacyFa) {
                 val file = outDir.resolve("${iconSet.id}.bin")
                 file.outputStream().use { IconPreviewFormat.write(iconSet, it) }
                 val bytes = file.readBytes()
@@ -126,28 +124,42 @@ fun main(args: Array<String>) {
     }
     outDir.resolve("manifest.json").writeText(Json { prettyPrint = true }.encodeToString(manifest) + "\n")
 
-    // Readable names for the sheets, e.g. "mdi-outlined" rather than Kobweb's "mdio" style prefix
-    val sheetNames = mapOf(
-        "fas" to "fa-solid",
-        "far" to "fa-regular",
-        "fab" to "fa-brands",
-        "mdi" to "mdi-filled",
-        "mdio" to "mdi-outlined",
-        "mdir" to "mdi-rounded",
-        "mdis" to "mdi-sharp",
-        "mdit" to "mdi-two-toned",
-        "mso" to "ms-outlined",
-        "msr" to "ms-rounded",
-        "mss" to "ms-sharp",
-        "lucide" to "lucide",
-    )
+    // Readable style names for the sheets, e.g. "outlined" rather than the "mdio" style ID
+    val styleNames = buildMap {
+        FaIconSet.Style.entries.forEach { put(it.id, it.iconsJsonName) }
+        MdiIconSet.Style.entries.forEach { put(it.id, it.name.lowercase().replace('_', '-')) }
+        MsIconSet.Style.entries.forEach { put(it.id, it.name.lowercase()) }
+    }
 
     // Render sheets from the files we just wrote, which doubles as a check that the format round-trips. Clear out old
     // sheets first, so ones for removed (or renamed) styles don't linger.
     sheetsDir.toFile().deleteRecursively()
     for (iconSet in iconSets) {
         val decoded = outDir.resolve("${iconSet.id}.bin").inputStream().use { IconPreviewFormat.read(iconSet.id, it) }
-        decoded.writeContactSheets(sheetsDir) { style -> sheetNames.getValue(style.id) }
+        // E.g. "fa7-solid", or just "lucide" for a set with only one style
+        decoded.writeContactSheets(sheetsDir) { style ->
+            styleNames[style.id]?.let { "${iconSet.id}-$it" } ?: iconSet.id
+        }
     }
     println("Contact sheets written to $sheetsDir")
 }
+
+// The style IDs in icon preview data, which the plugin's `SilkIconSet` looks styles up by. Font Awesome's are its own
+// CSS classes; the Material ones are short names the plugin made up.
+private val FaIconSet.Style.id get() = cssClass
+
+private val MdiIconSet.Style.id
+    get() = when (this) {
+        MdiIconSet.Style.FILLED -> "mdi"
+        MdiIconSet.Style.OUTLINED -> "mdio"
+        MdiIconSet.Style.ROUNDED -> "mdir"
+        MdiIconSet.Style.SHARP -> "mdis"
+        MdiIconSet.Style.TWO_TONED -> "mdit"
+    }
+
+private val MsIconSet.Style.id
+    get() = when (this) {
+        MsIconSet.Style.OUTLINED -> "mso"
+        MsIconSet.Style.ROUNDED -> "msr"
+        MsIconSet.Style.SHARP -> "mss"
+    }

@@ -18,7 +18,7 @@ import kotlin.math.roundToInt
  */
 class IconShape(val name: String, val width: Float, val path: Path2D.Float)
 
-/** A visual variant of an icon set. Its ID is the prefix Kobweb uses for it in its icon list files, e.g. "fas". */
+/** A visual variant of an icon set. Its ID is how the plugin refers to it, e.g. "fas" or "mdio". */
 class IconStyle(val id: String, val icons: List<IconShape>)
 
 /**

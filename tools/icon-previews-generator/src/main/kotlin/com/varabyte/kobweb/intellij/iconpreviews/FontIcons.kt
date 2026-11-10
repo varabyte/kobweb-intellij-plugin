@@ -50,16 +50,4 @@ object FontIcons {
             IconShape(glyph.name, glyph.advance / EM, Path2D.Float(glyph.outline, transform))
         }
     }
-
-    /** Parse a Google Fonts `.codepoints` file, whose lines look like "home e88a". */
-    fun parseGoogleCodepoints(text: String): Map<String, Int> = text.lineSequence()
-        .map { it.trim().split(' ') }
-        .filter { it.size == 2 }
-        .associate { (name, hex) -> name to hex.toInt(16) }
-
-    /** Parse Font Awesome's all.css, whose icon rules look like `.fa-house::before { content: "\f015"; }`. */
-    fun parseFontAwesomeCodepoints(css: String): Map<String, Int> =
-        Regex("""\.fa-([a-z0-9-]+)::?before\s*\{\s*content:\s*"\\([0-9a-f]+)"""")
-            .findAll(css)
-            .associate { match -> match.groupValues[1] to match.groupValues[2].toInt(16) }
 }
