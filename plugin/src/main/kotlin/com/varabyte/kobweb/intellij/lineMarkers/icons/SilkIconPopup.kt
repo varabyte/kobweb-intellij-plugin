@@ -64,14 +64,17 @@ class SilkIconPopup(
             row { label("${iconCall.iconSet.displayName}: ${defaultPreview.shape.name}").bold() }
 
             // Each preview the user can choose, paired with its style's name
-            val choosableStyles = previews.mapNotNull { preview -> preview.style.displayName?.let { preview to it } }
-            if (iconCall.styleEnum == null || choosableStyles.size < 2) {
+            val styleEnum = iconCall.styleEnum
+            val choosableStyles = previews.mapNotNull { preview ->
+                styleEnum?.displayNameFor(preview.style)?.let { preview to it }
+            }
+            if (styleEnum == null || choosableStyles.size < 2) {
                 row { icon(IconShapeIcon(currentPreview.shape, PREVIEW_SIZE)) }
             } else {
                 buttonsGroup {
                     row {
                         previewIcon(defaultPreview)
-                        val defaultLabel = defaultPreview.style.displayName
+                        val defaultLabel = styleEnum.displayNameFor(defaultPreview.style)
                             ?.let { message("popups.silk.icon.default.style", it) }
                             ?: message("popups.silk.icon.default")
                         radioButton(defaultLabel)
@@ -133,10 +136,11 @@ class SilkIconPopup(
                 }
                 // We only offer style choices for functions with a `style` parameter, so this is always set by now
                 val styleEnum = iconCall.styleEnum ?: return@run
+                val entry = styleEnum.entryFor(style) ?: return@run
 
                 // Write the style's fully qualified name, then let the IDE shorten it (adding an import if needed)
                 val factory = KtPsiFactory(project)
-                val styleExpression = factory.createExpression("$styleEnum.${style.enumEntry}")
+                val styleExpression = factory.createExpression("${styleEnum.fqName}.$entry")
                 val added = if (styleArgument?.getArgumentExpression() != null) {
                     styleArgument.getArgumentExpression()!!.replace(styleExpression)
                 } else {

@@ -83,6 +83,46 @@ class SilkIconLineMarkerProviderTest : KobwebLineMarkerTestBase() {
         )
     }
 
+    fun testGutterIconShownForRenamedStyles() {
+        // A stand-in for Kobweb 0.25.2's `silk-icons-fa`, which renamed the style enum's entries. The tests depend on
+        // an older version, so `style` is required here to tell this apart from the real `FaSquare` overload.
+        myFixture.addFileToProject(
+            "silk/FaIcons.kt",
+            """
+            package com.varabyte.kobweb.silk.components.icons.fa
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+
+            enum class FaIconStyle { SOLID, REGULAR }
+
+            @Composable
+            fun FaSquare(style: FaIconStyle, modifier: Modifier = Modifier) {}
+            """.trimIndent()
+        )
+        val expectedTooltips = listOf(
+            "Font Awesome: square (regular)",
+            "Font Awesome: square (solid)",
+        )
+
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.icons.fa.*
+
+            @Composable
+            fun SomePage() {
+                FaSquare(style = FaIconStyle.REGULAR) $GUTTER_TAG
+                FaSquare(style = FaIconStyle.SOLID) $GUTTER_TAG
+            }
+            """.trimIndent(),
+            acceptLineMarker = { isIconPreview(it.lineMarkerTooltip) },
+            assertLineMarker = { index, marker ->
+                assertThat(marker.lineMarkerTooltip).isEqualTo(expectedTooltips[index])
+            }
+        )
+    }
+
     fun testGutterIconNotShownForMdiIconHelper() {
         // An icon named "icon" would match `MdiIcon` if the helper were mistaken for an icon
         IconPreviewService.instance.useIconSetForTests(

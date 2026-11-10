@@ -97,7 +97,7 @@ class SilkIconLineMarkerProvider : LineMarkerProviderDescriptor() {
         val description = buildString {
             append("${iconCall.iconSet.displayName}: ${preview.shape.name}")
             // Only mention the style if the user can choose it, e.g. not for icons that only come in one style
-            if (iconCall.styleEnum != null) preview.style.displayName?.let { append(" ($it)") }
+            iconCall.styleEnum?.displayNameFor(preview.style)?.let { append(" ($it)") }
         }
 
         return LineMarkerInfo(

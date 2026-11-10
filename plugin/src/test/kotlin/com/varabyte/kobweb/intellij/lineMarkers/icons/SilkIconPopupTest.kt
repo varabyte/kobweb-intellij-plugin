@@ -18,7 +18,7 @@ import java.awt.geom.Rectangle2D
 
 class SilkIconPopupTest : KobwebApplicationTestCase() {
     private fun faStyle(enumEntry: String): SilkIconStyle =
-        SilkIconSet.FONT_AWESOME.styles.single { it.enumEntry == enumEntry }
+        SilkIconSet.FONT_AWESOME.styles.single { enumEntry in it.enumEntries }
 
     /** Choose [targetStyle] (or "Default", if null) for the `FaSquare` call in [code], and check the result. */
     private fun doTest(
@@ -87,6 +87,39 @@ class SilkIconPopupTest : KobwebApplicationTestCase() {
             import com.varabyte.kobweb.silk.components.icons.fa.*
 
             fun test() { FaSquare(style = IconStyle.OUTLINE) }
+            """.trimIndent(),
+        )
+    }
+
+    fun testChoosingStyleUsesRenamedEntries() {
+        // A stand-in for Kobweb 0.25.2's `silk-icons-fa`, which renamed the style enum's entries. The tests depend on
+        // an older version, so `style` is required here to tell this apart from the real `FaSquare` overload.
+        myFixture.addFileToProject(
+            "silk/FaIcons.kt",
+            """
+            package com.varabyte.kobweb.silk.components.icons.fa
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+
+            enum class FaIconStyle { SOLID, REGULAR }
+
+            @Composable
+            fun FaSquare(style: FaIconStyle, modifier: Modifier = Modifier) {}
+            """.trimIndent()
+        )
+
+        doTest(
+            """
+            import com.varabyte.kobweb.silk.components.icons.fa.*
+
+            fun test() { FaSquare(style = FaIconStyle.REGULAR) }
+            """.trimIndent(),
+            targetStyle = faStyle("SOLID"),
+            """
+            import com.varabyte.kobweb.silk.components.icons.fa.*
+
+            fun test() { FaSquare(style = FaIconStyle.SOLID) }
             """.trimIndent(),
         )
     }

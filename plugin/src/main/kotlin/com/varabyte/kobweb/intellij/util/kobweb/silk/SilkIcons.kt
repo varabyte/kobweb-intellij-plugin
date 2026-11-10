@@ -6,6 +6,7 @@ import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.resolution.successfulFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaEnumEntrySymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.name.FqName
@@ -18,16 +19,11 @@ import org.jetbrains.kotlin.psi.KtValueArgument
 
 /**
  * @property id The style's ID in icon preview data, which matches the prefix Kobweb uses in its icon list files.
- * @property enumEntry The name of the style enum entry a user passes in to select this style, if any.
+ * @property enumEntries The names of the style enum entries a user passes in to select this style, if any. There can
+ *   be more than one because Kobweb has renamed some across versions (e.g. Font Awesome's `OUTLINE` became `REGULAR`).
  */
-class SilkIconStyle(val id: String, val enumEntry: String?) {
-    /**
-     * What the UI calls this style, derived from [enumEntry] since that's what users write in code (e.g. "outline" for
-     * `IconStyle.OUTLINE`).
-     *
-     * This is null for styles users can't choose, as the UI never needs to name them.
-     */
-    val displayName: String? get() = enumEntry?.lowercase()?.replace('_', '-')
+class SilkIconStyle(val id: String, vararg enumEntries: String) {
+    val enumEntries: Set<String> = enumEntries.toSet()
 }
 
 /**
@@ -49,12 +45,13 @@ enum class SilkIconSet(
     FONT_AWESOME(
         "fa", "Font Awesome",
         listOf(
-            // Icons that come in both solid and regular variants default to `IconStyle.OUTLINE`
-            SilkIconStyle("far", "OUTLINE"),
-            SilkIconStyle("fas", "FILLED"),
-            SilkIconStyle("fab", null),
+            // Icons that come in both solid and regular variants default to regular. Kobweb 0.25.2 renamed the style
+            // enum's entries to match Font Awesome's own names for them.
+            SilkIconStyle("far", "REGULAR", "OUTLINE"),
+            SilkIconStyle("fas", "SOLID", "FILLED"),
+            SilkIconStyle("fab"),
         ),
-        helperFunctions = setOf("FaIcon"),
+        helperFunctions = setOf("FaIcon", "FaBrandIcon"),
     ),
     MATERIAL_ICONS(
         "mdi", "Material Icons",
@@ -78,7 +75,7 @@ enum class SilkIconSet(
     ),
     LUCIDE(
         "lucide", "Lucide",
-        listOf(SilkIconStyle("lucide", null)),
+        listOf(SilkIconStyle("lucide")),
     );
 
     val packageName = FqName("com.varabyte.kobweb.silk.components.icons.$id")
@@ -121,12 +118,12 @@ enum class SilkIconSet(
 }
 
 /**
- * A call to one of the icon functions Kobweb generates, e.g. `FaHouse(style = IconStyle.FILLED)`.
+ * A call to one of the icon functions Kobweb generates, e.g. `FaHouse(style = FaIconStyle.SOLID)`.
  *
  * @property key The icon's name lowercased and without separators, e.g. "printshop" for `FaPrintShop`. Kobweb's codegen
  *   guarantees these are unique within an icon set.
  * @property styleArgument What, if anything, was passed in for the `style` parameter.
- * @property styleEnum The enum class the called function's `style` parameter takes, or null if it doesn't have one
+ * @property styleEnum The enum the called function's `style` parameter takes, or null if it doesn't have one
  *   (Kobweb only generates one for icons that come in more than one style). This comes from the function itself rather
  *   than being hardcoded, since it can differ across Kobweb versions (e.g. Material Symbols' `MsIconStyle` was later
  *   renamed to `IconStyle`).
@@ -136,19 +133,34 @@ class SilkIconCall(
     val iconSet: SilkIconSet,
     val key: String,
     val styleArgument: StyleArgument,
-    val styleEnum: FqName?,
+    val styleEnum: StyleEnum?,
     val parameterNames: Map<KtValueArgument, Name>,
 ) {
+    /**
+     * @property fqName The enum class's fully qualified name.
+     * @property entryNames The names of the enum's entries.
+     */
+    class StyleEnum(val fqName: FqName, val entryNames: Set<String>) {
+        /** The name of the entry that selects [style], or null if this enum has none. */
+        fun entryFor(style: SilkIconStyle): String? = style.enumEntries.find { it in entryNames }
+
+        /**
+         * What the UI calls [style], derived from its entry in this enum since that's what users write in code (e.g.
+         * "regular" for `FaIconStyle.REGULAR`).
+         */
+        fun displayNameFor(style: SilkIconStyle): String? = entryFor(style)?.lowercase()?.replace('_', '-')
+    }
+
     sealed interface StyleArgument {
         /** No style was passed in, so the function's default is used, e.g. `FaHouse()`. */
         data object Absent : StyleArgument
 
-        /** A style was passed in, e.g. `FaHouse(style = IconStyle.FILLED)` or `FaHouse(style = myStyle)`. */
+        /** A style was passed in, e.g. `FaHouse(style = FaIconStyle.SOLID)` or `FaHouse(style = myStyle)`. */
         sealed interface Present : StyleArgument {
             val argument: KtValueArgument
         }
 
-        /** A style enum entry was passed in directly, e.g. `FaHouse(style = IconStyle.FILLED)`. */
+        /** A style enum entry was passed in directly, e.g. `FaHouse(style = FaIconStyle.SOLID)`. */
         class Direct(override val argument: KtValueArgument, val style: SilkIconStyle) : Present
 
         /** A style was passed in indirectly, via an expression we can't evaluate, e.g. `FaHouse(style = myStyle)`. */
@@ -178,7 +190,13 @@ fun KtCallExpression.asSilkIconCall(): SilkIconCall? = with(kaSession) {
 
     val styleParameter = call.symbol.valueParameters.find { it.name.asString() == "style" }
     // A type alias (e.g. a deprecated old name for the enum) is already expanded to the class it stands for here
-    val styleEnum = (styleParameter?.returnType as? KaClassType)?.classId?.asSingleFqName()
+    val styleEnum = (styleParameter?.returnType as? KaClassType)?.let { type ->
+        val classSymbol = type.expandedSymbol as? KaNamedClassSymbol ?: return@let null
+        val entryNames = classSymbol.staticDeclaredMemberScope.callables
+            .filterIsInstance<KaEnumEntrySymbol>()
+            .mapTo(mutableSetOf()) { it.name.asString() }
+        SilkIconCall.StyleEnum(type.classId.asSingleFqName(), entryNames)
+    }
     val styleExpression =
         call.argumentMapping.entries.find { (_, param) -> param.symbol.name.asString() == "style" }?.key
     val styleArgument = if (styleExpression == null) {
@@ -188,7 +206,7 @@ fun KtCallExpression.asSilkIconCall(): SilkIconCall? = with(kaSession) {
         val nameRef = ((styleExpression as? KtQualifiedExpression)?.selectorExpression ?: styleExpression)
             as? KtNameReferenceExpression
         val enumEntry = nameRef?.mainReference?.resolveToSymbol() as? KaEnumEntrySymbol
-        val style = enumEntry?.let { entry -> iconSet.styles.find { it.enumEntry == entry.name.asString() } }
+        val style = enumEntry?.let { entry -> iconSet.styles.find { entry.name.asString() in it.enumEntries } }
         if (style != null) {
             SilkIconCall.StyleArgument.Direct(argument, style)
         } else {
