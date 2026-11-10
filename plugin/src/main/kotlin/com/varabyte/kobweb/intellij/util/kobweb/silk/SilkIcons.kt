@@ -69,6 +69,7 @@ enum class SilkIconSet(
             SilkIconStyle("mdis", "SHARP"),
             SilkIconStyle("mdit", "TWO_TONED"),
         ),
+        helperFunctions = setOf("MdiIcon"),
     ),
     MATERIAL_SYMBOLS(
         "ms", "Material Symbols",

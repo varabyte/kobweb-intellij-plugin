@@ -130,6 +130,48 @@ class SilkIconLineMarkerProviderTest : KobwebLineMarkerTestBase() {
         )
     }
 
+    fun testGutterIconNotShownForGeneratedMdiIconHelper() {
+        registerKobwebProject(app = AppBlock(icons = IconsBlock(rootPackage = ".components.icons", iconSets = listOf("mdi"))))
+        // An icon named "icon" would match `MdiIcon` if the helper were mistaken for an icon
+        IconPreviewService.instance.useIconSetForTests(
+            SilkIconSet.MATERIAL_ICONS,
+            IconSet(
+                "mdi",
+                listOf(IconStyle("mdi", listOf(IconShape("icon", 1f, Path2D.Float(Rectangle2D.Float(0f, 0f, 1f, 1f)))))),
+            ),
+            testRootDisposable,
+        )
+        // A stand-in for the bindings Kobweb generates for `kobweb { app { icons { mdi() } } }`
+        myFixture.addFileToProject(
+            "components/icons/mdi/MdiIcons.kt",
+            """
+            package $TEST_GROUP.components.icons.mdi
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+
+            enum class MdiIconStyle { FILLED, OUTLINED }
+
+            @Composable
+            fun MdiIcon(name: String, modifier: Modifier, style: MdiIconStyle = MdiIconStyle.FILLED) {}
+            """.trimIndent()
+        )
+
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import $TEST_GROUP.components.icons.mdi.*
+
+            @Composable
+            fun SomePage() {
+                MdiIcon("home", Modifier) // Helper function, not an icon
+            }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip?.startsWith(SilkIconSet.MATERIAL_ICONS.displayName) == true },
+        )
+    }
+
     fun testGutterIconNotShownForCallsOutsideGeneratedIconPackages() {
         registerKobwebProject(app = AppBlock(icons = IconsBlock(rootPackage = ".components.icons", iconSets = listOf("fa"))))
         myFixture.addFileToProject(
