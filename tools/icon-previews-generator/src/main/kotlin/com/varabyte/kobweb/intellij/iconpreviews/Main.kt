@@ -41,7 +41,7 @@ fun main(args: Array<String>) {
     val missing = mutableListOf<String>()
 
     /** @property source Where the icons came from, for the manifest, e.g. "Font Awesome 6.7.2 (FortAwesome/...)". */
-    data class GeneratedIconSet(val iconSet: IconSet, val source: String)
+    data class GeneratedIconSet(val iconSet: PreviewIconSet, val source: String)
 
     /** Font Awesome's newest release with this [major] version, as the "fa6" or "fa7" set. */
     fun fontAwesome(major: Int): GeneratedIconSet {
@@ -53,9 +53,9 @@ fun main(args: Array<String>) {
             val names = FaIconSet.methodNamer.dropSeparatorCollisions(icons.filterValues { style in it.styles }.keys)
             // Desktop fonts, since newer releases only ship web fonts as WOFF2, which Java can't read
             val font = downloader.fetch(repo.fileUrl(style.fontPath(major)))
-            IconStyle(style.id, FontIcons.extract(font, names, codepoints, missing))
+            PreviewIconStyle(style.id, FontIcons.extract(font, names, codepoints, missing))
         }
-        return GeneratedIconSet(IconSet("fa$major", styles), "Font Awesome $version ($repo)")
+        return GeneratedIconSet(PreviewIconSet("fa$major", styles), "Font Awesome $version ($repo)")
     }
 
     fun materialDesignIcons(): GeneratedIconSet {
@@ -63,9 +63,9 @@ fun main(args: Array<String>) {
             // Each font's codepoints file lists its icons, which Kobweb creates a function for each of
             val codepoints = GoogleCodepoints.parse(materialFile(style.codepointsPath).readText()).codepoints
             val names = MdiIconSet.methodNamer.dropSeparatorCollisions(codepoints.keys)
-            IconStyle(style.id, FontIcons.extract(materialFile(style.fontPath), names, codepoints, missing))
+            PreviewIconStyle(style.id, FontIcons.extract(materialFile(style.fontPath), names, codepoints, missing))
         }
-        return GeneratedIconSet(IconSet("mdi", styles), material.toString())
+        return GeneratedIconSet(PreviewIconSet("mdi", styles), material.toString())
     }
 
     fun materialSymbols(): GeneratedIconSet {
@@ -74,9 +74,9 @@ fun main(args: Array<String>) {
             val codepoints = GoogleCodepoints.parse(materialFile(style.codepointsPath).readText()).codepoints
             val names = MsIconSet.methodNamer.dropSeparatorCollisions(codepoints.keys)
             // Variable fonts; Java2D renders their default instance, which matches the default axes Kobweb renders with
-            IconStyle(style.id, FontIcons.extract(materialFile(style.fontPath), names, codepoints, missing))
+            PreviewIconStyle(style.id, FontIcons.extract(materialFile(style.fontPath), names, codepoints, missing))
         }
-        return GeneratedIconSet(IconSet("ms", styles), material.toString())
+        return GeneratedIconSet(PreviewIconSet("ms", styles), material.toString())
     }
 
     /**
@@ -88,14 +88,14 @@ fun main(args: Array<String>) {
         val repo = GitHubRepo.resolve(LucideIconSet.gitHubRepo, version)
         // Unlike the font-based sets, Lucide's icons are SVGs, which we read straight out of the repo
         val icons = LucideIcons.parseRepoZip(downloader.fetch(repo.archiveUrl()).inputStream())
-        return GeneratedIconSet(icons.toIconSet(), "Lucide $version ($repo)")
+        return GeneratedIconSet(icons.toPreviewIconSet(), "Lucide $version ($repo)")
     }
 
     val fa6 = fontAwesome(6)
     val generated = listOf(fa6, fontAwesome(7), materialDesignIcons(), materialSymbols(), lucide())
     val iconSets = generated.map { it.iconSet }
     // Plugin versions up to 0.8.0 only know a single Font Awesome set, "fa", which they use for FA 6
-    val legacyFa = GeneratedIconSet(IconSet("fa", fa6.iconSet.styles), fa6.source)
+    val legacyFa = GeneratedIconSet(PreviewIconSet("fa", fa6.iconSet.styles), fa6.source)
 
     // These are worth reporting (upstream's icon list and fonts disagree, so Kobweb's generated function for the icon
     // would render nothing too), but not worth failing over, since the plugin simply won't show a preview for them.

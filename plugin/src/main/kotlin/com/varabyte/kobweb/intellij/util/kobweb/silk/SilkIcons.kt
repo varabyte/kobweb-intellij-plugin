@@ -18,7 +18,7 @@ import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.KtValueArgument
 
 /**
- * @property id The style's ID in icon preview data, which matches the prefix Kobweb uses in its icon list files.
+ * @property id The style's ID in icon preview data, e.g. "fas" or "mdio".
  * @property enumEntries The names of the style enum entries a user passes in to select this style, if any. There can
  *   be more than one because Kobweb has renamed some across versions (e.g. Font Awesome's `OUTLINE` became `REGULAR`).
  */

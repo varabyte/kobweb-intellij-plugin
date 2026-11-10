@@ -11,8 +11,8 @@ import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.util.Disposer
 import com.varabyte.kobweb.intellij.iconpreviews.IconPreviewFormat
-import com.varabyte.kobweb.intellij.iconpreviews.IconSet
 import com.varabyte.kobweb.intellij.iconpreviews.IconShape
+import com.varabyte.kobweb.intellij.iconpreviews.PreviewIconSet
 import com.varabyte.kobweb.intellij.util.io.writeBytesAtomically
 import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconCall
 import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconSet
@@ -182,7 +182,7 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
         }
     }
 
-    private fun index(data: IconSet) = LoadedIconSet(
+    private fun index(data: PreviewIconSet) = LoadedIconSet(
         styles = data.styles.associate { style ->
             style.id to style.icons.associateBy { SilkIconCall.keyFor(it.name) }
         },
@@ -195,7 +195,7 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
      * This lets tests provide icons synchronously, without touching the network.
      */
     @TestOnly
-    fun useIconSetForTests(iconSet: SilkIconSet, data: IconSet, parentDisposable: Disposable) {
+    fun useIconSetForTests(iconSet: SilkIconSet, data: PreviewIconSet, parentDisposable: Disposable) {
         requestedIconSets.add(iconSet)
         loadedIconSets[iconSet] = index(data)
         Disposer.register(parentDisposable) {

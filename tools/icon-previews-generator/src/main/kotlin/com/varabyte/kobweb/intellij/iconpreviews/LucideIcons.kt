@@ -25,7 +25,7 @@ private val STROKE = BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROU
  * fill-only format. A few elements are additionally marked `fill="currentColor"`, in which case we fill their interiors
  * as well.
  */
-fun LucideIcons.toIconSet(): IconSet {
+fun LucideIcons.toPreviewIconSet(): PreviewIconSet {
     val shapes = icons.toSortedMap().map { (name, icon) ->
         val area = Area()
         icon.elements.forEach { element ->
@@ -45,7 +45,7 @@ fun LucideIcons.toIconSet(): IconSet {
     }.toMap()
 
     // Lucide has a single style; we use the generated composables' prefix as its ID
-    return IconSet("lucide", listOf(IconStyle("lucide", shapes)), aliases)
+    return PreviewIconSet("lucide", listOf(PreviewIconStyle("lucide", shapes)), aliases)
 }
 
 /** This element as a Java2D shape, or null (with a warning) if it isn't a basic shape we support. */

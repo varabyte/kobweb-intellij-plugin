@@ -2,9 +2,9 @@
 
 package com.varabyte.kobweb.intellij.lineMarkers.icons
 
-import com.varabyte.kobweb.intellij.iconpreviews.IconSet
 import com.varabyte.kobweb.intellij.iconpreviews.IconShape
-import com.varabyte.kobweb.intellij.iconpreviews.IconStyle
+import com.varabyte.kobweb.intellij.iconpreviews.PreviewIconSet
+import com.varabyte.kobweb.intellij.iconpreviews.PreviewIconStyle
 import com.varabyte.kobweb.intellij.lineMarkers.KobwebLineMarkerTestBase
 import com.varabyte.kobweb.intellij.services.icons.IconPreviewService
 import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconSet
@@ -20,12 +20,12 @@ class SilkIconLineMarkerProviderTest : KobwebLineMarkerTestBase() {
         fun icons(vararg names: String) = names.map { IconShape(it, 1f, Path2D.Float(Rectangle2D.Float(0f, 0f, 1f, 1f))) }
         IconPreviewService.instance.useIconSetForTests(
             SilkIconSet.FONT_AWESOME,
-            IconSet(
+            PreviewIconSet(
                 "fa",
                 listOf(
-                    IconStyle("far", icons("square")),
-                    IconStyle("fas", icons("square", "house")),
-                    IconStyle("fab", icons("github")),
+                    PreviewIconStyle("far", icons("square")),
+                    PreviewIconStyle("fas", icons("square", "house")),
+                    PreviewIconStyle("fab", icons("github")),
                 ),
             ),
             testRootDisposable,
@@ -127,9 +127,9 @@ class SilkIconLineMarkerProviderTest : KobwebLineMarkerTestBase() {
         // An icon named "icon" would match `MdiIcon` if the helper were mistaken for an icon
         IconPreviewService.instance.useIconSetForTests(
             SilkIconSet.MATERIAL_ICONS,
-            IconSet(
+            PreviewIconSet(
                 "mdi",
-                listOf(IconStyle("mdi", listOf(IconShape("icon", 1f, Path2D.Float(Rectangle2D.Float(0f, 0f, 1f, 1f)))))),
+                listOf(PreviewIconStyle("mdi", listOf(IconShape("icon", 1f, Path2D.Float(Rectangle2D.Float(0f, 0f, 1f, 1f)))))),
             ),
             testRootDisposable,
         )

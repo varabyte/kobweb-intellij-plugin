@@ -19,7 +19,7 @@ import kotlin.math.roundToInt
 class IconShape(val name: String, val width: Float, val path: Path2D.Float)
 
 /** A visual variant of an icon set. Its ID is how the plugin refers to it, e.g. "fas" or "mdio". */
-class IconStyle(val id: String, val icons: List<IconShape>)
+class PreviewIconStyle(val id: String, val icons: List<IconShape>)
 
 /**
  * A collection of icons, like Font Awesome or Material Symbols, in one or more styles.
@@ -28,10 +28,10 @@ class IconStyle(val id: String, val icons: List<IconShape>)
  *   This is also the name of the set's data file (e.g. "fa.bin") and its key in the manifest.
  * @property aliases Deprecated icon names mapped to their replacement names.
  */
-class IconSet(val id: String, val styles: List<IconStyle>, val aliases: Map<String, String> = emptyMap())
+class PreviewIconSet(val id: String, val styles: List<PreviewIconStyle>, val aliases: Map<String, String> = emptyMap())
 
 /**
- * Compact binary encoding for an [IconSet].
+ * Compact binary encoding for an [PreviewIconSet].
  *
  * Outlines are quantized to a grid of [GRID_UNITS] units per icon height. That's still overkill for gutter icons but
  * leaves headroom for larger previews (e.g. in documentation popups). Coordinates are written as zigzag varint deltas,
@@ -52,7 +52,7 @@ object IconPreviewFormat {
     private val MAGIC = "KIP".toByteArray()
     private const val END_OF_PATH = 0xFF
 
-    fun write(iconSet: IconSet, output: OutputStream) {
+    fun write(iconSet: PreviewIconSet, output: OutputStream) {
         DataOutputStream(GZIPOutputStream(output)).use { out ->
             out.write(MAGIC)
             out.writeByte(VERSION)
@@ -81,12 +81,12 @@ object IconPreviewFormat {
      * from the code that reads it, callers should be prepared for this to fail (e.g. an older plugin reading data
      * published after a format change) and treat any exception as "this data can't be used".
      *
-     * @param id The ID to give the returned [IconSet] (it isn't stored in the data itself).
+     * @param id The ID to give the returned [PreviewIconSet] (it isn't stored in the data itself).
      * @throws IllegalArgumentException if the data isn't an icon preview file, or is in an unsupported format version.
      * @throws java.io.IOException if the data can't be read, e.g. if it isn't gzipped or is truncated.
      * @throws IllegalStateException if the data is otherwise malformed.
      */
-    fun read(id: String, input: InputStream): IconSet {
+    fun read(id: String, input: InputStream): PreviewIconSet {
         DataInputStream(GZIPInputStream(input)).use { inp ->
             val magic = ByteArray(MAGIC.size).also { inp.readFully(it) }
             require(magic.contentEquals(MAGIC)) { "Not an icon preview file" }
@@ -99,12 +99,12 @@ object IconPreviewFormat {
                     val width = inp.readVarInt().toFloat() / GRID_UNITS
                     IconShape(name, width, inp.readPath())
                 }
-                IconStyle(styleId, icons)
+                PreviewIconStyle(styleId, icons)
             }
             val aliases = buildMap {
                 repeat(inp.readVarInt()) { put(inp.readUTF(), inp.readUTF()) }
             }
-            return IconSet(id, styles, aliases)
+            return PreviewIconSet(id, styles, aliases)
         }
     }
 

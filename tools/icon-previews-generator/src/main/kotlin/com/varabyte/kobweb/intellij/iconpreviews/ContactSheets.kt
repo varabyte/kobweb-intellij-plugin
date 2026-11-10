@@ -19,7 +19,7 @@ private const val COLUMNS = 64
  *
  * @param fileName The name (without extension) of the PNG for each style.
  */
-fun IconSet.writeContactSheets(outDir: Path, fileName: (IconStyle) -> String) {
+fun PreviewIconSet.writeContactSheets(outDir: Path, fileName: (PreviewIconStyle) -> String) {
     outDir.createDirectories()
     for (style in styles) {
         val rows = ceil(style.icons.size / COLUMNS.toDouble()).toInt()
