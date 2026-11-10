@@ -2,10 +2,8 @@ package com.varabyte.kobweb.intellij.project
 
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.vfs.VirtualFile
-import com.varabyte.kobweb.intellij.model.AppBlock
 import com.varabyte.kobweb.intellij.model.KobwebModel
 import com.varabyte.kobweb.intellij.model.KobwebProjectType
-import com.varabyte.kobweb.intellij.model.LibraryBlock
 import com.varabyte.kobweb.intellij.model.WorkerBlock
 
 /**
@@ -28,9 +26,6 @@ import com.varabyte.kobweb.intellij.model.WorkerBlock
  * @property publicPath The folder inside the project's resources that Kobweb serves files from as is (e.g. "public"),
  *   from `kobweb { publicPath.set(...) }`. External projects get this from their Kobweb metadata, which only includes
  *   it as of newer Kobweb versions, so ones built with older versions have Kobweb's default (which they always used).
- * @property app Values from the `kobweb { app { ... } }` block. Only ever set for local application projects.
- * @property library Values from the `kobweb { library { ... } }` block, for library projects. External libraries only
- *   have the values their Kobweb metadata records (currently just their icons).
  * @property worker Values from the `kobweb { worker { ... } }` block. Only ever set for local worker projects.
  */
 data class KobwebProject(
@@ -41,8 +36,6 @@ data class KobwebProject(
     val pagesPackage: String = KobwebModel.DEFAULT_PAGES_PACKAGE,
     val apiPackage: String = KobwebModel.DEFAULT_API_PACKAGE,
     val publicPath: String = KobwebModel.DEFAULT_PUBLIC_PATH,
-    val app: AppBlock? = null,
-    val library: LibraryBlock? = null,
     val worker: WorkerBlock? = null,
 ) {
     /**

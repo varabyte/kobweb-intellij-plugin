@@ -1,7 +1,6 @@
 package com.varabyte.kobweb.intellij.util.kobweb
 
 import com.intellij.openapi.vfs.VirtualFile
-import com.varabyte.kobweb.intellij.model.IconsBlock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -20,9 +19,6 @@ const val KOBWEB_METADATA_MODULE = "$KOBWEB_METADATA_SUBFOLDER/module.json"
 
 const val KOBWEB_METADATA_FRONTEND = "$KOBWEB_METADATA_SUBFOLDER/frontend.json"
 const val KOBWEB_METADATA_BACKEND = "$KOBWEB_METADATA_SUBFOLDER/backend.json"
-
-// The icon sets an artifact generated bindings for
-const val KOBWEB_METADATA_ICONS = "$KOBWEB_METADATA_SUBFOLDER/icons.json"
 
 // Top-level metadata files that identify what sort of Kobweb artifact this is
 const val KOBWEB_METADATA_LIBRARY = "$KOBWEB_METADATA_SUBFOLDER/library.json"
@@ -184,65 +180,4 @@ fun Json.readKobwebBackendMetadata(text: String): KobwebBackendMetadata? {
 fun VirtualFile.readKobwebBackendMetadata(): KobwebBackendMetadata? {
     val backendFile = findFileByRelativePath(KOBWEB_METADATA_BACKEND) ?: return null
     return Json.readKobwebBackendMetadata(backendFile.contentsToByteArray().decodeToString())
-}
-
-/**
- * The values we use from a [KOBWEB_METADATA_ICONS] file (see `IconsMetadata` in the Kobweb codebase), which lists the
- * icon sets an artifact generated bindings for.
- *
- * @property iconSets The icon sets, keyed by ID (e.g. "fa").
- */
-class KobwebIconsMetadata(val iconSets: Map<String, IconSet>) {
-    /**
-     * @property packageName The package the set's bindings were generated into, e.g.
-     *   "com.example.components.icons.fa".
-     */
-    class IconSet(val packageName: String)
-}
-
-/**
- * Parses the contents of a [KOBWEB_METADATA_ICONS] file, returning null if it's malformed.
- *
- * Individual icon sets that are malformed (e.g. one without a package) are skipped.
- */
-fun Json.readKobwebIconsMetadata(text: String): KobwebIconsMetadata? {
-    return try {
-        val root = parseToJsonElement(text).jsonObject
-        val iconSets = root["iconSets"]?.jsonObject.orEmpty().mapNotNull { (id, iconSet) ->
-            val packageName = (iconSet as? JsonObject)?.get("packageName")?.jsonPrimitive?.contentOrNull
-                ?: return@mapNotNull null
-            id to KobwebIconsMetadata.IconSet(packageName)
-        }.toMap()
-        KobwebIconsMetadata(iconSets)
-    } catch (_: Exception) {
-        // Malformed metadata. Shouldn't happen, but there's nothing useful we can do about it here.
-        null
-    }
-}
-
-/**
- * Reads this artifact's [KOBWEB_METADATA_ICONS] file, where the receiver is the root of the artifact (e.g. a klib).
- *
- * Returns null if the artifact doesn't have the file (e.g. it doesn't generate any icons), or it's malformed.
- */
-fun VirtualFile.readKobwebIconsMetadata(): KobwebIconsMetadata? {
-    val iconsFile = findFileByRelativePath(KOBWEB_METADATA_ICONS) ?: return null
-    return Json.readKobwebIconsMetadata(iconsFile.contentsToByteArray().decodeToString())
-}
-
-/**
- * Converts this metadata into the `icons { ... }` block that produced it.
- *
- * Kobweb generates each icon set into a subpackage of a shared root package, named after the set's ID (e.g.
- * "com.example.components.icons.fa"), so this returns null if the packages don't fit that pattern, or if there are no
- * icon sets at all.
- */
-fun KobwebIconsMetadata.toIconsBlock(): IconsBlock? {
-    val rootPackages = iconSets.map { (id, iconSet) ->
-        val suffix = ".$id"
-        if (!iconSet.packageName.endsWith(suffix)) return null
-        iconSet.packageName.removeSuffix(suffix)
-    }
-    val rootPackage = rootPackages.distinct().singleOrNull() ?: return null
-    return IconsBlock(rootPackage, iconSets.keys.toList())
 }

@@ -6,7 +6,6 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
 import com.varabyte.kobweb.intellij.model.KobwebModel
 import com.varabyte.kobweb.intellij.model.KobwebProjectType
-import com.varabyte.kobweb.intellij.model.LibraryBlock
 import com.varabyte.kobweb.intellij.project.KobwebProject
 import com.varabyte.kobweb.intellij.project.findKobwebModel
 import com.varabyte.kobweb.intellij.services.project.KobwebProjectCacheService
@@ -16,14 +15,11 @@ import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_LIBRARY
 import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_METADATA_WORKER
 import com.varabyte.kobweb.intellij.util.kobweb.PackageShortcuts
 import com.varabyte.kobweb.intellij.util.kobweb.isKobwebPluginEnabled
-import com.varabyte.kobweb.intellij.util.kobweb.readKobwebIconsMetadata
 import com.varabyte.kobweb.intellij.util.kobweb.readKobwebModuleMetadata
-import com.varabyte.kobweb.intellij.util.kobweb.toIconsBlock
 import com.varabyte.kobweb.intellij.util.module.toGradleModule
 import com.varabyte.kobweb.intellij.util.psi.containingKlib
 import org.jetbrains.kotlin.idea.base.util.module
 import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.name.Name
 
 // Metadata files useful for identifying external artifacts as Kobweb projects
 private val KOBWEB_METADATA_IDENTIFIERS_LIBRARY = listOf(
@@ -54,8 +50,6 @@ private fun Module.findKobwebProject(kobwebProjectsCache: KobwebProjectCacheServ
             kobwebModel.pagesPackage ?: KobwebModel.DEFAULT_PAGES_PACKAGE,
             kobwebModel.apiPackage ?: KobwebModel.DEFAULT_API_PACKAGE,
             kobwebModel.publicPath ?: KobwebModel.DEFAULT_PUBLIC_PATH,
-            kobwebModel.app,
-            kobwebModel.library,
             kobwebModel.worker,
         ).also {
             kobwebProjectsCache.add(it)
@@ -88,11 +82,6 @@ private fun VirtualFile.findKobwebProject(kobwebProjectsCache: KobwebProjectCach
         KobwebProject.Source.External(klib),
         group = moduleMetadata?.group,
         publicPath = moduleMetadata?.publicPath ?: KobwebModel.DEFAULT_PUBLIC_PATH,
-        library = if (kobwebProjectType == KobwebProjectType.Library) {
-            LibraryBlock(icons = klib.readKobwebIconsMetadata()?.toIconsBlock())
-        } else {
-            null
-        },
     ).also { kobwebProjectsCache.add(it) }
 }
 
@@ -141,19 +130,6 @@ val KobwebProject.qualifiedPagesPackage: FqName? get() = qualify(pagesPackage)
  * determined (e.g. it's relative but the project's group is unknown).
  */
 val KobwebProject.qualifiedApiPackage: FqName? get() = qualify(apiPackage)
-
-/**
- * The fully qualified package of each icon set this project generates bindings for, keyed by its ID, e.g. "fa" to
- * "com.example.components.icons.fa". Empty if the package can't be determined (e.g. it's relative but the project's
- * group is unknown).
- */
-val KobwebProject.qualifiedIconPackages: Map<String, FqName>
-    get() {
-        val icons = app?.icons ?: library?.icons ?: return emptyMap()
-        val rootPackage = qualify(icons.rootPackage) ?: return emptyMap()
-        // Kobweb generates each icon set into a subpackage of the root package, named after the set's ID
-        return icons.iconSets.associateWith { id -> rootPackage.child(Name.identifier(id)) }
-    }
 
 private fun KobwebProject.qualify(pkg: String): FqName? {
     // See `PsiElement.kobwebGroup` for why we treat an empty group as unknown

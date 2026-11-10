@@ -6,8 +6,6 @@ import com.varabyte.kobweb.intellij.iconpreviews.IconSet
 import com.varabyte.kobweb.intellij.iconpreviews.IconShape
 import com.varabyte.kobweb.intellij.iconpreviews.IconStyle
 import com.varabyte.kobweb.intellij.lineMarkers.KobwebLineMarkerTestBase
-import com.varabyte.kobweb.intellij.model.AppBlock
-import com.varabyte.kobweb.intellij.model.IconsBlock
 import com.varabyte.kobweb.intellij.services.icons.IconPreviewService
 import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconSet
 import com.varabyte.truthish.assertThat
@@ -85,53 +83,7 @@ class SilkIconLineMarkerProviderTest : KobwebLineMarkerTestBase() {
         )
     }
 
-    fun testGutterIconShownForGeneratedIconCalls() {
-        registerKobwebProject(app = AppBlock(icons = IconsBlock(rootPackage = ".components.icons", iconSets = listOf("fa"))))
-        // A stand-in for the bindings Kobweb generates for `kobweb { app { icons { fa() } } }`
-        myFixture.addFileToProject(
-            "components/icons/fa/FaIcons.kt",
-            """
-            package $TEST_GROUP.components.icons.fa
-
-            import androidx.compose.runtime.Composable
-            import com.varabyte.kobweb.compose.ui.Modifier
-
-            enum class FaIconStyle { FILLED, OUTLINE }
-
-            @Composable
-            fun FaSquare(modifier: Modifier = Modifier, style: FaIconStyle = FaIconStyle.OUTLINE) {}
-
-            @Composable
-            fun FaHouse(modifier: Modifier = Modifier) {}
-            """.trimIndent()
-        )
-        val expectedTooltips = listOf(
-            "Font Awesome: square (outline)",
-            "Font Awesome: square (filled)",
-            "Font Awesome: house",
-        )
-
-        doTest(
-            """
-            import androidx.compose.runtime.Composable
-            import $TEST_GROUP.components.icons.fa.*
-
-            @Composable
-            fun SomePage() {
-                FaSquare() $GUTTER_TAG
-                FaSquare(style = FaIconStyle.FILLED) $GUTTER_TAG
-                FaHouse() $GUTTER_TAG
-            }
-            """.trimIndent(),
-            acceptLineMarker = { isIconPreview(it.lineMarkerTooltip) },
-            assertLineMarker = { index, marker ->
-                assertThat(marker.lineMarkerTooltip).isEqualTo(expectedTooltips[index])
-            }
-        )
-    }
-
-    fun testGutterIconNotShownForGeneratedMdiIconHelper() {
-        registerKobwebProject(app = AppBlock(icons = IconsBlock(rootPackage = ".components.icons", iconSets = listOf("mdi"))))
+    fun testGutterIconNotShownForMdiIconHelper() {
         // An icon named "icon" would match `MdiIcon` if the helper were mistaken for an icon
         IconPreviewService.instance.useIconSetForTests(
             SilkIconSet.MATERIAL_ICONS,
@@ -141,11 +93,11 @@ class SilkIconLineMarkerProviderTest : KobwebLineMarkerTestBase() {
             ),
             testRootDisposable,
         )
-        // A stand-in for the bindings Kobweb generates for `kobweb { app { icons { mdi() } } }`
+        // A stand-in for the `silk-icons-mdi` artifact, which the tests don't depend on
         myFixture.addFileToProject(
-            "components/icons/mdi/MdiIcons.kt",
+            "silk/MdiIcons.kt",
             """
-            package $TEST_GROUP.components.icons.mdi
+            package com.varabyte.kobweb.silk.components.icons.mdi
 
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
@@ -161,7 +113,7 @@ class SilkIconLineMarkerProviderTest : KobwebLineMarkerTestBase() {
             """
             import androidx.compose.runtime.Composable
             import com.varabyte.kobweb.compose.ui.Modifier
-            import $TEST_GROUP.components.icons.mdi.*
+            import com.varabyte.kobweb.silk.components.icons.mdi.*
 
             @Composable
             fun SomePage() {
@@ -169,34 +121,6 @@ class SilkIconLineMarkerProviderTest : KobwebLineMarkerTestBase() {
             }
             """.trimIndent(),
             acceptLineMarker = { it.lineMarkerTooltip?.startsWith(SilkIconSet.MATERIAL_ICONS.displayName) == true },
-        )
-    }
-
-    fun testGutterIconNotShownForCallsOutsideGeneratedIconPackages() {
-        registerKobwebProject(app = AppBlock(icons = IconsBlock(rootPackage = ".components.icons", iconSets = listOf("fa"))))
-        myFixture.addFileToProject(
-            "components/widgets/fa/FaIcons.kt",
-            """
-            package $TEST_GROUP.components.widgets.fa
-
-            import androidx.compose.runtime.Composable
-
-            @Composable
-            fun FaHouse() {}
-            """.trimIndent()
-        )
-
-        doTest(
-            """
-            import androidx.compose.runtime.Composable
-            import $TEST_GROUP.components.widgets.fa.*
-
-            @Composable
-            fun SomePage() {
-                FaHouse()
-            }
-            """.trimIndent(),
-            acceptLineMarker = { isIconPreview(it.lineMarkerTooltip) },
         )
     }
 

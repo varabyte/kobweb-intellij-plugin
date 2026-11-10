@@ -71,22 +71,6 @@ interface KobwebModel : Serializable {
     val publicPath: String?
 
     /**
-     * Values from the `kobweb { app { ... } }` block in an application project's build script.
-     *
-     * This is always null for non-application projects. It is also null if this model was saved by an older version of
-     * the plugin, until the next Gradle sync.
-     */
-    val app: AppBlock?
-
-    /**
-     * Values from the `kobweb { library { ... } }` block in a library project's build script.
-     *
-     * This is always null for non-library projects. It is also null if this model was saved by an older version of the
-     * plugin, until the next Gradle sync.
-     */
-    val library: LibraryBlock?
-
-    /**
      * Values from the `kobweb { worker { ... } }` block in a worker project's build script.
      *
      * This is always null for non-worker projects.
@@ -95,39 +79,8 @@ interface KobwebModel : Serializable {
 }
 
 /**
- * A subset of the `kobweb.app` extension from the upstream Kobweb Gradle plugin.
- *
- * @property icons Null if the project uses a Kobweb version from before icons could be generated (0.25.2).
- */
-data class AppBlock(
-    val icons: IconsBlock? = null,
-) : Serializable
-
-/**
- * A subset of the `kobweb.library` extension from the upstream Kobweb Gradle plugin.
- *
- * @property icons Null if the project uses a Kobweb version from before icons could be generated (0.25.2).
- */
-data class LibraryBlock(
-    val icons: IconsBlock? = null,
-) : Serializable
-
-/**
  * A subset of the `kobweb.worker` extension from the upstream Kobweb Gradle plugin.
  */
 data class WorkerBlock(
     val fqcn: String? = null,
-) : Serializable
-
-/**
- * A subset of the `kobweb.app.icons` and `kobweb.library.icons` extensions from the upstream Kobweb Gradle plugin,
- * covering what they share.
- *
- * @property rootPackage The package that icon bindings are generated under, e.g. ".components.icons". Like other Kobweb
- *   packages, this may start with a leading period, in which case it is relative to [KobwebModel.group].
- * @property iconSets The IDs of the configured icon sets (e.g. "fa"), each generated into a subpackage of the same name.
- */
-data class IconsBlock(
-    val rootPackage: String,
-    val iconSets: List<String>,
 ) : Serializable
