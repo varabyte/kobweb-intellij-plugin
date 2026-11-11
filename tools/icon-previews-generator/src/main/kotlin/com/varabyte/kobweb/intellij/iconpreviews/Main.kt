@@ -126,7 +126,7 @@ fun main(args: Array<String>) {
 
     // Readable style names for the sheets, e.g. "outlined" rather than the "mdio" style ID
     val styleNames = buildMap {
-        FaIconSet.Style.entries.forEach { put(it.id, it.iconsJsonName) }
+        FaIconSet.Style.entries.forEach { put(it.id, it.styleName) }
         MdiIconSet.Style.entries.forEach { put(it.id, it.name.lowercase().replace('_', '-')) }
         MsIconSet.Style.entries.forEach { put(it.id, it.name.lowercase()) }
     }
@@ -144,9 +144,15 @@ fun main(args: Array<String>) {
     println("Contact sheets written to $sheetsDir")
 }
 
-// The style IDs in icon preview data, which the plugin's `SilkIconSet` looks styles up by. Font Awesome's are its own
-// CSS classes; the Material ones are short names the plugin made up.
-private val FaIconSet.Style.id get() = cssClass
+// The style IDs in icon preview data, which the plugin's `SilkIconSet` looks styles up by. These are short names the
+// plugin made up (Font Awesome's match its older CSS classes), and can't change, since older plugin versions read the
+// same data.
+private val FaIconSet.Style.id
+    get() = when (this) {
+        FaIconSet.Style.SOLID -> "fas"
+        FaIconSet.Style.REGULAR -> "far"
+        FaIconSet.Style.BRANDS -> "fab"
+    }
 
 private val MdiIconSet.Style.id
     get() = when (this) {
