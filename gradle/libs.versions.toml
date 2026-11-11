@@ -11,7 +11,7 @@ intellij-platform = "2.19.0"
 jetbrains-changelog = "2.5.0"
 kotlin = "2.4.21"
 kotlinx-serialization = "1.11.0"
-kobweb-icons = "0.7.0"
+kobweb-icons = "0.7.1"
 batik = "1.19"
 truthish = "1.0.4"
 junit = "4.13.2"
@@ -23,7 +23,7 @@ kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", v
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 # For tools/icon-previews-generator
-kobweb-icons-parsers = { module = "com.varabyte.kobweb.icons:parsers", version.ref = "kobweb-icons" }
+kobweb-icons-parsers = { module = "com.varabyte.kobweb.icons:kobweb-icons-parsers", version.ref = "kobweb-icons" }
 batik-parser = { module = "org.apache.xmlgraphics:batik-parser", version.ref = "batik" }
 # For testing
 junit = { module = "junit:junit", version.ref = "junit" }
