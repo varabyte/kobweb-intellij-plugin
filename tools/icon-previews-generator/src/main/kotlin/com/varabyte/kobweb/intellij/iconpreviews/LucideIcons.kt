@@ -40,12 +40,12 @@ fun LucideIcons.toPreviewIconSet(): PreviewIconSet {
     }
 
     // Deprecated aliases are old names the icon was renamed from, which existing code may still call
-    val aliases = icons.flatMap { (name, icon) ->
+    val renames = icons.flatMap { (name, icon) ->
         icon.aliases.filter { it.isDeprecated }.map { alias -> alias.name to name }
     }.toMap()
 
     // Lucide has a single style; we use the generated composables' prefix as its ID
-    return PreviewIconSet("lucide", listOf(PreviewIconStyle("lucide", shapes)), aliases)
+    return PreviewIconSet("lucide", listOf(PreviewIconStyle("lucide", shapes)), renames)
 }
 
 /** This element as a Java2D shape, or null (with a warning) if it isn't a basic shape we support. */

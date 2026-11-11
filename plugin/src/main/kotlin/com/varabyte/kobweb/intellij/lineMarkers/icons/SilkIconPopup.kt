@@ -112,7 +112,7 @@ class SilkIconPopup(
             separator()
             row {
                 link(message("popups.silk.icon.open.in.browser")) {
-                    BrowserUtil.browse(iconCall.iconSet.browserUrl(currentPreview.shape.name, currentPreview.style))
+                    BrowserUtil.browse(currentPreview.style.browserUrl(currentPreview.shape.name))
                 }
             }
         }

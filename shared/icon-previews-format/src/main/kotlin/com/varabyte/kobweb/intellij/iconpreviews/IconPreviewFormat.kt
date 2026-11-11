@@ -26,9 +26,10 @@ class PreviewIconStyle(val id: String, val icons: List<IconShape>)
  *
  * @property id The icon set's ID, e.g. "fa" or "ms". Not to be confused with its styles' IDs (e.g. "fas" or "mso").
  *   This is also the name of the set's data file (e.g. "fa.bin") and its key in the manifest.
- * @property aliases Deprecated icon names mapped to their replacement names.
+ * @property renames Old names of renamed (deprecated) icons mapped to their current names, since existing code may
+ *   still call the old ones.
  */
-class PreviewIconSet(val id: String, val styles: List<PreviewIconStyle>, val aliases: Map<String, String> = emptyMap())
+class PreviewIconSet(val id: String, val styles: List<PreviewIconStyle>, val renames: Map<String, String> = emptyMap())
 
 /**
  * Compact binary encoding for an [PreviewIconSet].
@@ -42,7 +43,7 @@ class PreviewIconSet(val id: String, val styles: List<PreviewIconStyle>, val ali
  * styleCount:varint
  *   styleId:utf iconCount:varint
  *     name:utf width:varint windingRule:u8 (segmentType:u8 coords:varint*)* END:u8
- * aliasCount:varint
+ * renameCount:varint
  *   from:utf to:utf
  * ```
  */
@@ -66,8 +67,8 @@ object IconPreviewFormat {
                     out.writePath(icon.path)
                 }
             }
-            out.writeVarInt(iconSet.aliases.size)
-            for ((from, to) in iconSet.aliases) {
+            out.writeVarInt(iconSet.renames.size)
+            for ((from, to) in iconSet.renames) {
                 out.writeUTF(from)
                 out.writeUTF(to)
             }
@@ -101,10 +102,10 @@ object IconPreviewFormat {
                 }
                 PreviewIconStyle(styleId, icons)
             }
-            val aliases = buildMap {
+            val renames = buildMap {
                 repeat(inp.readVarInt()) { put(inp.readUTF(), inp.readUTF()) }
             }
-            return PreviewIconSet(id, styles, aliases)
+            return PreviewIconSet(id, styles, renames)
         }
     }
 

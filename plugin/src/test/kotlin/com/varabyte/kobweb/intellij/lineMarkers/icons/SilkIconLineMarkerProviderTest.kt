@@ -164,6 +164,113 @@ class SilkIconLineMarkerProviderTest : KobwebLineMarkerTestBase() {
         )
     }
 
+    fun testGutterIconMatchesIconByExactFunctionName() {
+        // Lucide has both "letter-s" and "letters", which only differ by a separator
+        IconPreviewService.instance.useIconSetForTests(
+            SilkIconSet.LUCIDE,
+            PreviewIconSet(
+                "lucide",
+                listOf(
+                    PreviewIconStyle(
+                        "lucide",
+                        listOf(
+                            IconShape("letter-s", 1f, Path2D.Float(Rectangle2D.Float(0f, 0f, 1f, 1f))),
+                            IconShape("letters", 1f, Path2D.Float(Rectangle2D.Float(0f, 0f, 1f, 1f))),
+                        ),
+                    )
+                ),
+            ),
+            testRootDisposable,
+        )
+        // A stand-in for the `silk-icons-lucide` artifact, which the tests don't depend on
+        myFixture.addFileToProject(
+            "silk/LucideIcons.kt",
+            """
+            package com.varabyte.kobweb.silk.components.icons.lucide
+
+            import androidx.compose.runtime.Composable
+
+            @Composable
+            fun LucideLetterS() {}
+
+            @Composable
+            fun LucideLetters() {}
+            """.trimIndent()
+        )
+        val expectedTooltips = listOf("Lucide: letter-s", "Lucide: letters")
+
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.icons.lucide.*
+
+            @Composable
+            fun SomePage() {
+                LucideLetterS() $GUTTER_TAG
+                LucideLetters() $GUTTER_TAG
+            }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip?.startsWith(SilkIconSet.LUCIDE.displayName) == true },
+            assertLineMarker = { index, marker ->
+                assertThat(marker.lineMarkerTooltip).isEqualTo(expectedTooltips[index])
+            }
+        )
+    }
+
+    fun testGutterIconPrefersIconOverRenameWithSameName() {
+        // "home" was renamed to "house", and then reused for a new icon
+        IconPreviewService.instance.useIconSetForTests(
+            SilkIconSet.LUCIDE,
+            PreviewIconSet(
+                "lucide",
+                listOf(
+                    PreviewIconStyle(
+                        "lucide",
+                        listOf(
+                            IconShape("home", 1f, Path2D.Float(Rectangle2D.Float(0f, 0f, 1f, 1f))),
+                            IconShape("house", 1f, Path2D.Float(Rectangle2D.Float(0f, 0f, 1f, 1f))),
+                        ),
+                    )
+                ),
+                renames = mapOf("home" to "house", "old-house" to "house"),
+            ),
+            testRootDisposable,
+        )
+        // A stand-in for the `silk-icons-lucide` artifact, which the tests don't depend on
+        myFixture.addFileToProject(
+            "silk/LucideIcons.kt",
+            """
+            package com.varabyte.kobweb.silk.components.icons.lucide
+
+            import androidx.compose.runtime.Composable
+
+            @Composable
+            fun LucideHome() {}
+
+            @Composable
+            fun LucideOldHouse() {}
+            """.trimIndent()
+        )
+        val expectedTooltips = listOf("Lucide: home", "Lucide: house")
+
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.icons.lucide.*
+
+            @Composable
+            fun SomePage() {
+                LucideHome() $GUTTER_TAG
+                LucideOldHouse() $GUTTER_TAG
+            }
+            """.trimIndent(),
+            acceptLineMarker = { it.lineMarkerTooltip?.startsWith(SilkIconSet.LUCIDE.displayName) == true },
+            assertLineMarker = { index, marker ->
+                assertThat(marker.lineMarkerTooltip).isEqualTo(expectedTooltips[index])
+            }
+        )
+    }
+
     fun testGutterIconShownForSvgIconCalls() {
         val expectedTooltips = listOf(
             "Icon: ArrowBack",

@@ -2,11 +2,11 @@ package com.varabyte.kobweb.intellij.iconpreviews
 
 import com.varabyte.kobweb.icons.model.fa.FaIconSet
 import com.varabyte.kobweb.icons.model.lucide.LucideIconSet
-import com.varabyte.kobweb.icons.model.mdi.MdiIconSet
-import com.varabyte.kobweb.icons.model.ms.MsIconSet
+import com.varabyte.kobweb.icons.model.material.MdiIconSet
+import com.varabyte.kobweb.icons.model.material.MsIconSet
 import com.varabyte.kobweb.icons.parsers.fa.FaIcons
 import com.varabyte.kobweb.icons.parsers.lucide.LucideIcons
-import com.varabyte.kobweb.icons.parsers.mdi.GoogleCodepoints
+import com.varabyte.kobweb.icons.parsers.material.GoogleCodepoints
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -53,7 +53,7 @@ fun main(args: Array<String>) {
             val names = FaIconSet.methodNamer.dropSeparatorCollisions(icons.filterValues { style in it.styles }.keys)
             // Desktop fonts, since newer releases only ship web fonts as WOFF2, which Java can't read
             val font = downloader.fetch(repo.fileUrl(style.fontPath(major)))
-            PreviewIconStyle(style.id, FontIcons.extract(font, names, codepoints, missing))
+            PreviewIconStyle(style.previewId, FontIcons.extract(font, names, codepoints, missing))
         }
         return GeneratedIconSet(PreviewIconSet("fa$major", styles), "Font Awesome $version ($repo)")
     }
@@ -63,7 +63,8 @@ fun main(args: Array<String>) {
             // Each font's codepoints file lists its icons, which Kobweb creates a function for each of
             val codepoints = GoogleCodepoints.parse(materialFile(style.codepointsPath).readText()).codepoints
             val names = MdiIconSet.methodNamer.dropSeparatorCollisions(codepoints.keys)
-            PreviewIconStyle(style.id, FontIcons.extract(materialFile(style.fontPath), names, codepoints, missing))
+            val font = materialFile(style.fontPath)
+            PreviewIconStyle(style.previewId, FontIcons.extract(font, names, codepoints, missing))
         }
         return GeneratedIconSet(PreviewIconSet("mdi", styles), material.toString())
     }
@@ -74,7 +75,8 @@ fun main(args: Array<String>) {
             val codepoints = GoogleCodepoints.parse(materialFile(style.codepointsPath).readText()).codepoints
             val names = MsIconSet.methodNamer.dropSeparatorCollisions(codepoints.keys)
             // Variable fonts; Java2D renders their default instance, which matches the default axes Kobweb renders with
-            PreviewIconStyle(style.id, FontIcons.extract(materialFile(style.fontPath), names, codepoints, missing))
+            val font = materialFile(style.fontPath)
+            PreviewIconStyle(style.previewId, FontIcons.extract(font, names, codepoints, missing))
         }
         return GeneratedIconSet(PreviewIconSet("ms", styles), material.toString())
     }
@@ -125,10 +127,11 @@ fun main(args: Array<String>) {
     outDir.resolve("manifest.json").writeText(Json { prettyPrint = true }.encodeToString(manifest) + "\n")
 
     // Readable style names for the sheets, e.g. "outlined" rather than the "mdio" style ID
+    fun Enum<*>.readableName() = name.lowercase().replace('_', '-')
     val styleNames = buildMap {
-        FaIconSet.Style.entries.forEach { put(it.id, it.styleName) }
-        MdiIconSet.Style.entries.forEach { put(it.id, it.name.lowercase().replace('_', '-')) }
-        MsIconSet.Style.entries.forEach { put(it.id, it.name.lowercase()) }
+        FaIconSet.Style.entries.forEach { put(it.previewId, it.readableName()) }
+        MdiIconSet.Style.entries.forEach { put(it.previewId, it.readableName()) }
+        MsIconSet.Style.entries.forEach { put(it.previewId, it.readableName()) }
     }
 
     // Render sheets from the files we just wrote, which doubles as a check that the format round-trips. Clear out old
@@ -144,28 +147,3 @@ fun main(args: Array<String>) {
     println("Contact sheets written to $sheetsDir")
 }
 
-// The style IDs in icon preview data, which the plugin's `SilkIconSet` looks styles up by. These are short names the
-// plugin made up (Font Awesome's match its older CSS classes), and can't change, since older plugin versions read the
-// same data.
-private val FaIconSet.Style.id
-    get() = when (this) {
-        FaIconSet.Style.SOLID -> "fas"
-        FaIconSet.Style.REGULAR -> "far"
-        FaIconSet.Style.BRANDS -> "fab"
-    }
-
-private val MdiIconSet.Style.id
-    get() = when (this) {
-        MdiIconSet.Style.FILLED -> "mdi"
-        MdiIconSet.Style.OUTLINED -> "mdio"
-        MdiIconSet.Style.ROUNDED -> "mdir"
-        MdiIconSet.Style.SHARP -> "mdis"
-        MdiIconSet.Style.TWO_TONED -> "mdit"
-    }
-
-private val MsIconSet.Style.id
-    get() = when (this) {
-        MsIconSet.Style.OUTLINED -> "mso"
-        MsIconSet.Style.ROUNDED -> "msr"
-        MsIconSet.Style.SHARP -> "mss"
-    }

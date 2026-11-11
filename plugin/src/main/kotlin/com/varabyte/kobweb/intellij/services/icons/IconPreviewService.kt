@@ -65,10 +65,10 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
     }
 
     private class LoadedIconSet(
-        // Style ID -> icon key -> shape
+        // Style ID -> function name -> shape
         val styles: Map<String, Map<String, IconShape>>,
-        // Deprecated icon key -> replacement icon key
-        val aliases: Map<String, String>,
+        // Renamed icon's old function name -> its current function name
+        val renames: Map<String, String>,
     )
 
     private class ManifestEntry(val file: String, val sha256: String)
@@ -102,9 +102,11 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
             return emptyList()
         }
 
-        val key = loaded.aliases[call.key] ?: call.key
+        // An upstream set can reuse a deprecated name for a new icon, so check icons before renames
+        val isIcon = loaded.styles.values.any { call.functionName in it }
+        val functionName = if (isIcon) call.functionName else loaded.renames[call.functionName] ?: call.functionName
         return call.iconSet.styles.mapNotNull { style ->
-            loaded.styles[style.id]?.get(key)?.let { IconPreview(it, call.iconSet, style) }
+            loaded.styles[style.id]?.get(functionName)?.let { IconPreview(it, call.iconSet, style) }
         }
     }
 
@@ -175,19 +177,21 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
 
     private fun load(iconSet: SilkIconSet, file: Path): LoadedIconSet? {
         return try {
-            index(file.inputStream().buffered().use { IconPreviewFormat.read(iconSet.id, it) })
+            index(iconSet, file.inputStream().buffered().use { IconPreviewFormat.read(iconSet.id, it) })
         } catch (e: Exception) {
             logger.warn("Could not load icon previews from $file", e)
             null
         }
     }
 
-    private fun index(data: PreviewIconSet) = LoadedIconSet(
-        styles = data.styles.associate { style ->
-            style.id to style.icons.associateBy { SilkIconCall.keyFor(it.name) }
-        },
-        aliases = data.aliases.entries.associate { (from, to) -> SilkIconCall.keyFor(from) to SilkIconCall.keyFor(to) },
-    )
+    /** Indexes [data] by the names of the functions Kobweb generates for its icons, which is how calls find them. */
+    private fun index(iconSet: SilkIconSet, data: PreviewIconSet): LoadedIconSet {
+        val namer = iconSet.model.methodNamer
+        return LoadedIconSet(
+            styles = data.styles.associate { style -> style.id to style.icons.associateBy { namer.nameFor(it.name) } },
+            renames = data.renames.entries.associate { (from, to) -> namer.nameFor(from) to namer.nameFor(to) },
+        )
+    }
 
     /**
      * Use [data] for [iconSet] instead of downloading it, until [parentDisposable] is disposed.
@@ -197,7 +201,7 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
     @TestOnly
     fun useIconSetForTests(iconSet: SilkIconSet, data: PreviewIconSet, parentDisposable: Disposable) {
         requestedIconSets.add(iconSet)
-        loadedIconSets[iconSet] = index(data)
+        loadedIconSets[iconSet] = index(iconSet, data)
         Disposer.register(parentDisposable) {
             loadedIconSets.remove(iconSet)
             requestedIconSets.remove(iconSet)

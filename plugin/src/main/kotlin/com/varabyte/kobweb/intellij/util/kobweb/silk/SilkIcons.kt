@@ -1,6 +1,12 @@
 package com.varabyte.kobweb.intellij.util.kobweb.silk
 
 import com.intellij.openapi.roots.ProjectFileIndex
+import com.varabyte.kobweb.icons.model.IconSet
+import com.varabyte.kobweb.icons.model.fa.FaIconSet
+import com.varabyte.kobweb.icons.model.lucide.LucideIconSet
+import com.varabyte.kobweb.icons.model.material.MdiIconSet
+import com.varabyte.kobweb.icons.model.material.MsIconSet
+import com.varabyte.kobweb.intellij.iconpreviews.previewId
 import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_REPO_URL
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.resolution.successfulFunctionCallOrNull
@@ -22,106 +28,136 @@ import org.jetbrains.kotlin.psi.KtValueArgument
  * @property enumEntries The names of the style enum entries a user passes in to select this style, if any. There can
  *   be more than one because Kobweb has renamed some across versions (e.g. Font Awesome's `OUTLINE` became `REGULAR`).
  */
-class SilkIconStyle(val id: String, vararg enumEntries: String) {
-    val enumEntries: Set<String> = enumEntries.toSet()
+class SilkIconStyle private constructor(
+    val id: String,
+    private val iconPageUrl: (iconName: String) -> String,
+    val enumEntries: Set<String>,
+) {
+    constructor(modelStyle: FaIconSet.Style, vararg enumEntries: String) :
+        this(modelStyle.previewId, modelStyle::iconPageUrl, enumEntries.toSet())
+
+    constructor(modelStyle: MdiIconSet.Style, vararg enumEntries: String) :
+        this(modelStyle.previewId, modelStyle::iconPageUrl, enumEntries.toSet())
+
+    constructor(modelStyle: MsIconSet.Style, vararg enumEntries: String) :
+        this(modelStyle.previewId, modelStyle::iconPageUrl, enumEntries.toSet())
+
+    /** A link to the icon's page on its project's website, e.g. so the user can see it in more detail. */
+    fun browserUrl(iconName: String): String = iconPageUrl(iconName)
+
+    companion object {
+        /**
+         * A stand-in style for an icon set without styles of its own (e.g. Lucide), so it can be handled like any other
+         * set.
+         *
+         * @param id The style's ID in icon preview data.
+         * @param iconPageUrl The icon's page on its project's website.
+         */
+        fun unstyled(id: String, iconPageUrl: (iconName: String) -> String) =
+            SilkIconStyle(id, iconPageUrl, emptySet())
+    }
+}
+
+private fun FaIconSet.Style.iconPageUrl(iconName: String): String = when (this) {
+    FaIconSet.Style.BRANDS -> "https://fontawesome.com/icons/$iconName?f=brands&s=solid"
+    FaIconSet.Style.SOLID, FaIconSet.Style.REGULAR -> "https://fontawesome.com/icons/$iconName?f=classic&s=$styleName"
+}
+
+// Selecting the icon (via its font family's name) opens its details in a side panel, and the style picks the matching
+// tab. These mirror the links Google Fonts itself creates.
+
+private fun MdiIconSet.Style.iconPageUrl(iconName: String): String {
+    val tab = when (this) {
+        MdiIconSet.Style.FILLED -> "Filled"
+        MdiIconSet.Style.OUTLINED -> "Outlined"
+        MdiIconSet.Style.ROUNDED -> "Rounded"
+        MdiIconSet.Style.SHARP -> "Sharp"
+        MdiIconSet.Style.TWO_TONED -> "Two tone"
+    }
+    return googleFontsIconUrl("Material Icons", fontFamily, tab, iconName)
+}
+
+private fun MsIconSet.Style.iconPageUrl(iconName: String): String {
+    val tab = when (this) {
+        MsIconSet.Style.OUTLINED -> "Outlined"
+        MsIconSet.Style.ROUNDED -> "Rounded"
+        MsIconSet.Style.SHARP -> "Sharp"
+    }
+    return googleFontsIconUrl("Material Symbols", fontFamily, tab, iconName)
+}
+
+/**
+ * @param iconSet The icon set, as Google Fonts names it, e.g. "Material Icons".
+ * @param family The font family for the style, e.g. "Material Icons Outlined".
+ * @param tab The style's tab, as Google Fonts names it, e.g. "Outlined".
+ */
+private fun googleFontsIconUrl(iconSet: String, family: String, tab: String, iconName: String): String {
+    fun String.encoded() = replace(' ', '+')
+    return "https://fonts.google.com/icons?icon.set=${iconSet.encoded()}&icon.query=$iconName" +
+        "&selected=${family.encoded()}:$iconName:&icon.style=${tab.encoded()}"
 }
 
 /**
  * The icon sets provided by Kobweb's `silk-icons-*` modules.
  *
  * @property id The icon set's ID in icon preview data. This intentionally matches Kobweb's own naming for the set (e.g.
- *   `silk-icons-fa`, the `...icons.fa` package, and the `Fa` function prefix), which [packageName] and [functionPrefix]
- *   are derived from.
+ *   `silk-icons-fa` and the `...icons.fa` package), which [packageName] is derived from.
+ * @property model The upstream icon set, which Kobweb's codegen names the icon functions after.
  * @property styles Ordered by preference, used when a call doesn't specify a style (or specifies one the icon doesn't
  *   support). This mirrors the defaults of the functions Kobweb generates.
  * @property helperFunctions Functions in the icon package that share [functionPrefix] but aren't icons themselves.
  */
 enum class SilkIconSet(
     val id: String,
-    val displayName: String,
+    val model: IconSet,
     val styles: List<SilkIconStyle>,
     val helperFunctions: Set<String> = emptySet(),
 ) {
     FONT_AWESOME(
-        "fa", "Font Awesome",
+        "fa", FaIconSet,
         listOf(
             // Icons that come in both solid and regular variants default to regular. Kobweb 0.25.2 renamed the style
             // enum's entries to match Font Awesome's own names for them.
-            SilkIconStyle("far", "REGULAR", "OUTLINE"),
-            SilkIconStyle("fas", "SOLID", "FILLED"),
-            SilkIconStyle("fab"),
+            SilkIconStyle(FaIconSet.Style.REGULAR, "REGULAR", "OUTLINE"),
+            SilkIconStyle(FaIconSet.Style.SOLID, "SOLID", "FILLED"),
+            SilkIconStyle(FaIconSet.Style.BRANDS),
         ),
         helperFunctions = setOf("FaIcon", "FaBrandIcon"),
     ),
     MATERIAL_ICONS(
-        "mdi", "Material Icons",
+        "mdi", MdiIconSet,
         listOf(
-            SilkIconStyle("mdi", "FILLED"),
-            SilkIconStyle("mdio", "OUTLINED"),
-            SilkIconStyle("mdir", "ROUNDED"),
-            SilkIconStyle("mdis", "SHARP"),
-            SilkIconStyle("mdit", "TWO_TONED"),
+            SilkIconStyle(MdiIconSet.Style.FILLED, "FILLED"),
+            SilkIconStyle(MdiIconSet.Style.OUTLINED, "OUTLINED"),
+            SilkIconStyle(MdiIconSet.Style.ROUNDED, "ROUNDED"),
+            SilkIconStyle(MdiIconSet.Style.SHARP, "SHARP"),
+            SilkIconStyle(MdiIconSet.Style.TWO_TONED, "TWO_TONED"),
         ),
         helperFunctions = setOf("MdiIcon"),
     ),
     MATERIAL_SYMBOLS(
-        "ms", "Material Symbols",
+        "ms", MsIconSet,
         listOf(
-            SilkIconStyle("mso", "OUTLINED"),
-            SilkIconStyle("msr", "ROUNDED"),
-            SilkIconStyle("mss", "SHARP"),
+            SilkIconStyle(MsIconSet.Style.OUTLINED, "OUTLINED"),
+            SilkIconStyle(MsIconSet.Style.ROUNDED, "ROUNDED"),
+            SilkIconStyle(MsIconSet.Style.SHARP, "SHARP"),
         ),
         helperFunctions = setOf("MsIcon"),
     ),
     LUCIDE(
-        "lucide", "Lucide",
-        listOf(SilkIconStyle("lucide")),
+        "lucide", LucideIconSet,
+        listOf(SilkIconStyle.unstyled("lucide") { iconName -> "https://lucide.dev/icons/$iconName" }),
     );
 
+    val displayName get() = model.displayName
     val packageName = FqName("com.varabyte.kobweb.silk.components.icons.$id")
-    val functionPrefix = id.replaceFirstChar { it.uppercase() }
-
-    /** A link to the icon's page on its project's website, e.g. so the user can see it in more detail. */
-    fun browserUrl(iconName: String, style: SilkIconStyle): String = when (this) {
-        FONT_AWESOME -> when (style.id) {
-            "fab" -> "https://fontawesome.com/icons/$iconName?f=brands&s=solid"
-            "far" -> "https://fontawesome.com/icons/$iconName?f=classic&s=regular"
-            else -> "https://fontawesome.com/icons/$iconName?f=classic&s=solid"
-        }
-        // Selecting the icon (via its font family's name) opens its details in a side panel, and the style picks the
-        // matching tab. These mirror the links Google Fonts itself creates.
-        MATERIAL_ICONS -> when (style.id) {
-            "mdio" -> googleFontsIconUrl("Material Icons", "Material Icons Outlined", "Outlined", iconName)
-            "mdir" -> googleFontsIconUrl("Material Icons", "Material Icons Round", "Rounded", iconName)
-            "mdis" -> googleFontsIconUrl("Material Icons", "Material Icons Sharp", "Sharp", iconName)
-            "mdit" -> googleFontsIconUrl("Material Icons", "Material Icons Two Tone", "Two tone", iconName)
-            else -> googleFontsIconUrl("Material Icons", "Material Icons", "Filled", iconName)
-        }
-        MATERIAL_SYMBOLS -> when (style.id) {
-            "msr" -> googleFontsIconUrl("Material Symbols", "Material Symbols Rounded", "Rounded", iconName)
-            "mss" -> googleFontsIconUrl("Material Symbols", "Material Symbols Sharp", "Sharp", iconName)
-            else -> googleFontsIconUrl("Material Symbols", "Material Symbols Outlined", "Outlined", iconName)
-        }
-        LUCIDE -> "https://lucide.dev/icons/$iconName"
-    }
-
-    /**
-     * @param iconSet The icon set, as Google Fonts names it, e.g. "Material Icons".
-     * @param family The font family for the style, e.g. "Material Icons Outlined".
-     * @param style The style, as Google Fonts names it, e.g. "Outlined".
-     */
-    private fun googleFontsIconUrl(iconSet: String, family: String, style: String, iconName: String): String {
-        fun String.encoded() = replace(' ', '+')
-        return "https://fonts.google.com/icons?icon.set=${iconSet.encoded()}&icon.query=$iconName" +
-            "&selected=${family.encoded()}:$iconName:&icon.style=${style.encoded()}"
-    }
+    val functionPrefix get() = model.methodNamer.prefix
 }
 
 /**
  * A call to one of the icon functions Kobweb generates, e.g. `FaHouse(style = FaIconStyle.SOLID)`.
  *
- * @property key The icon's name lowercased and without separators, e.g. "printshop" for `FaPrintShop`. Kobweb's codegen
- *   guarantees these are unique within an icon set.
+ * @property functionName The name of the called function, e.g. "FaPrintShop".
  * @property styleArgument What, if anything, was passed in for the `style` parameter.
  * @property styleEnum The enum the called function's `style` parameter takes, or null if it doesn't have one
  *   (Kobweb only generates one for icons that come in more than one style). This comes from the function itself rather
@@ -131,7 +167,7 @@ enum class SilkIconSet(
  */
 class SilkIconCall(
     val iconSet: SilkIconSet,
-    val key: String,
+    val functionName: String,
     val styleArgument: StyleArgument,
     val styleEnum: StyleEnum?,
     val parameterNames: Map<KtValueArgument, Name>,
@@ -165,11 +201,6 @@ class SilkIconCall(
 
         /** A style was passed in indirectly, via an expression we can't evaluate, e.g. `FaHouse(style = myStyle)`. */
         class Indirect(override val argument: KtValueArgument) : Present
-    }
-
-    companion object {
-        /** Normalize an icon name (e.g. "print-shop" or "print_shop") into a [key]. */
-        fun keyFor(name: String) = name.filter { it.isLetterOrDigit() }.lowercase()
     }
 }
 
@@ -216,7 +247,7 @@ fun KtCallExpression.asSilkIconCall(): SilkIconCall? = with(kaSession) {
 
     SilkIconCall(
         iconSet,
-        SilkIconCall.keyFor(functionName.removePrefix(iconSet.functionPrefix)),
+        functionName,
         styleArgument,
         styleEnum,
         parameterNames = call.argumentMapping.entries
