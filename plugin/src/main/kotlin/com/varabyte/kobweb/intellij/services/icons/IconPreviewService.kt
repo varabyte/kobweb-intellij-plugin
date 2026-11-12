@@ -73,6 +73,13 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
 
     private class ManifestEntry(val file: String, val sha256: String)
 
+    /**
+     * Which preview data to load for an icon set, since a set can have different data per version.
+     *
+     * @property id The data's ID (see [SilkIconSet.previewId]), e.g. "fa7".
+     */
+    private data class PreviewDataKey(val iconSet: SilkIconSet, val id: String)
+
     private val logger = logger<IconPreviewService>()
 
     // For iterating on the data locally, e.g. `./gradlew :plugin:runIde -PlocalIconPreviews`, which points this at the
@@ -85,8 +92,8 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
     // while offline).
     private val remoteManifest = coroutineScope.async(Dispatchers.IO, start = CoroutineStart.LAZY) { fetchManifest() }
 
-    private val requestedIconSets = ConcurrentHashMap.newKeySet<SilkIconSet>()
-    private val loadedIconSets = ConcurrentHashMap<SilkIconSet, LoadedIconSet>()
+    private val requestedIconSets = ConcurrentHashMap.newKeySet<PreviewDataKey>()
+    private val loadedIconSets = ConcurrentHashMap<PreviewDataKey, LoadedIconSet>()
 
     /**
      * Returns a preview of [call]'s icon in every style it's available in, in order of preference (so the first is the
@@ -96,9 +103,10 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
      * get the preview in the style the call actually renders.
      */
     fun findAllPreviews(call: SilkIconCall): List<IconPreview> {
-        val loaded = loadedIconSets[call.iconSet]
+        val key = PreviewDataKey(call.iconSet, call.iconSet.previewId(call.iconSetVersion))
+        val loaded = loadedIconSets[key]
         if (loaded == null) {
-            requestLoad(call.iconSet)
+            requestLoad(key)
             return emptyList()
         }
 
@@ -110,38 +118,38 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
         }
     }
 
-    private fun requestLoad(iconSet: SilkIconSet) {
+    private fun requestLoad(key: PreviewDataKey) {
         // Only load once per session (download failures are retried inside the load itself)
-        if (!requestedIconSets.add(iconSet)) return
+        if (!requestedIconSets.add(key)) return
 
         coroutineScope.launch(Dispatchers.IO) {
             if (localDataDir != null) {
-                load(iconSet, localDataDir.resolve("${iconSet.id}.bin"))?.let { publish(iconSet, it) }
+                load(key, localDataDir.resolve("${key.id}.bin"))?.let { publish(key, it) }
                 return@launch
             }
 
             // Use the cached copy right away, as the network may be slow (or unavailable). If the format changed,
             // `load` will reject it.
-            val cachedFile = cacheDir.resolve("${iconSet.id}.bin")
-            if (cachedFile.exists()) load(iconSet, cachedFile)?.let { publish(iconSet, it) }
-            if (updateCache(iconSet, cachedFile)) load(iconSet, cachedFile)?.let { publish(iconSet, it) }
+            val cachedFile = cacheDir.resolve("${key.id}.bin")
+            if (cachedFile.exists()) load(key, cachedFile)?.let { publish(key, it) }
+            if (updateCache(key, cachedFile)) load(key, cachedFile)?.let { publish(key, it) }
         }
     }
 
-    private fun publish(iconSet: SilkIconSet, loaded: LoadedIconSet) {
-        loadedIconSets[iconSet] = loaded
+    private fun publish(key: PreviewDataKey, loaded: LoadedIconSet) {
+        loadedIconSets[key] = loaded
         ProjectManager.getInstance().openProjects
             .filter { !it.isDisposed }
             .forEach { DaemonCodeAnalyzer.getInstance(it).restart("Silk icon previews loaded") }
     }
 
     /**
-     * Downloads the icon set into [cachedFile] if it's missing or out of date, returning true if it did.
+     * Downloads the data for [key] into [cachedFile] if it's missing or out of date, returning true if it did.
      *
-     * This waits until the remote manifest and the icon set can be downloaded, e.g. while offline.
+     * This waits until the remote manifest and the data can be downloaded, e.g. while offline.
      */
-    private suspend fun updateCache(iconSet: SilkIconSet, cachedFile: Path): Boolean {
-        val entry = remoteManifest.await()?.get(iconSet.id) ?: return false
+    private suspend fun updateCache(key: PreviewDataKey, cachedFile: Path): Boolean {
+        val entry = remoteManifest.await()?.get(key.id) ?: return false
         return try {
             if (cachedFile.exists() && cachedFile.readBytes().sha256() == entry.sha256) return false
 
@@ -151,7 +159,7 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
             cachedFile.writeBytesAtomically(bytes)
             true
         } catch (e: IOException) {
-            logger.info("Could not update icon previews for ${iconSet.id}", e)
+            logger.info("Could not update icon previews for ${key.id}", e)
             false
         }
     }
@@ -175,9 +183,9 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
         }
     }
 
-    private fun load(iconSet: SilkIconSet, file: Path): LoadedIconSet? {
+    private fun load(key: PreviewDataKey, file: Path): LoadedIconSet? {
         return try {
-            index(iconSet, file.inputStream().buffered().use { IconPreviewFormat.read(iconSet.id, it) })
+            index(key.iconSet, file.inputStream().buffered().use { IconPreviewFormat.read(key.id, it) })
         } catch (e: Exception) {
             logger.warn("Could not load icon previews from $file", e)
             null
@@ -186,7 +194,7 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
 
     /** Indexes [data] by the names of the functions Kobweb generates for its icons, which is how calls find them. */
     private fun index(iconSet: SilkIconSet, data: PreviewIconSet): LoadedIconSet {
-        val namer = iconSet.model.methodNamer
+        val namer = iconSet.wrapped.methodNamer
         return LoadedIconSet(
             styles = data.styles.associate { style -> style.id to style.icons.associateBy { namer.nameFor(it.name) } },
             renames = data.renames.entries.associate { (from, to) -> namer.nameFor(from) to namer.nameFor(to) },
@@ -196,15 +204,18 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
     /**
      * Use [data] for [iconSet] instead of downloading it, until [parentDisposable] is disposed.
      *
+     * The data's ID says which version of the set it's for (see `SilkIconSet.previewId`), e.g. "fa7".
+     *
      * This lets tests provide icons synchronously, without touching the network.
      */
     @TestOnly
     fun useIconSetForTests(iconSet: SilkIconSet, data: PreviewIconSet, parentDisposable: Disposable) {
-        requestedIconSets.add(iconSet)
-        loadedIconSets[iconSet] = index(iconSet, data)
+        val key = PreviewDataKey(iconSet, data.id)
+        requestedIconSets.add(key)
+        loadedIconSets[key] = index(iconSet, data)
         Disposer.register(parentDisposable) {
-            loadedIconSets.remove(iconSet)
-            requestedIconSets.remove(iconSet)
+            loadedIconSets.remove(key)
+            requestedIconSets.remove(key)
         }
     }
 }

@@ -24,7 +24,7 @@ class PreviewIconStyle(val id: String, val icons: List<IconShape>)
 /**
  * A collection of icons, like Font Awesome or Material Symbols, in one or more styles.
  *
- * @property id The icon set's ID, e.g. "fa" or "ms". Not to be confused with its styles' IDs (e.g. "fas" or "mso").
+ * @property id The icon set's ID, e.g. "fa7" or "ms". Not to be confused with its styles' IDs (e.g. "fas" or "mso").
  *   This is also the name of the set's data file (e.g. "fa.bin") and its key in the manifest.
  * @property renames Old names of renamed (deprecated) icons mapped to their current names, since existing code may
  *   still call the old ones.

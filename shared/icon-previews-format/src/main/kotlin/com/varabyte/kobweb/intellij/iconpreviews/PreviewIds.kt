@@ -4,9 +4,13 @@ import com.varabyte.kobweb.icons.model.fa.FaIconSet
 import com.varabyte.kobweb.icons.model.material.MdiIconSet
 import com.varabyte.kobweb.icons.model.material.MsIconSet
 
-// The style IDs in icon preview data. These are short names that only the plugin made up and cares about. If they
-// happen to match codes used by upstream icon sets, that's fine, but they don't need to stay in sync. They can't
+// The set and style IDs in icon preview data. These are short names that only the plugin made up and cares about. If
+// they happen to match codes used by upstream icon sets, that's fine, but they don't need to stay in sync. They can't
 // change, though, since older plugin versions read the same data.
+
+/** The ID of Font Awesome's [major] version, e.g. "fa7". Each major version has its own data, as their icons differ. */
+@Suppress("UnusedReceiverParameter") // Receiver used for scoping
+fun FaIconSet.previewId(major: Int): String = "fa$major"
 
 val FaIconSet.Style.previewId: String
     get() = when (this) {

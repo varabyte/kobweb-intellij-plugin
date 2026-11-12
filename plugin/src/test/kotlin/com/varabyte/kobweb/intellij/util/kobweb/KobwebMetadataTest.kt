@@ -170,4 +170,24 @@ class KobwebMetadataTest {
         assertThat(Json.readKobwebBackendMetadata("not json")).isNull()
         assertThat(Json.readKobwebBackendMetadata("[]")).isNull()
     }
+
+    @Test
+    fun readIconSetMetadata() {
+        val metadata = Json.readKobwebIconSetMetadata(
+            """
+            { "id": "fa", "version": "7.1.0", "stylesheet": "https://example.com/fa.css" }
+            """.trimIndent()
+        )!!
+
+        assertThat(metadata.id).isEqualTo("fa")
+        assertThat(metadata.version).isEqualTo("7.1.0")
+    }
+
+    @Test
+    fun readMalformedIconSetMetadata() {
+        assertThat(Json.readKobwebIconSetMetadata("not json")).isNull()
+        assertThat(Json.readKobwebIconSetMetadata("[]")).isNull()
+        assertThat(Json.readKobwebIconSetMetadata("""{ "version": "7.1.0" }""")).isNull()
+        assertThat(Json.readKobwebIconSetMetadata("""{ "id": "fa" }""")).isNull()
+    }
 }

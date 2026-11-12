@@ -21,7 +21,7 @@ class SilkIconLineMarkerProviderTest : KobwebLineMarkerTestBase() {
         IconPreviewService.instance.useIconSetForTests(
             SilkIconSet.FONT_AWESOME,
             PreviewIconSet(
-                "fa",
+                "fa6",
                 listOf(
                     PreviewIconStyle("far", icons("square")),
                     PreviewIconStyle("fas", icons("square", "house")),
@@ -74,7 +74,7 @@ class SilkIconLineMarkerProviderTest : KobwebLineMarkerTestBase() {
 
             @Composable
             fun SomePage() {
-                FaIcon("square", Modifier) // Helper function, not an icon
+                FaIcon("square", Modifier) // Core function, not an icon
                 FaSquareLookalike() // Not from Kobweb
                 FaUser() // Real icon, but missing from the preview (test) data
             }
@@ -123,8 +123,39 @@ class SilkIconLineMarkerProviderTest : KobwebLineMarkerTestBase() {
         )
     }
 
-    fun testGutterIconNotShownForMdiIconHelper() {
-        // An icon named "icon" would match `MdiIcon` if the helper were mistaken for an icon
+    fun testGutterIconUsesFontAwesome6WithoutIconSetMetadata() {
+        // The tests depend on an older `silk-icons-fa`, from before Kobweb recorded which Font Awesome version its
+        // artifacts wrap, so its icons are FA 6's (which only has "square" in this test data)
+        IconPreviewService.instance.useIconSetForTests(
+            SilkIconSet.FONT_AWESOME,
+            PreviewIconSet(
+                "fa7",
+                listOf(
+                    PreviewIconStyle("fas", listOf(IconShape("house", 1f, Path2D.Float(Rectangle2D.Float(0f, 0f, 1f, 1f))))),
+                ),
+            ),
+            testRootDisposable,
+        )
+
+        doTest(
+            """
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.silk.components.icons.fa.*
+
+            @Composable
+            fun SomePage() {
+                FaSquare() $GUTTER_TAG
+            }
+            """.trimIndent(),
+            acceptLineMarker = { isIconPreview(it.lineMarkerTooltip) },
+            assertLineMarker = { _, marker ->
+                assertThat(marker.lineMarkerTooltip).isEqualTo("Font Awesome: square (outline)")
+            }
+        )
+    }
+
+    fun testGutterIconNotShownForMdiCoreFunction() {
+        // An icon named "icon" would match `MdiIcon` if the core function were mistaken for an icon
         IconPreviewService.instance.useIconSetForTests(
             SilkIconSet.MATERIAL_ICONS,
             PreviewIconSet(
@@ -157,7 +188,7 @@ class SilkIconLineMarkerProviderTest : KobwebLineMarkerTestBase() {
 
             @Composable
             fun SomePage() {
-                MdiIcon("home", Modifier) // Helper function, not an icon
+                MdiIcon("home", Modifier) // Core function, not an icon
             }
             """.trimIndent(),
             acceptLineMarker = { it.lineMarkerTooltip?.startsWith(SilkIconSet.MATERIAL_ICONS.displayName) == true },

@@ -1,6 +1,10 @@
 package com.varabyte.kobweb.intellij.util.kobweb.silk
 
 import com.intellij.openapi.roots.ProjectFileIndex
+import com.intellij.psi.PsiElement
+import com.intellij.psi.util.CachedValueProvider
+import com.intellij.psi.util.CachedValuesManager
+import com.intellij.util.text.SemVer
 import com.varabyte.kobweb.icons.model.IconSet
 import com.varabyte.kobweb.icons.model.fa.FaIconSet
 import com.varabyte.kobweb.icons.model.lucide.LucideIconSet
@@ -8,6 +12,8 @@ import com.varabyte.kobweb.icons.model.material.MdiIconSet
 import com.varabyte.kobweb.icons.model.material.MsIconSet
 import com.varabyte.kobweb.intellij.iconpreviews.previewId
 import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_REPO_URL
+import com.varabyte.kobweb.intellij.util.kobweb.readKobwebIconSetMetadata
+import com.varabyte.kobweb.intellij.util.psi.containingKlib
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.resolution.successfulFunctionCallOrNull
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
@@ -100,18 +106,20 @@ private fun googleFontsIconUrl(iconSet: String, family: String, tab: String, ico
 /**
  * The icon sets provided by Kobweb's `silk-icons-*` modules.
  *
- * @property id The icon set's ID in icon preview data. This intentionally matches Kobweb's own naming for the set (e.g.
- *   `silk-icons-fa` and the `...icons.fa` package), which [packageName] is derived from.
- * @property model The upstream icon set, which Kobweb's codegen names the icon functions after.
+ * @property id Kobweb's ID for the set, e.g. "fa" for Font Awesome. Kobweb also uses this as the subpackage that
+ *   generated icon bindings live under.
+ * @property wrapped The upstream icon set that Kobweb wraps, which its codegen names the icon functions after.
  * @property styles Ordered by preference, used when a call doesn't specify a style (or specifies one the icon doesn't
  *   support). This mirrors the defaults of the functions Kobweb generates.
- * @property helperFunctions Functions in the icon package that share [functionPrefix] but aren't icons themselves.
+ * @property coreFunctions The general functions that every specific icon function delegates to, e.g.
+ *   `FaSquare` calls core function `FaIcon("square")`. Like the icon functions, they share [functionPrefix], but as
+ *   they don't render any one specific icon, calls to them get no preview.
  */
 enum class SilkIconSet(
     val id: String,
-    val model: IconSet,
+    val wrapped: IconSet,
     val styles: List<SilkIconStyle>,
-    val helperFunctions: Set<String> = emptySet(),
+    val coreFunctions: Set<String> = emptySet(),
 ) {
     FONT_AWESOME(
         "fa", FaIconSet,
@@ -122,7 +130,7 @@ enum class SilkIconSet(
             SilkIconStyle(FaIconSet.Style.SOLID, "SOLID", "FILLED"),
             SilkIconStyle(FaIconSet.Style.BRANDS),
         ),
-        helperFunctions = setOf("FaIcon", "FaBrandIcon"),
+        coreFunctions = setOf("FaIcon", "FaBrandIcon"),
     ),
     MATERIAL_ICONS(
         "mdi", MdiIconSet,
@@ -133,7 +141,7 @@ enum class SilkIconSet(
             SilkIconStyle(MdiIconSet.Style.SHARP, "SHARP"),
             SilkIconStyle(MdiIconSet.Style.TWO_TONED, "TWO_TONED"),
         ),
-        helperFunctions = setOf("MdiIcon"),
+        coreFunctions = setOf("MdiIcon"),
     ),
     MATERIAL_SYMBOLS(
         "ms", MsIconSet,
@@ -142,22 +150,31 @@ enum class SilkIconSet(
             SilkIconStyle(MsIconSet.Style.ROUNDED, "ROUNDED"),
             SilkIconStyle(MsIconSet.Style.SHARP, "SHARP"),
         ),
-        helperFunctions = setOf("MsIcon"),
+        coreFunctions = setOf("MsIcon"),
     ),
     LUCIDE(
         "lucide", LucideIconSet,
         listOf(SilkIconStyle.unstyled("lucide") { iconName -> "https://lucide.dev/icons/$iconName" }),
     );
 
-    val displayName get() = model.displayName
+    val displayName get() = wrapped.displayName
     val packageName = FqName("com.varabyte.kobweb.silk.components.icons.$id")
-    val functionPrefix get() = model.methodNamer.prefix
+    val functionPrefix get() = wrapped.methodNamer.prefix
+
+    /** The ID in icon preview data of [version] of this set (see [SilkIconCall.iconSetVersion]), e.g. "fa7". */
+    fun previewId(version: SemVer?): String = when (this) {
+        // Kobweb only records the version as of 0.25.2, and wrapped Font Awesome 6 before then
+        FONT_AWESOME -> FaIconSet.previewId(version?.major ?: 6)
+        else -> id
+    }
 }
 
 /**
  * A call to one of the icon functions Kobweb generates, e.g. `FaHouse(style = FaIconStyle.SOLID)`.
  *
  * @property functionName The name of the called function, e.g. "FaPrintShop".
+ * @property iconSetVersion The upstream version of the icon set that the called function was generated from, e.g.
+ *   6.5.2, or null if unknown (e.g. Kobweb only records it as of 0.25.2).
  * @property styleArgument What, if anything, was passed in for the `style` parameter.
  * @property styleEnum The enum the called function's `style` parameter takes, or null if it doesn't have one
  *   (Kobweb only generates one for icons that come in more than one style). This comes from the function itself rather
@@ -168,6 +185,7 @@ enum class SilkIconSet(
 class SilkIconCall(
     val iconSet: SilkIconSet,
     val functionName: String,
+    val iconSetVersion: SemVer?,
     val styleArgument: StyleArgument,
     val styleEnum: StyleEnum?,
     val parameterNames: Map<KtValueArgument, Name>,
@@ -217,7 +235,7 @@ fun KtCallExpression.asSilkIconCall(): SilkIconCall? = with(kaSession) {
 
     val iconSet = SilkIconSet.entries.find { it.packageName == callableId.packageName } ?: return null
     val functionName = callableId.callableName.asString()
-    if (!functionName.startsWith(iconSet.functionPrefix) || functionName in iconSet.helperFunctions) return null
+    if (!functionName.startsWith(iconSet.functionPrefix) || functionName in iconSet.coreFunctions) return null
 
     val styleParameter = call.symbol.valueParameters.find { it.name.asString() == "style" }
     // A type alias (e.g. a deprecated old name for the enum) is already expanded to the class it stands for here
@@ -248,12 +266,24 @@ fun KtCallExpression.asSilkIconCall(): SilkIconCall? = with(kaSession) {
     SilkIconCall(
         iconSet,
         functionName,
+        iconSetVersion = call.symbol.psi?.findIconSetVersion(iconSet),
         styleArgument,
         styleEnum,
         parameterNames = call.argumentMapping.entries
             .mapNotNull { (expression, param) -> (expression.parent as? KtValueArgument)?.let { it to param.name } }
             .toMap(),
     )
+}
+
+/** The upstream version of [iconSet] that this element's artifact was generated from, if the artifact records it. */
+private fun PsiElement.findIconSetVersion(iconSet: SilkIconSet): SemVer? {
+    val file = containingFile ?: return null
+    // Cached per file, since many calls can resolve into the same one
+    val metadata = CachedValuesManager.getCachedValue(file) {
+        CachedValueProvider.Result.create(file.containingKlib?.readKobwebIconSetMetadata(), file)
+    } ?: return null
+    if (metadata.id != iconSet.id) return null
+    return SemVer.parseFromText(metadata.version)
 }
 
 /** The package of the SVG icons Silk defines in code (e.g. `ArrowBackIcon`), as opposed to its icon font modules. */

@@ -20,6 +20,9 @@ const val KOBWEB_METADATA_MODULE = "$KOBWEB_METADATA_SUBFOLDER/module.json"
 const val KOBWEB_METADATA_FRONTEND = "$KOBWEB_METADATA_SUBFOLDER/frontend.json"
 const val KOBWEB_METADATA_BACKEND = "$KOBWEB_METADATA_SUBFOLDER/backend.json"
 
+// The icon set an artifact has bindings for, e.g. in Kobweb's `silk-icons-*` artifacts
+const val KOBWEB_METADATA_ICON_SET = "$KOBWEB_METADATA_SUBFOLDER/iconset.json"
+
 // Top-level metadata files that identify what sort of Kobweb artifact this is
 const val KOBWEB_METADATA_LIBRARY = "$KOBWEB_METADATA_SUBFOLDER/library.json"
 const val KOBWEB_METADATA_WORKER = "$KOBWEB_METADATA_SUBFOLDER/worker.json"
@@ -180,4 +183,39 @@ fun Json.readKobwebBackendMetadata(text: String): KobwebBackendMetadata? {
 fun VirtualFile.readKobwebBackendMetadata(): KobwebBackendMetadata? {
     val backendFile = findFileByRelativePath(KOBWEB_METADATA_BACKEND) ?: return null
     return Json.readKobwebBackendMetadata(backendFile.contentsToByteArray().decodeToString())
+}
+
+/**
+ * The values in a [KOBWEB_METADATA_ICON_SET] file (see `IconSetMetadata` in the Kobweb codebase).
+ *
+ * @property id The ID of the icon set the artifact has bindings for, e.g. "fa".
+ * @property version The upstream version of the icon set the bindings were generated from, e.g. "6.5.2".
+ */
+class KobwebIconSetMetadata(val id: String, val version: String)
+
+/**
+ * Parses the contents of a [KOBWEB_METADATA_ICON_SET] file, returning null if it's malformed.
+ */
+fun Json.readKobwebIconSetMetadata(text: String): KobwebIconSetMetadata? {
+    return try {
+        val root = parseToJsonElement(text).jsonObject
+        KobwebIconSetMetadata(
+            id = root["id"]?.jsonPrimitive?.contentOrNull ?: return null,
+            version = root["version"]?.jsonPrimitive?.contentOrNull ?: return null,
+        )
+    } catch (_: Exception) {
+        // Malformed metadata. Shouldn't happen, but there's nothing useful we can do about it here.
+        null
+    }
+}
+
+/**
+ * Reads this artifact's [KOBWEB_METADATA_ICON_SET] file, where the receiver is the root of the artifact (e.g. a klib).
+ *
+ * Returns null if the artifact doesn't have the file (e.g. it has no icons, or Kobweb built it before 0.25.2), or it's
+ * malformed.
+ */
+fun VirtualFile.readKobwebIconSetMetadata(): KobwebIconSetMetadata? {
+    val iconSetFile = findFileByRelativePath(KOBWEB_METADATA_ICON_SET) ?: return null
+    return Json.readKobwebIconSetMetadata(iconSetFile.contentsToByteArray().decodeToString())
 }

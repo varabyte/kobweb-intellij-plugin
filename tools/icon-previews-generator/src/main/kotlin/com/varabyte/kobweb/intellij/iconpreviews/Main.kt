@@ -55,7 +55,7 @@ fun main(args: Array<String>) {
             val font = downloader.fetch(repo.fileUrl(style.fontPath(major)))
             PreviewIconStyle(style.previewId, FontIcons.extract(font, names, codepoints, missing))
         }
-        return GeneratedIconSet(PreviewIconSet("fa$major", styles), "Font Awesome $version ($repo)")
+        return GeneratedIconSet(PreviewIconSet(FaIconSet.previewId(major), styles), "Font Awesome $version ($repo)")
     }
 
     fun materialDesignIcons(): GeneratedIconSet {
