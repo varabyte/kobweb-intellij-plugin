@@ -1529,6 +1529,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
         assertThat(textOf("gradle.properties")).isEqualTo(
             """
             kotlin.code.style=official
+            org.gradle.jvmargs=-Xmx2048m
             org.gradle.caching=true
             org.gradle.configuration-cache=true
 
