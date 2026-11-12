@@ -433,6 +433,10 @@ class KobwebModuleWriter(
         const val CATALOG_NAME = "libs"
         const val CATALOG_DIR = "gradle"
         const val CATALOG_FILE_NAME = "libs.versions.toml"
+        /**
+         * The version catalog entries that Kobweb module templates need. Entries missing from a user's catalog are
+         * copied from here, and a new project's catalog starts as a copy of this file.
+         */
         const val TEMPLATE_CATALOG_RESOURCE = "/kobweb/templates/libs.versions.toml"
         const val FAVICON_RESOURCE = "/kobweb/templates/app/favicon.ico"
         val SETTINGS_FILE_NAMES = listOf("settings.gradle.kts", "settings.gradle")

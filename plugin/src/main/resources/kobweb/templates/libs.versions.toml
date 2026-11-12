@@ -1,6 +1,3 @@
-# The version catalog entries that Kobweb module templates need. Entries missing from a user's catalog are copied from
-# here, and a new project's catalog starts as a copy of this file.
-
 [versions]
 compose-html = "1.11.1"
 compose-runtime = "1.12.0"
