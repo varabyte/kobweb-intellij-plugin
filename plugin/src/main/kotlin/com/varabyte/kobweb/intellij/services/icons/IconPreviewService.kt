@@ -37,20 +37,55 @@ import kotlin.io.path.readBytes
 
 class IconPreview(val shape: IconShape, val iconSet: SilkIconSet, val style: SilkIconStyle)
 
-/**
- * Returns the preview of the icon [call] renders, i.e. in the style it requests, or else its default style.
- *
- * The receiver is expected to be the result of [IconPreviewService.findAllPreviews] for the same call.
- */
-fun List<IconPreview>.findRenderedBy(call: SilkIconCall): IconPreview? =
-    (call.styleArgument as? SilkIconCall.StyleArgument.Direct)?.let { arg -> find { it.style == arg.style } }
-        ?: firstOrNull()
+/** The result of looking up an icon's previews (see [IconPreviewService.IconSetPreviews.findAll]). */
+sealed interface IconPreviewResult {
+    /**
+     * The icon's set hasn't loaded yet.
+     *
+     * You should listen to [IconPreviewService.ICON_SET_LOADED] to be told when it has.
+     */
+    data object NotLoaded : IconPreviewResult
+
+    /** The icon's set has loaded, but it has no icon by this name. */
+    data object NotFound : IconPreviewResult
+
+    /** The icon in every style it's available in, in order of preference (so the first is its default style). */
+    class Found(val previews: List<IconPreview>) : IconPreviewResult {
+        init {
+            require(previews.isNotEmpty()) { "Found must have at least one preview" }
+        }
+    }
+}
 
 /**
- * Returns a preview of [call]'s icon in every style it's available in (see [IconPreviewService.findAllPreviews]).
+ * Previews of the icon that [call] renders, in every style it's available in, in order of preference (so the first is
+ * its default style).
  */
-fun IconPreviewService.findAllPreviews(call: SilkIconCall): List<IconPreview> =
-    findAllPreviews(call.iconSet, call.iconSetVersion, call.functionName)
+class IconCallPreviews private constructor(val call: SilkIconCall, val all: List<IconPreview>) {
+    /** The preview in the style [call] renders, i.e. the one it requests, or else its default style. */
+    val bestFit: IconPreview =
+        (call.styleArgument as? SilkIconCall.StyleArgument.Direct)
+            ?.let { arg -> all.find { it.style == arg.style } }
+            ?: all.first()
+
+    companion object {
+        /** Looks up previews of [call]'s icon, or returns null if there are none (e.g. until its icon set loads). */
+        fun find(call: SilkIconCall): IconCallPreviews? {
+            val result = IconPreviewService.instance.previewsFor(call.iconSet, call.iconSetVersion)
+                .findAll(call.functionName)
+            return (result as? IconPreviewResult.Found)?.let { IconCallPreviews(call, it.previews) }
+        }
+    }
+}
+
+/**
+ * Starts loading [iconSet]'s previews in the background, so they're likely ready by the time they're needed.
+ *
+ * This is a convenience function for [previewsFor] essentially, but it is provided for readability.
+ */
+fun IconPreviewService.startLoading(iconSet: SilkIconSet, iconSetVersion: SemVer?) {
+    previewsFor(iconSet, iconSetVersion)
+}
 
 /** Notified when [IconPreviewService] finishes loading an icon set's previews. */
 fun interface IconPreviewsListener {
@@ -67,8 +102,8 @@ private const val DATA_URL =
  * Provides outlines for Kobweb's silk icons, for previewing them in the editor.
  *
  * Icon data is downloaded on demand from the varabyte/data repo and cached in the IDE's system directory. Each icon set
- * is loaded in the background the first time one of its icons is requested; until then, [findAllPreviews] returns
- * nothing, and once it's ready, open editors are re-highlighted so their previews show up.
+ * is loaded in the background the first time its previews are requested (see [previewsFor]); once it's ready, open
+ * editors are re-highlighted so their previews show up.
  *
  * The remote manifest is checked once per IDE session, and only files whose checksums changed are downloaded again.
  * When offline, previously cached files are used while downloads are retried in the background.
@@ -114,31 +149,37 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
     private val loadedIconSets = ConcurrentHashMap<PreviewDataKey, LoadedIconSet>()
 
     /**
-     * Returns a preview of the icon that Kobweb's [functionName] function renders (e.g. "FaHouse"), in every style it's
-     * available in, in order of preference (so the first is the style used when a call doesn't request one).
-     *
-     * This is empty if the icon is unknown, or if its icon set hasn't loaded yet. Use [findRenderedBy] on the result to
-     * get the preview in the style the call actually renders.
-     *
-     * To find out when an icon set finishes loading (e.g. to repaint UI that got empty results), listen for
-     * [ICON_SET_LOADED].
-     *
-     * @param iconSetVersion The upstream version of the icon set (see [SilkIconCall.iconSetVersion]), if known.
+     * One icon set's previews, which load in the background. Get one from [previewsFor].
      */
-    fun findAllPreviews(iconSet: SilkIconSet, iconSetVersion: SemVer?, functionName: String): List<IconPreview> {
-        val key = PreviewDataKey(iconSet, iconSet.previewId(iconSetVersion))
-        val loaded = loadedIconSets[key]
-        if (loaded == null) {
-            requestLoad(key)
-            return emptyList()
-        }
+    inner class IconSetPreviews internal constructor(private val iconSet: SilkIconSet, private val dataId: String) {
+        /**
+         * Looks up previews of the icon that Kobweb's [functionName] function renders (e.g. "FaHouse"), in every style
+         * it's available in.
+         *
+         * If you already have a [SilkIconCall], use [IconCallPreviews.find] instead.
+         */
+        fun findAll(functionName: String): IconPreviewResult {
+            val loaded = loadedIconSets[PreviewDataKey(iconSet, dataId)] ?: return IconPreviewResult.NotLoaded
 
-        // An upstream set can reuse a deprecated name for a new icon, so check icons before renames
-        val isIcon = loaded.styles.values.any { functionName in it }
-        val currentName = if (isIcon) functionName else loaded.renames[functionName] ?: functionName
-        return iconSet.styles.mapNotNull { style ->
-            loaded.styles[style.id]?.get(currentName)?.let { IconPreview(it, iconSet, style) }
+            // An upstream set can reuse a deprecated name for a new icon, so check icons before renames
+            val isIcon = loaded.styles.values.any { functionName in it }
+            val currentName = if (isIcon) functionName else loaded.renames[functionName] ?: functionName
+            val previews = iconSet.styles.mapNotNull { style ->
+                loaded.styles[style.id]?.get(currentName)?.let { IconPreview(it, iconSet, style) }
+            }
+            return if (previews.isEmpty()) IconPreviewResult.NotFound else IconPreviewResult.Found(previews)
         }
+    }
+
+    /**
+     * A non-blocking call to get previews for [iconSet], which start loading in the background if not already loaded.
+     *
+     * @param iconSetVersion The wrapped model version of the icon set.
+     */
+    fun previewsFor(iconSet: SilkIconSet, iconSetVersion: SemVer?): IconSetPreviews {
+        val key = PreviewDataKey(iconSet, iconSet.previewId(iconSetVersion))
+        requestLoad(key)
+        return IconSetPreviews(iconSet, key.id)
     }
 
     private fun requestLoad(key: PreviewDataKey) {

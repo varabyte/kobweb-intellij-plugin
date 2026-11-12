@@ -46,6 +46,7 @@ import com.varabyte.kobweb.intellij.notification.KobwebNotifier
 import com.varabyte.kobweb.intellij.project.KobwebProject
 import com.varabyte.kobweb.intellij.services.icons.IconPreviewService
 import com.varabyte.kobweb.intellij.services.icons.IconPreviewsListener
+import com.varabyte.kobweb.intellij.services.icons.startLoading
 import com.varabyte.kobweb.intellij.services.project.KobwebProjectScopeService
 import com.varabyte.kobweb.intellij.services.versions.KobwebReleaseVersions
 import com.varabyte.kobweb.intellij.services.versions.KobwebReleaseVersionsService
@@ -186,8 +187,10 @@ class KobwebModuleStep(
         // Silk's icon sets are built on Silk, so they're only offered with it
         indent {
             row(bundle.message("wizard.kobweb.module.icon.set")) {
-                // Starts loading the sample icons' previews, so they're likely ready by the time users look
-                IconSetOption.IconSet.entries.forEach { it.findSamplePreviews() }
+                IconSetOption.IconSet.entries.forEach {
+                    // Prefetch, so hopefully icons will be ready before the icon dropdown is opened.
+                    IconPreviewService.instance.startLoading(it.iconSet, iconSetVersion = null)
+                }
                 comboBox(IconSetOption.entries, IconSetOption.createRenderer())
                     .bindItem(iconSetProperty)
                     .applyToComponent {

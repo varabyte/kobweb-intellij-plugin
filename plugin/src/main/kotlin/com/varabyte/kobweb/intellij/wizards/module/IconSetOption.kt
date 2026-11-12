@@ -5,6 +5,7 @@ import com.intellij.ui.dsl.listCellRenderer.listCellRenderer
 import com.intellij.util.ui.EmptyIcon
 import com.varabyte.kobweb.intellij.lineMarkers.icons.IconShapeIcon
 import com.varabyte.kobweb.intellij.services.icons.IconPreview
+import com.varabyte.kobweb.intellij.services.icons.IconPreviewResult
 import com.varabyte.kobweb.intellij.services.icons.IconPreviewService
 import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconSet
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
@@ -72,22 +73,29 @@ internal sealed interface IconSetOption {
     }
 }
 
+/** This option's icon set's previews, which start loading in the background if they haven't already. */
+internal val IconSetOption.IconSet.previews: IconPreviewService.IconSetPreviews
+    get() = IconPreviewService.instance.previewsFor(iconSet, iconSetVersion = null)
+
 /**
  * Previews of this option's [sample icons][IconSetOption.IconSet.sampleIcons], with null for each one that has no
- * preview (e.g. until the icon set's previews have loaded, which this starts if needed).
+ * preview (e.g. until the icon set's previews have loaded).
  *
  * The icons are all shown in the first style they share, if any, so they look consistent. Since each set lists its
  * outline style first (e.g. Font Awesome's regular), that's the style shown.
  */
 internal fun IconSetOption.IconSet.findSamplePreviews(): List<IconPreview?> {
     val namer = iconSet.wrapped.methodNamer
-    // With no Kobweb version to go by, Font Awesome's previews are of FA 6, the version Kobweb wrapped longest
-    val allPreviews = sampleIcons.map { name ->
-        IconPreviewService.instance.findAllPreviews(iconSet, iconSetVersion = null, namer.nameFor(name))
-    }
-    val found = allPreviews.filter { it.isNotEmpty() }
+    val previews = previews
+    val results = sampleIcons.map { name -> previews.findAll(namer.nameFor(name)) }
+    val found = results.filterIsInstance<IconPreviewResult.Found>()
     val sharedStyle = iconSet.styles.firstOrNull { style ->
-        found.all { previews -> previews.any { it.style == style } }
+        found.all { result -> result.previews.any { it.style == style } }
     }
-    return allPreviews.map { previews -> previews.find { it.style == sharedStyle } ?: previews.firstOrNull() }
+    return results.map { result ->
+        when (result) {
+            is IconPreviewResult.Found -> result.previews.find { it.style == sharedStyle } ?: result.previews.first()
+            IconPreviewResult.NotLoaded, IconPreviewResult.NotFound -> null
+        }
+    }
 }

@@ -2,7 +2,10 @@ package com.varabyte.kobweb.intellij.lineMarkers.icons
 
 import com.intellij.psi.util.PsiTreeUtil
 import com.varabyte.kobweb.intellij.iconpreviews.IconShape
-import com.varabyte.kobweb.intellij.services.icons.IconPreview
+import com.varabyte.kobweb.intellij.iconpreviews.PreviewIconSet
+import com.varabyte.kobweb.intellij.iconpreviews.PreviewIconStyle
+import com.varabyte.kobweb.intellij.services.icons.IconCallPreviews
+import com.varabyte.kobweb.intellij.services.icons.IconPreviewService
 import com.varabyte.kobweb.intellij.test.fixtures.KobwebApplicationTestCase
 import com.varabyte.kobweb.intellij.test.util.analyzeOnEdt
 import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconSet
@@ -31,13 +34,20 @@ class SilkIconPopupTest : KobwebApplicationTestCase() {
             .single { it.calleeExpression?.text == "FaSquare" }
         val iconCall = analyzeOnEdt(call) { call.asSilkIconCall() } ?: error("Not an icon call")
 
-        // Tests don't actually check this, but the popup needs at least one. So we create a stand-in placeholder.
-        val preview = IconPreview(
-            IconShape("square", 1f, Path2D.Float(Rectangle2D.Float(0f, 0f, 1f, 1f))),
+        // Tests don't actually check the preview, but the popup needs one. So we load a stand-in placeholder.
+        val square = IconShape("square", 1f, Path2D.Float(Rectangle2D.Float(0f, 0f, 1f, 1f)))
+        IconPreviewService.instance.useIconSetForTests(
             SilkIconSet.FONT_AWESOME,
-            faStyle("OUTLINE"),
+            PreviewIconSet(
+                "fa6",
+                listOf(
+                    PreviewIconStyle("far", listOf(square)),
+                ),
+            ),
+            testRootDisposable,
         )
-        SilkIconPopup(call, iconCall, listOf(preview)).setStyle(targetStyle)
+        val previews = IconCallPreviews.find(iconCall) ?: error("No previews")
+        SilkIconPopup(call, previews).setStyle(targetStyle)
 
         myFixture.checkResult(expected)
     }

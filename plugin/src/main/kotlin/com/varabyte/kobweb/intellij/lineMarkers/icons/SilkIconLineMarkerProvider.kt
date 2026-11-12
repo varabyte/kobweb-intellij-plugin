@@ -13,9 +13,7 @@ import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.ui.awt.RelativePoint
 import com.varabyte.kobweb.intellij.iconpreviews.IconShape
-import com.varabyte.kobweb.intellij.services.icons.IconPreviewService
-import com.varabyte.kobweb.intellij.services.icons.findAllPreviews
-import com.varabyte.kobweb.intellij.services.icons.findRenderedBy
+import com.varabyte.kobweb.intellij.services.icons.IconCallPreviews
 import com.varabyte.kobweb.intellij.util.kobweb.isInKobwebSource
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconSet
@@ -93,8 +91,8 @@ class SilkIconLineMarkerProvider : LineMarkerProviderDescriptor() {
     /** A line marker for an icon from one of Silk's icon font modules, e.g. `FaHouse()`. */
     private fun createFontIconLineMarker(element: LeafPsiElement, call: KtCallExpression): LineMarkerInfo<*>? {
         val iconCall = analyze(call) { call.asSilkIconCall() } ?: return null
-        val allPreviews = IconPreviewService.instance.findAllPreviews(iconCall)
-        val preview = allPreviews.findRenderedBy(iconCall) ?: return null
+        val previews = IconCallPreviews.find(iconCall) ?: return null
+        val preview = previews.bestFit
         val description = buildString {
             append("${iconCall.iconSet.displayName}: ${preview.shape.name}")
             // Only mention the style if the user can choose it, e.g. not for icons that only come in one style
@@ -107,7 +105,7 @@ class SilkIconLineMarkerProvider : LineMarkerProviderDescriptor() {
             IconShapeIcon(preview.shape),
             /* tooltipProvider = */ { description },
             /* navHandler = */ { mouseEvent, _ ->
-                SilkIconPopup(call, iconCall, allPreviews).show(RelativePoint(mouseEvent))
+                SilkIconPopup(call, previews).show(RelativePoint(mouseEvent))
             },
             GutterIconRenderer.Alignment.LEFT,
             /* accessibleNameProvider = */ { description },

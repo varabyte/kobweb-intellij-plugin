@@ -15,7 +15,7 @@ import com.intellij.ui.dsl.gridLayout.UnscaledGaps
 import com.intellij.util.ui.JBUI
 import com.varabyte.kobweb.intellij.iconpreviews.IconShape
 import com.varabyte.kobweb.intellij.services.icons.IconPreview
-import com.varabyte.kobweb.intellij.services.icons.findRenderedBy
+import com.varabyte.kobweb.intellij.services.icons.IconCallPreviews
 import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconCall
 import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconStyle
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
@@ -36,18 +36,11 @@ private const val PREVIEW_SIZE = 16
  * Choosing a style updates the call's `style` argument, where "Default" removes it. There's also a link to the icon's
  * page on its project's website.
  *
- * @param previews The icon in every style it's available in, in order of preference (see
- *   [com.varabyte.kobweb.intellij.services.icons.IconPreviewService.findAllPreviews]). It is guaranteed to have at
- *   least one element.
+ * @param iconPreviews Previews of the icon that [call] renders.
  */
-class SilkIconPopup(
-    private val call: KtCallExpression,
-    private val iconCall: SilkIconCall,
-    private val previews: List<IconPreview>,
-) {
-    init {
-        check(previews.isNotEmpty()) { "SilkIconPopup must have at least one preview; got an empty list." }
-    }
+class SilkIconPopup(private val call: KtCallExpression, private val iconPreviews: IconCallPreviews) {
+    private val iconCall get() = iconPreviews.call
+    private val previews get() = iconPreviews.all
 
     // Captured up front, as reading PSI requires a read action, which the popup's Swing listeners don't run in
     private val file = ReadAction.compute<PsiFile, RuntimeException> { call.containingFile }
@@ -56,7 +49,7 @@ class SilkIconPopup(
     fun show(point: RelativePoint) {
         val defaultPreview = previews.first()
         // Tracks the selected radio button, so "Open in browser" shows the style the user is currently looking at
-        var currentPreview = previews.findRenderedBy(iconCall) ?: defaultPreview
+        var currentPreview = iconPreviews.bestFit
         // If the style comes from an expression (e.g. a variable), we can't tell what it is, and shouldn't overwrite it
         val styleIsEditable = iconCall.styleArgument !is SilkIconCall.StyleArgument.Indirect
 
