@@ -14,6 +14,7 @@ import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.ui.awt.RelativePoint
 import com.varabyte.kobweb.intellij.iconpreviews.IconShape
 import com.varabyte.kobweb.intellij.services.icons.IconPreviewService
+import com.varabyte.kobweb.intellij.services.icons.findAllPreviews
 import com.varabyte.kobweb.intellij.services.icons.findRenderedBy
 import com.varabyte.kobweb.intellij.util.kobweb.isInKobwebSource
 import com.varabyte.kobweb.intellij.util.kobweb.isInReadableKobwebProject

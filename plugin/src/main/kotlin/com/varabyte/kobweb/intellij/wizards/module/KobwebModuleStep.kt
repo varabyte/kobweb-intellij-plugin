@@ -6,7 +6,9 @@ import com.intellij.ide.wizard.NewProjectWizardBaseStep
 import com.intellij.ide.wizard.NewProjectWizardStep
 import com.intellij.ide.wizard.runAfterOpened
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.EDT
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.externalSystem.ExternalSystemModulePropertyManager
@@ -37,12 +39,13 @@ import com.intellij.ui.dsl.builder.bindItem
 import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.bindText
 import com.intellij.ui.dsl.builder.columns
-import com.intellij.ui.dsl.listCellRenderer.textListCellRenderer
 import com.intellij.ui.layout.ValidationInfoBuilder
 import com.intellij.util.ui.JBUI
 import com.varabyte.kobweb.intellij.model.KobwebProjectType
 import com.varabyte.kobweb.intellij.notification.KobwebNotifier
 import com.varabyte.kobweb.intellij.project.KobwebProject
+import com.varabyte.kobweb.intellij.services.icons.IconPreviewService
+import com.varabyte.kobweb.intellij.services.icons.IconPreviewsListener
 import com.varabyte.kobweb.intellij.services.project.KobwebProjectScopeService
 import com.varabyte.kobweb.intellij.services.versions.KobwebReleaseVersions
 import com.varabyte.kobweb.intellij.services.versions.KobwebReleaseVersionsService
@@ -83,7 +86,7 @@ class KobwebModuleStep(
     internal val moduleNameProperty get() = baseStep.nameProperty
     internal val groupProperty = propertyGraph.lazyProperty(::suggestGroup)
     internal val useSilkProperty = propertyGraph.property(true)
-    private val iconSetProperty = propertyGraph.property(IconSetOption.NONE)
+    private val iconSetProperty = propertyGraph.property<IconSetOption>(IconSetOption.None)
     internal val useServerProperty = propertyGraph.property(false)
     internal val useMarkdownProperty = propertyGraph.property(true)
     internal val generateReadmeProperty =
@@ -183,8 +186,18 @@ class KobwebModuleStep(
         // Silk's icon sets are built on Silk, so they're only offered with it
         indent {
             row(bundle.message("wizard.kobweb.module.icon.set")) {
-                comboBox(IconSetOption.entries, textListCellRenderer { it?.displayName })
+                // Starts loading the sample icons' previews, so they're likely ready by the time users look
+                IconSetOption.IconSet.entries.forEach { it.findSamplePreviews() }
+                comboBox(IconSetOption.entries, IconSetOption.createRenderer())
                     .bindItem(iconSetProperty)
+                    .applyToComponent {
+                        val listener = IconPreviewsListener {
+                            ApplicationManager.getApplication()
+                                .invokeLater({ repaint() }, ModalityState.stateForComponent(this))
+                        }
+                        ApplicationManager.getApplication().messageBus.connect(context.disposable)
+                            .subscribe(IconPreviewService.ICON_SET_LOADED, listener)
+                    }
             }.enabledIf(useSilkProperty)
         }
         row {
@@ -286,7 +299,7 @@ class KobwebModuleStep(
 
     /** The icon set chosen in [featureRows], or null if none was chosen or Silk isn't used. */
     internal val selectedIconSet: SilkIconSet?
-        get() = if (useSilkProperty.get()) iconSetProperty.get().iconSet else null
+        get() = if (useSilkProperty.get()) (iconSetProperty.get() as? IconSetOption.IconSet)?.iconSet else null
 
     /** The modules chosen in [dependentsRow]. */
     internal val selectedDependents: List<DependentModule>
@@ -538,22 +551,6 @@ class KobwebModuleStep(
         private const val GENERATE_README_PROPERTY_NAME = "kobweb.wizard.module.generateReadme"
         private const val ADD_SAMPLE_CODE_PROPERTY_NAME = "kobweb.wizard.module.addSampleCode"
     }
-}
-
-/**
- * The icon sets that new modules can depend on.
- *
- * Material Icons (`mdi`) is left out on purpose: Google has replaced it with Material Symbols, which new code should
- * use instead.
- */
-private enum class IconSetOption(val iconSet: SilkIconSet?) {
-    NONE(null),
-    FONT_AWESOME(SilkIconSet.FONT_AWESOME),
-    MATERIAL_SYMBOLS(SilkIconSet.MATERIAL_SYMBOLS),
-    LUCIDE(SilkIconSet.LUCIDE);
-
-    val displayName: String
-        get() = iconSet?.displayName ?: UxGlobals.textBundle.message("wizard.kobweb.module.icon.set.none")
 }
 
 /**

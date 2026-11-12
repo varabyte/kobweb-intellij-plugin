@@ -4,12 +4,15 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.util.Disposer
+import com.intellij.util.messages.Topic
+import com.intellij.util.text.SemVer
 import com.varabyte.kobweb.intellij.iconpreviews.IconPreviewFormat
 import com.varabyte.kobweb.intellij.iconpreviews.IconShape
 import com.varabyte.kobweb.intellij.iconpreviews.PreviewIconSet
@@ -43,6 +46,18 @@ fun List<IconPreview>.findRenderedBy(call: SilkIconCall): IconPreview? =
     (call.styleArgument as? SilkIconCall.StyleArgument.Direct)?.let { arg -> find { it.style == arg.style } }
         ?: firstOrNull()
 
+/**
+ * Returns a preview of [call]'s icon in every style it's available in (see [IconPreviewService.findAllPreviews]).
+ */
+fun IconPreviewService.findAllPreviews(call: SilkIconCall): List<IconPreview> =
+    findAllPreviews(call.iconSet, call.iconSetVersion, call.functionName)
+
+/** Notified when [IconPreviewService] finishes loading an icon set's previews. */
+fun interface IconPreviewsListener {
+    /** Called on a background thread. */
+    fun iconSetLoaded()
+}
+
 // The data lives in a folder per format version, so older versions of this plugin can keep using data in the format
 // they understand
 private const val DATA_URL =
@@ -62,6 +77,9 @@ private const val DATA_URL =
 class IconPreviewService(private val coroutineScope: CoroutineScope) {
     companion object {
         val instance get() = service<IconPreviewService>()
+
+        @Topic.AppLevel
+        val ICON_SET_LOADED = Topic(IconPreviewsListener::class.java)
     }
 
     private class LoadedIconSet(
@@ -96,14 +114,19 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
     private val loadedIconSets = ConcurrentHashMap<PreviewDataKey, LoadedIconSet>()
 
     /**
-     * Returns a preview of [call]'s icon in every style it's available in, in order of preference (so the first is the
-     * style used when the call doesn't request one).
+     * Returns a preview of the icon that Kobweb's [functionName] function renders (e.g. "FaHouse"), in every style it's
+     * available in, in order of preference (so the first is the style used when a call doesn't request one).
      *
      * This is empty if the icon is unknown, or if its icon set hasn't loaded yet. Use [findRenderedBy] on the result to
      * get the preview in the style the call actually renders.
+     *
+     * To find out when an icon set finishes loading (e.g. to repaint UI that got empty results), listen for
+     * [ICON_SET_LOADED].
+     *
+     * @param iconSetVersion The upstream version of the icon set (see [SilkIconCall.iconSetVersion]), if known.
      */
-    fun findAllPreviews(call: SilkIconCall): List<IconPreview> {
-        val key = PreviewDataKey(call.iconSet, call.iconSet.previewId(call.iconSetVersion))
+    fun findAllPreviews(iconSet: SilkIconSet, iconSetVersion: SemVer?, functionName: String): List<IconPreview> {
+        val key = PreviewDataKey(iconSet, iconSet.previewId(iconSetVersion))
         val loaded = loadedIconSets[key]
         if (loaded == null) {
             requestLoad(key)
@@ -111,10 +134,10 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
         }
 
         // An upstream set can reuse a deprecated name for a new icon, so check icons before renames
-        val isIcon = loaded.styles.values.any { call.functionName in it }
-        val functionName = if (isIcon) call.functionName else loaded.renames[call.functionName] ?: call.functionName
-        return call.iconSet.styles.mapNotNull { style ->
-            loaded.styles[style.id]?.get(functionName)?.let { IconPreview(it, call.iconSet, style) }
+        val isIcon = loaded.styles.values.any { functionName in it }
+        val currentName = if (isIcon) functionName else loaded.renames[functionName] ?: functionName
+        return iconSet.styles.mapNotNull { style ->
+            loaded.styles[style.id]?.get(currentName)?.let { IconPreview(it, iconSet, style) }
         }
     }
 
@@ -138,6 +161,7 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
 
     private fun publish(key: PreviewDataKey, loaded: LoadedIconSet) {
         loadedIconSets[key] = loaded
+        ApplicationManager.getApplication().messageBus.syncPublisher(ICON_SET_LOADED).iconSetLoaded()
         ProjectManager.getInstance().openProjects
             .filter { !it.isDisposed }
             .forEach { DaemonCodeAnalyzer.getInstance(it).restart("Silk icon previews loaded") }
