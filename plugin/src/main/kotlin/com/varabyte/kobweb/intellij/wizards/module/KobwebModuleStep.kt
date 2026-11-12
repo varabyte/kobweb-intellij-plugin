@@ -33,9 +33,11 @@ import com.intellij.ui.components.DropDownLink
 import com.intellij.ui.dsl.builder.COLUMNS_MEDIUM
 import com.intellij.ui.dsl.builder.Panel
 import com.intellij.ui.dsl.builder.TopGap
+import com.intellij.ui.dsl.builder.bindItem
 import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.bindText
 import com.intellij.ui.dsl.builder.columns
+import com.intellij.ui.dsl.listCellRenderer.textListCellRenderer
 import com.intellij.ui.layout.ValidationInfoBuilder
 import com.intellij.util.ui.JBUI
 import com.varabyte.kobweb.intellij.model.KobwebProjectType
@@ -46,6 +48,7 @@ import com.varabyte.kobweb.intellij.services.versions.KobwebReleaseVersions
 import com.varabyte.kobweb.intellij.services.versions.KobwebReleaseVersionsService
 import com.varabyte.kobweb.intellij.util.idea.wizard.DeferredSetupStep
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
+import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconSet
 import com.varabyte.kobweb.intellij.util.kotlin.isPackageSegment
 import com.varabyte.kobweb.intellij.util.kotlin.toPackageSegment
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
@@ -80,6 +83,7 @@ class KobwebModuleStep(
     internal val moduleNameProperty get() = baseStep.nameProperty
     internal val groupProperty = propertyGraph.lazyProperty(::suggestGroup)
     internal val useSilkProperty = propertyGraph.property(true)
+    private val iconSetProperty = propertyGraph.property(IconSetOption.NONE)
     internal val useServerProperty = propertyGraph.property(false)
     internal val useMarkdownProperty = propertyGraph.property(true)
     internal val generateReadmeProperty =
@@ -175,6 +179,13 @@ class KobwebModuleStep(
             checkBox(bundle.message("wizard.kobweb.module.use.silk"))
                 .bindSelected(useSilkProperty)
                 .comment(bundle.message("wizard.kobweb.module.use.silk.comment"))
+        }
+        // Silk's icon sets are built on Silk, so they're only offered with it
+        indent {
+            row(bundle.message("wizard.kobweb.module.icon.set")) {
+                comboBox(IconSetOption.entries, textListCellRenderer { it?.displayName })
+                    .bindItem(iconSetProperty)
+            }.enabledIf(useSilkProperty)
         }
         row {
             checkBox(bundle.message("wizard.kobweb.module.use.server"))
@@ -272,6 +283,10 @@ class KobwebModuleStep(
             .setRequestFocus(true)
             .createPopup()
     }
+
+    /** The icon set chosen in [featureRows], or null if none was chosen or Silk isn't used. */
+    internal val selectedIconSet: SilkIconSet?
+        get() = if (useSilkProperty.get()) iconSetProperty.get().iconSet else null
 
     /** The modules chosen in [dependentsRow]. */
     internal val selectedDependents: List<DependentModule>
@@ -523,6 +538,22 @@ class KobwebModuleStep(
         private const val GENERATE_README_PROPERTY_NAME = "kobweb.wizard.module.generateReadme"
         private const val ADD_SAMPLE_CODE_PROPERTY_NAME = "kobweb.wizard.module.addSampleCode"
     }
+}
+
+/**
+ * The icon sets that new modules can depend on.
+ *
+ * Material Icons (`mdi`) is left out on purpose: Google has replaced it with Material Symbols, which new code should
+ * use instead.
+ */
+private enum class IconSetOption(val iconSet: SilkIconSet?) {
+    NONE(null),
+    FONT_AWESOME(SilkIconSet.FONT_AWESOME),
+    MATERIAL_SYMBOLS(SilkIconSet.MATERIAL_SYMBOLS),
+    LUCIDE(SilkIconSet.LUCIDE);
+
+    val displayName: String
+        get() = iconSet?.displayName ?: UxGlobals.textBundle.message("wizard.kobweb.module.icon.set.none")
 }
 
 /**

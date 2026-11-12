@@ -6,6 +6,7 @@ import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconSet
 import com.varabyte.truthish.assertThat
 
 class KobwebModuleWriterTest : BasePlatformTestCase() {
@@ -56,6 +57,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
                 group = "com.example.mysite",
                 title = "My Site",
                 useSilk = true,
+                iconSet = SilkIconSet.FONT_AWESOME,
                 useServer = false,
                 useMarkdown = true,
                 generateReadme = true,
@@ -294,6 +296,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
                 group = "com.example.mysite",
                 title = "My Site",
                 useSilk = false,
+                iconSet = null,
                 useServer = false,
                 useMarkdown = true,
                 generateReadme = false,
@@ -364,6 +367,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
                 group = "com.example.mysite",
                 title = "My Site",
                 useSilk = false,
+                iconSet = null,
                 useServer = true,
                 useMarkdown = false,
                 generateReadme = false,
@@ -405,7 +409,6 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
                         implementation(libs.compose.html.core)
                         implementation(libs.kobweb.core)
                         // implementation(libs.kobweb.silk)
-                        // implementation(libs.silk.icons.fa)
                         // implementation(libs.kobwebx.markdown)
                     }
                     jvmMain.dependencies {
@@ -487,6 +490,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
             KobwebLibraryOptions(
                 group = "com.example.mysite.mylib",
                 useSilk = true,
+                iconSet = null,
                 useServer = true,
                 useMarkdown = false,
                 generateReadme = true,
@@ -605,6 +609,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
             KobwebLibraryOptions(
                 group = "com.example.mylib",
                 useSilk = false,
+                iconSet = null,
                 useServer = false,
                 useMarkdown = true,
                 generateReadme = true,
@@ -661,6 +666,67 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
         assertThat(exists("mylib/src/jvmMain")).isFalse()
     }
 
+    fun testLibraryWithIconSet() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+        myFixture.addFileToProject(
+            "gradle/libs.versions.toml",
+            """
+            [versions]
+            kobweb = "0.25.1"
+            """.trimIndent()
+        )
+
+        writeLibrary(
+            rootDir,
+            "mylib",
+            KobwebLibraryOptions(
+                group = "com.example.mylib",
+                useSilk = true,
+                iconSet = SilkIconSet.LUCIDE,
+                useServer = false,
+                useMarkdown = false,
+                generateReadme = false,
+                addSampleCode = false,
+            ),
+        )
+
+        assertThat(textOf("mylib/build.gradle.kts")).isEqualTo(
+            """
+            import com.varabyte.kobweb.gradle.library.util.configAsKobwebLibrary
+
+            plugins {
+                alias(libs.plugins.kotlin.multiplatform)
+                alias(libs.plugins.compose.compiler)
+                alias(libs.plugins.kobweb.library)
+                // alias(libs.plugins.kobwebx.markdown)
+            }
+
+            group = "com.example.mylib"
+            version = "1.0-SNAPSHOT"
+
+            kotlin {
+                configAsKobwebLibrary()
+
+                sourceSets {
+                    jsMain.dependencies {
+                        implementation(libs.compose.runtime)
+                        implementation(libs.compose.html.core)
+                        implementation(libs.kobweb.core)
+                        implementation(libs.kobweb.silk)
+                        implementation(libs.silk.icons.lucide)
+                        // implementation(libs.kobwebx.markdown)
+                    }
+                }
+            }
+
+            """.trimIndent()
+        )
+        assertThat(textOf("gradle/libs.versions.toml")).contains(
+            "silk-icons-lucide = { group = \"com.varabyte.kobwebx\", name = \"silk-icons-lucide\", version.ref = \"kobweb\" }"
+        )
+    }
+
     fun testLibrarySampleCode() {
         val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
             .virtualFile.parent
@@ -671,6 +737,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
             KobwebLibraryOptions(
                 group = "com.example.mylib",
                 useSilk = true,
+                iconSet = null,
                 useServer = false,
                 useMarkdown = false,
                 generateReadme = false,
@@ -908,6 +975,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
             KobwebLibraryOptions(
                 group = "com.example.mylib",
                 useSilk = true,
+                iconSet = null,
                 useServer = false,
                 useMarkdown = false,
                 generateReadme = false,
@@ -943,6 +1011,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
             KobwebLibraryOptions(
                 group = "com.example.mylib",
                 useSilk = true,
+                iconSet = null,
                 useServer = false,
                 useMarkdown = false,
                 generateReadme = false,
@@ -980,6 +1049,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
             KobwebLibraryOptions(
                 group = "com.example.mylib",
                 useSilk = true,
+                iconSet = null,
                 useServer = false,
                 useMarkdown = false,
                 generateReadme = false,
@@ -1014,6 +1084,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
             KobwebLibraryOptions(
                 group = "com.example.mylib",
                 useSilk = true,
+                iconSet = null,
                 useServer = false,
                 useMarkdown = false,
                 generateReadme = false,
@@ -1474,6 +1545,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
                     group = "org.example.myproject.site",
                     title = "My Project",
                     useSilk = true,
+                    iconSet = null,
                     useServer = false,
                     useMarkdown = false,
                     generateReadme = false,
@@ -1570,6 +1642,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
             KobwebLibraryOptions(
                 group = "com.example.mylib",
                 useSilk = true,
+                iconSet = null,
                 useServer = false,
                 useMarkdown = false,
                 generateReadme = true,
@@ -1596,6 +1669,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
                 KobwebLibraryOptions(
                     group = "com.example.mylib",
                     useSilk = true,
+                    iconSet = null,
                     useServer = false,
                     useMarkdown = false,
                     generateReadme = false,
@@ -1677,6 +1751,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
             KobwebLibraryOptions(
                 group = "com.example.mylib",
                 useSilk = true,
+                iconSet = null,
                 useServer = false,
                 useMarkdown = false,
                 generateReadme = true,
@@ -1704,6 +1779,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
             KobwebLibraryOptions(
                 group = "com.example.mylib",
                 useSilk = true,
+                iconSet = null,
                 useServer = false,
                 useMarkdown = false,
                 generateReadme = false,

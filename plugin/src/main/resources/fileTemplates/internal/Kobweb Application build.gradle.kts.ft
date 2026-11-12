@@ -34,7 +34,9 @@ kotlin {
             implementation(${COMPOSE_HTML_CORE})
             implementation(${KOBWEB_CORE})
             ${SILK_COMMENT}implementation(${KOBWEB_SILK})
-            ${SILK_COMMENT}implementation(${SILK_ICONS_FA})
+#if ($SILK_ICONS)
+            implementation(${SILK_ICONS})
+#end
             ${MARKDOWN_COMMENT}implementation(${KOBWEBX_MARKDOWN})
         }
 #if ($USE_SERVER)

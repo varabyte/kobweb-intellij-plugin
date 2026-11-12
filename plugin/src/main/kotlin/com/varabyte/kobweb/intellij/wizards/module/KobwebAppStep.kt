@@ -44,6 +44,7 @@ class KobwebAppStep(private val parent: KobwebModuleStep) : AbstractNewProjectWi
             group = parent.groupProperty.get(),
             title = titleProperty.get(),
             useSilk = parent.useSilkProperty.get(),
+            iconSet = parent.selectedIconSet,
             useServer = parent.useServerProperty.get(),
             useMarkdown = parent.useMarkdownProperty.get(),
             generateReadme = parent.generateReadmeProperty.get(),

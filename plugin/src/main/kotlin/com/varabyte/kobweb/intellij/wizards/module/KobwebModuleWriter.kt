@@ -15,27 +15,35 @@ import com.varabyte.kobweb.intellij.util.gradle.catalog.findPluginAlias
 import com.varabyte.kobweb.intellij.util.gradle.catalog.libraryAccessor
 import com.varabyte.kobweb.intellij.util.gradle.catalog.pluginAccessor
 import com.varabyte.kobweb.intellij.util.kobweb.conf.KOBWEB_CONF_PATH
+import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconSet
 import com.varabyte.kobweb.intellij.util.text.camelCaseToKebabCase
 
 /**
  * The choices a user makes for a new Kobweb app module.
  *
  * @property title The site's title, shown in the browser's tab.
+ * @property iconSet The Silk icon set to depend on, or null for none.
  */
 data class KobwebAppOptions(
     val group: String,
     val title: String,
     val useSilk: Boolean,
+    val iconSet: SilkIconSet?,
     val useServer: Boolean,
     val useMarkdown: Boolean,
     val generateReadme: Boolean,
     val addSampleCode: Boolean,
 )
 
-/** The choices a user makes for a new Kobweb library module. */
+/**
+ * The choices a user makes for a new Kobweb library module.
+ *
+ * @property iconSet The Silk icon set to depend on, or null for none.
+ */
 data class KobwebLibraryOptions(
     val group: String,
     val useSilk: Boolean,
+    val iconSet: SilkIconSet?,
     val useServer: Boolean,
     val useMarkdown: Boolean,
     val generateReadme: Boolean,
@@ -106,7 +114,10 @@ class KobwebModuleWriter(
             "USE_SILK" to options.useSilk,
             "USE_SERVER" to options.useServer,
             "USE_MARKDOWN" to options.useMarkdown,
-        ) + addCatalogEntries(APP_TEMPLATE_LIBRARIES, APP_TEMPLATE_PLUGINS)
+        ) + addCatalogEntries(
+            libraries = APP_TEMPLATE_LIBRARIES.withIconSet(options.iconSet),
+            plugins = APP_TEMPLATE_PLUGINS,
+        )
 
         val moduleRoot = VfsUtil.createDirectoryIfMissing(rootDir, moduleDir)
         val kotlinDir = "src/jsMain/kotlin/$packagePath"
@@ -165,7 +176,10 @@ class KobwebModuleWriter(
             "USE_SILK" to options.useSilk,
             "USE_SERVER" to options.useServer,
             "USE_MARKDOWN" to options.useMarkdown,
-        ) + addCatalogEntries(LIBRARY_TEMPLATE_LIBRARIES, LIBRARY_TEMPLATE_PLUGINS)
+        ) + addCatalogEntries(
+            libraries = LIBRARY_TEMPLATE_LIBRARIES.withIconSet(options.iconSet),
+            plugins = LIBRARY_TEMPLATE_PLUGINS,
+        )
 
         val moduleRoot = VfsUtil.createDirectoryIfMissing(rootDir, moduleDir)
         val buildFile = moduleRoot.writeTemplate("build.gradle.kts", "Kobweb Library build.gradle.kts", properties)
@@ -455,7 +469,6 @@ class KobwebModuleWriter(
             "COMPOSE_HTML_CORE" to "compose-html-core",
             "KOBWEB_CORE" to "kobweb-core",
             "KOBWEB_SILK" to "kobweb-silk",
-            "SILK_ICONS_FA" to "silk-icons-fa",
             "KOBWEBX_MARKDOWN" to "kobwebx-markdown",
             "KOBWEB_API" to "kobweb-api",
         )
@@ -501,6 +514,14 @@ class KobwebModuleWriter(
         )
     }
 }
+
+/**
+ * These template libraries, plus [iconSet]'s `silk-icons-*` library (as template property `SILK_ICONS`), if any.
+ *
+ * The receiver maps template property names to library aliases in the template catalog.
+ */
+private fun Map<String, String>.withIconSet(iconSet: SilkIconSet?): Map<String, String> =
+    if (iconSet != null) this + ("SILK_ICONS" to "silk-icons-${iconSet.id}") else this
 
 /** The Gradle path of the module in this directory, e.g. `:libs:mylib` for `libs/mylib`. */
 private fun String.toGradlePath() = ":" + replace('/', ':')
