@@ -4,6 +4,7 @@ import com.android.tools.idea.gradle.dsl.api.GradleSettingsModel
 import com.android.tools.idea.gradle.dsl.api.ProjectBuildModel
 import com.android.tools.idea.gradle.dsl.api.ext.ReferenceTo
 import com.intellij.ide.fileTemplates.FileTemplateManager
+import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
@@ -317,16 +318,21 @@ class KobwebModuleWriter(
         }
     }
 
-    // The Gradle DSL needs a file inside a real directory, so this reads the resource in place (e.g. inside the
-    // plugin's jar) rather than through an in-memory copy.
+    // Copied to a real file, which the Gradle DSL needs, as we've encountered that reading it in place from the
+    // plugin's jar can return a previous plugin version's contents (perhaps from the VFS's cache of jar contents).
     //
     // NOTE: Its model is never written back, so applying [versionOverrides] changes it only in memory.
     private fun loadTemplateCatalog(): VersionCatalog {
-        val url = checkNotNull(KobwebModuleWriter::class.java.getResource(TEMPLATE_CATALOG_RESOURCE))
-        val catalog = VersionCatalog(checkNotNull(VfsUtil.findFileByURL(url)).toCatalogModel())
+        val dir = checkNotNull(VfsUtil.createDirectoryIfMissing("${PathManager.getTempPath()}/kobweb/templates"))
+        val file = dir.findChild(CATALOG_FILE_NAME) ?: dir.createChildData(this, CATALOG_FILE_NAME)
+        VfsUtil.saveText(file, readTemplateCatalogText())
+        val catalog = VersionCatalog(file.toCatalogModel())
         catalog.applyVersionOverrides()
         return catalog
     }
+
+    private fun readTemplateCatalogText(): String =
+        checkNotNull(KobwebModuleWriter::class.java.getResource(TEMPLATE_CATALOG_RESOURCE)).readText()
 
     /**
      * Finds the build's default catalog, or creates it as a copy of the template catalog, using [versionOverrides].
@@ -337,7 +343,7 @@ class KobwebModuleWriter(
         val existingFile = rootDir.findFileByRelativePath("$CATALOG_DIR/$CATALOG_FILE_NAME")
         if (existingFile != null) return VersionCatalog(existingFile.toCatalogModel())
 
-        val text = checkNotNull(KobwebModuleWriter::class.java.getResource(TEMPLATE_CATALOG_RESOURCE)).readText()
+        val text = readTemplateCatalogText()
         val catalogFile = VfsUtil.createDirectoryIfMissing(rootDir, CATALOG_DIR)
             .createChildData(this, CATALOG_FILE_NAME)
             .also { VfsUtil.saveText(it, text) }
