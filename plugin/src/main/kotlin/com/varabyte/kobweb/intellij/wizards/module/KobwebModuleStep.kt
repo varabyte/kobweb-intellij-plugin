@@ -42,6 +42,7 @@ import com.varabyte.kobweb.intellij.model.KobwebProjectType
 import com.varabyte.kobweb.intellij.notification.KobwebNotifier
 import com.varabyte.kobweb.intellij.project.KobwebProject
 import com.varabyte.kobweb.intellij.services.project.KobwebProjectScopeService
+import com.varabyte.kobweb.intellij.services.versions.KobwebReleaseVersions
 import com.varabyte.kobweb.intellij.services.versions.KobwebReleaseVersionsService
 import com.varabyte.kobweb.intellij.util.idea.wizard.DeferredSetupStep
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
@@ -340,7 +341,7 @@ class KobwebModuleStep(
                     createGradleWrapper(rootPath, versions?.gradleVersion ?: NEW_PROJECT_GRADLE_VERSION)
                 }
                 withContext(Dispatchers.EDT) {
-                    val writer = KobwebModuleWriter(openedProject, rootDir, versions?.catalogVersions.orEmpty())
+                    val writer = KobwebModuleWriter(openedProject, rootDir, versions?.toVersionOverrides().orEmpty())
                     val buildFile = WriteCommandAction.writeCommandAction(openedProject)
                         .withName(UxGlobals.textBundle.message("wizard.kobweb.module.command"))
                         .compute<VirtualFile, Throwable> {
@@ -376,11 +377,11 @@ class KobwebModuleStep(
      */
     private fun awaitLatestKobwebVersions(project: Project): Map<String, String> {
         val service = KobwebReleaseVersionsService.instance
-        service.latestVersionsIfFetched()?.let { return it.catalogVersions }
+        service.latestVersionsIfFetched()?.let { return it.toVersionOverrides() }
         val title = UxGlobals.textBundle.message("wizard.kobweb.module.fetching.versions")
         return runWithModalProgressBlocking(project, title) {
             service.awaitLatestVersions(LATEST_VERSIONS_TIMEOUT)
-        }?.catalogVersions.orEmpty()
+        }?.toVersionOverrides().orEmpty()
     }
 
     private fun notifyDependencyNotAdded(
@@ -531,6 +532,16 @@ class KobwebModuleStep(
  * @property dir The module's directory, relative to the build's root, e.g. `"site"`.
  */
 internal data class DependentModule(val gradlePath: String, val dir: String, val type: KobwebProjectType)
+
+/**
+ * These versions as overrides for the template catalog, which has a `[versions]` entry for each of the
+ * template's libraries and plugins (e.g. `kotlin`).
+ *
+ * The Kobweb version comes from the release tag rather than from Kobweb's own catalog, whose key for it may not
+ * match the template's. Other keys are matched by name, so any the template doesn't share keep its bundled version.
+ */
+private fun KobwebReleaseVersions.toVersionOverrides(): Map<String, String> =
+    catalogVersions + ("kobweb" to kobwebVersion)
 
 private val Module.externalProperties get() = ExternalSystemModulePropertyManager.getInstance(this)
 

@@ -34,10 +34,15 @@ private const val LATEST_RELEASE_URL = "$KOBWEB_REPO_URL/releases/latest"
 /**
  * The versions that a Kobweb release was built with.
  *
- * @property catalogVersions The `[versions]` table of Kobweb's version catalog, e.g. `"kobweb"` to `"0.25.1"`.
+ * @property kobwebVersion The release's own version, from its tag, e.g. `"0.25.1"` for `v0.25.1`.
+ * @property catalogVersions The `[versions]` table of Kobweb's version catalog, e.g. `"kotlin"` to `"2.4.10"`.
  * @property gradleVersion The Gradle version of Kobweb's wrapper, e.g. `"9.7.0"`, or null if it couldn't be read.
  */
-data class KobwebReleaseVersions(val catalogVersions: Map<String, String>, val gradleVersion: String?)
+data class KobwebReleaseVersions(
+    val kobwebVersion: String,
+    val catalogVersions: Map<String, String>,
+    val gradleVersion: String?,
+)
 
 /**
  * Fetches the versions that the latest Kobweb release uses (Kobweb itself, Kotlin, Compose, Gradle, etc.), so new
@@ -143,7 +148,11 @@ class KobwebReleaseVersionsService(private val coroutineScope: CoroutineScope) {
                 logger.warn("Found no versions in $catalogUrl")
                 return null
             }
-        return KobwebReleaseVersions(catalogVersions, gradleVersion = fetchGradleVersion(tag))
+        return KobwebReleaseVersions(
+            kobwebVersion = tag.removePrefix("v"),
+            catalogVersions,
+            gradleVersion = fetchGradleVersion(tag),
+        )
     }
 
     /**

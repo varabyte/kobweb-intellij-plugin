@@ -63,8 +63,8 @@ data class KobwebWorkerOptions(
  *
  * @param rootDir The build's root directory, which holds its settings script.
  * @param versionOverrides Versions to use instead of the bundled template catalog's own, keyed like its `[versions]`
- *   table (e.g. `"kobweb"` to `"0.25.2"`), such as the latest Kobweb release's. Keys the template catalog doesn't
- *   declare are ignored. Versions the build's catalog already declares are kept either way.
+ *   table (e.g. `"kotlin"` to `"2.4.10"`). Keys the template catalog doesn't declare are ignored. Versions the build's
+ *   catalog already declares are kept either way.
  */
 class KobwebModuleWriter(
     private val project: Project,
