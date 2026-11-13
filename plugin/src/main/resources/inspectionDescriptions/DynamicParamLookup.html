@@ -1,0 +1,19 @@
+<html lang="en">
+<body>
+Reports lookups of a route's dynamic segment that could use <code>dynamicParams.getValue</code> instead.
+<p>
+Kobweb always fills in every dynamic segment, so reading one doesn't need a null check or a default value. Reading it
+from <code>dynamicParams</code> rather than <code>params</code> also gets its key checked against the route, so a typo
+or a later rename of the segment gets reported instead of failing at runtime.
+<pre><code>
+@Page("{user}/posts/{post}")
+@Composable
+fun PostPage(ctx: PageContext) {
+    ctx.route.params["post"]!!                 // Can be replaced with dynamicParams.getValue
+    ctx.route.dynamicParams["post"] ?: ""      // Can be replaced with dynamicParams.getValue
+    ctx.route.dynamicParams.getValue("post")   // OK
+}
+</code></pre>
+<!-- tooltip end -->
+</body>
+</html>

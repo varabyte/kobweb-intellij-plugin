@@ -32,7 +32,7 @@ class UnknownDynamicParamInspection : LocalInspectionTool() {
         return object : KtVisitorVoid() {
             override fun visitStringTemplateExpression(expression: KtStringTemplateExpression) {
                 super.visitStringTemplateExpression(expression)
-                if (!expression.mayBeRouteParamKey()) return
+                if (!expression.mayBeRouteParamKey(RouteParamsScope.DYNAMIC_ONLY)) return
                 // Keys with template expressions or escapes could be anything
                 if (expression.entries.any { entry -> entry !is KtLiteralStringTemplateEntry }) return
                 val key = expression.entries.joinToString("") { entry -> entry.text }

@@ -53,23 +53,44 @@ private val ROUTE_PARAMS_PROPERTIES: Map<CallableId, RouteParamsScope> = buildMa
 private val MAP_KEY_FUNCTIONS = setOf("get", "getValue", "getOrDefault", "getOrElse", "containsKey")
 
 /**
- * Returns the map this string is used as a key of, e.g. `ctx.route.params` for the `"post"` in
- * `ctx.route.params["post"]` or `ctx.route.params.getValue("post")`, judging by the code's shape only.
+ * Returns the map access this string is the key of, i.e. `map["key"]`, or `map.fn("key", ...)` for a function in
+ * [functionNames], judging by the code's shape only.
  */
-private fun KtStringTemplateExpression.findMapForKey(): KtExpression? {
+private fun KtStringTemplateExpression.findMapAccess(functionNames: Set<String>): KtExpression? {
     val parent = parent
     if (parent is KtContainerNode) {
         val arrayAccess = parent.parent as? KtArrayAccessExpression ?: return null
-        return arrayAccess.arrayExpression.takeIf { arrayAccess.indexExpressions.singleOrNull() == this }
+        return arrayAccess.takeIf { arrayAccess.indexExpressions.singleOrNull() == this }
     }
 
     val argument = parent as? KtValueArgument ?: return null
     val call = argument.parent?.parent as? KtCallExpression ?: return null
     if (call.valueArguments.firstOrNull() != argument) return null
-    if ((call.calleeExpression as? KtNameReferenceExpression)?.getReferencedName() !in MAP_KEY_FUNCTIONS) return null
+    if ((call.calleeExpression as? KtNameReferenceExpression)?.getReferencedName() !in functionNames) return null
     val qualified = call.parent as? KtQualifiedExpression ?: return null
-    return qualified.receiverExpression.takeIf { qualified.selectorExpression == call }
+    return qualified.takeIf { qualified.selectorExpression == call }
 }
+
+/**
+ * Returns the map this string is used as a key of, e.g. `ctx.route.params` for the `"post"` in
+ * `ctx.route.params["post"]` or `ctx.route.params.getValue("post")`, judging by the code's shape only.
+ */
+private fun KtStringTemplateExpression.findMapForKey(): KtExpression? {
+    return when (val access = findMapAccess(MAP_KEY_FUNCTIONS)) {
+        is KtArrayAccessExpression -> access.arrayExpression
+        is KtQualifiedExpression -> access.receiverExpression
+        else -> null
+    }
+}
+
+/** The `Map` functions that read the value of a key, which `getValue` can replace if the key is always present. */
+private val MAP_VALUE_FUNCTIONS = setOf("get", "getValue", "getOrDefault", "getOrElse")
+
+/**
+ * Returns the expression that reads this key's value, i.e. `map["key"]`, or `map.fn("key", ...)` for `get`,
+ * `getValue`, `getOrDefault`, or `getOrElse`, judging by the code's shape only.
+ */
+fun KtStringTemplateExpression.findValueLookup(): KtExpression? = findMapAccess(MAP_VALUE_FUNCTIONS)
 
 private val KtExpression.referenceName: KtNameReferenceExpression?
     get() = ((this as? KtQualifiedExpression)?.selectorExpression ?: this) as? KtNameReferenceExpression
@@ -80,10 +101,13 @@ private val KtExpression.referenceName: KtNameReferenceExpression?
  *
  * This is a quick check that doesn't require Kotlin analysis (unlike [isRouteParamKey] or [findRouteParamsScope], which
  * give the real answer).
+ *
+ * @param scope If set, only keys into the map of this scope count.
  */
-fun KtStringTemplateExpression.mayBeRouteParamKey(): Boolean {
+fun KtStringTemplateExpression.mayBeRouteParamKey(scope: RouteParamsScope? = null): Boolean {
     val name = findMapForKey()?.referenceName?.getReferencedName() ?: return false
-    return RouteParamsScope.entries.any { scope -> scope.propertyName == name }
+    val scopes = scope?.let { listOf(it) } ?: RouteParamsScope.entries
+    return scopes.any { it.propertyName == name }
 }
 
 /**
@@ -99,6 +123,27 @@ fun KtStringTemplateExpression.findRouteParamsScope(): RouteParamsScope? = with(
     val name = findMapForKey()?.referenceName ?: return null
     val property = name.mainReference.resolveToSymbol() as? KaPropertySymbol ?: return null
     return ROUTE_PARAMS_PROPERTIES[property.callableId]
+}
+
+/**
+ * Returns true if this key's route params map belongs to a class that also has a `dynamicParams` property, so the key
+ * could be read from that instead, e.g. `ctx.route.dynamicParams` for `ctx.route.params["post"]`.
+ *
+ * Note that `Request` didn't have a `dynamicParams` property until recently, so we need to explicitly check for its
+ * existence in case we are analyzing an older version of Kobweb.
+ *
+ * This method must be called inside an [analyze] block.
+ */
+context(kaSession: KaSession)
+fun KtStringTemplateExpression.canSwitchToDynamicParams(): Boolean = with(kaSession) {
+    val name = findMapForKey()?.referenceName ?: return false
+    val property = name.mainReference.resolveToSymbol() as? KaPropertySymbol ?: return false
+    val callableId = property.callableId ?: return false
+    // Only RouteInfo.params / Request.params (or their dynamicParams), not any class with a dynamicParams member
+    if (callableId !in ROUTE_PARAMS_PROPERTIES) return false
+    val classId = callableId.classId ?: return false
+    val dynamicParamsName = Name.identifier(RouteParamsScope.DYNAMIC_ONLY.propertyName)
+    return findClass(classId)?.memberScope?.callables(dynamicParamsName)?.any() == true
 }
 
 /**
