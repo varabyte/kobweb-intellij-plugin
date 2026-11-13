@@ -25,16 +25,28 @@ import org.jetbrains.kotlin.psi.KtValueArgument
 private val INIT_ROUTE_FQN = FqName("com.varabyte.kobweb.core.init.InitRoute")
 
 /**
- * The properties that map the dynamic route segments of a page (`RouteInfo`) or an API endpoint (`Request`) to their
- * values: `dynamicParams`, and `params` (which also holds query parameters).
+ * Which values a map of route params holds, as a property of a page's `RouteInfo` or an API endpoint's `Request`.
  *
- * Note that `Request.dynamicParams` is newer than `Request.params`, and older versions of Kobweb don't have it.
+ * @property propertyName The name of the property that holds the map, e.g. "params".
  */
-private val ROUTE_PARAMS_PROPERTIES = listOf(
-    ClassId(FqName("com.varabyte.kobweb.core"), Name.identifier("RouteInfo")),
-    ClassId(FqName("com.varabyte.kobweb.api.http"), Name.identifier("Request")),
-).flatMap { classId ->
-    listOf("params", "dynamicParams").map { name -> CallableId(classId, Name.identifier(name)) }
+enum class RouteParamsScope(val propertyName: String) {
+    /** Holds both dynamic and query parameters, meaning any key might be found in it at runtime. */
+    QUERY_AND_DYNAMIC("params"),
+
+    /** Only holds the values of dynamic segments, which means the full set of options will be known to us. */
+    DYNAMIC_ONLY("dynamicParams"),
+}
+
+private val ROUTE_PARAMS_PROPERTIES: Map<CallableId, RouteParamsScope> = buildMap {
+    val classIds = listOf(
+        ClassId(FqName("com.varabyte.kobweb.core"), Name.identifier("RouteInfo")),
+        ClassId(FqName("com.varabyte.kobweb.api.http"), Name.identifier("Request")),
+    )
+    for (classId in classIds) {
+        for (scope in RouteParamsScope.entries) {
+            put(CallableId(classId, Name.identifier(scope.propertyName)), scope)
+        }
+    }
 }
 
 /** The `Map` functions whose first argument is a key, besides the `get` operator (e.g. `params["post"]`). */
@@ -66,11 +78,27 @@ private val KtExpression.referenceName: KtNameReferenceExpression?
  * Returns true if this string might be a key into route params, judging only by the name of the map it's used with,
  * e.g. the `"post"` in `ctx.route.params["post"]` (on a page) or `ctx.req.params["post"]` (in an API endpoint).
  *
- * This is a quick check that doesn't require Kotlin analysis (unlike [isRouteParamKey], which gives the real answer).
+ * This is a quick check that doesn't require Kotlin analysis (unlike [isRouteParamKey] or [findRouteParamsScope], which
+ * give the real answer).
  */
 fun KtStringTemplateExpression.mayBeRouteParamKey(): Boolean {
     val name = findMapForKey()?.referenceName?.getReferencedName() ?: return false
-    return ROUTE_PARAMS_PROPERTIES.any { property -> property.callableName.asString() == name }
+    return RouteParamsScope.entries.any { scope -> scope.propertyName == name }
+}
+
+/**
+ * Returns the route params scope this string is a key into, if any, e.g. [RouteParamsScope.QUERY_AND_DYNAMIC] would be
+ * returned for `"post"` in `ctx.route.params["post"]` (on a page) or `ctx.req.params["post"]` (in an API endpoint).
+ *
+ * Call [mayBeRouteParamKey] first to skip strings that can't be one without running analysis.
+ *
+ * This method must be called inside an [analyze] block.
+ */
+context(kaSession: KaSession)
+fun KtStringTemplateExpression.findRouteParamsScope(): RouteParamsScope? = with(kaSession) {
+    val name = findMapForKey()?.referenceName ?: return null
+    val property = name.mainReference.resolveToSymbol() as? KaPropertySymbol ?: return null
+    return ROUTE_PARAMS_PROPERTIES[property.callableId]
 }
 
 /**
@@ -81,12 +109,8 @@ fun KtStringTemplateExpression.mayBeRouteParamKey(): Boolean {
  *
  * This method must be called inside an [analyze] block.
  */
-context(kaSession: KaSession)
-fun KtStringTemplateExpression.isRouteParamKey(): Boolean = with(kaSession) {
-    val name = findMapForKey()?.referenceName ?: return false
-    val property = name.mainReference.resolveToSymbol() as? KaPropertySymbol ?: return false
-    return property.callableId in ROUTE_PARAMS_PROPERTIES
-}
+context(_: KaSession)
+fun KtStringTemplateExpression.isRouteParamKey(): Boolean = findRouteParamsScope() != null
 
 /**
  * Returns the route that route params read here belong to: that of the enclosing `@Page` or `@Api` function, or of the

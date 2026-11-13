@@ -39,6 +39,8 @@ class ApiRouteParamCompletionTest : KobwebFullStackTestCase() {
         assertThat(suggestions!!).containsExactly("user", "post").inOrder()
     }
 
+    // TODO: Test `ctx.req.dynamicParams` too, once these tests use Kobweb 0.25.2+ (which added it)
+
     fun testNothingIsSuggestedOutsideAnApiEndpoint() {
         val suggestions = complete(
             "api/users/Post.kt",

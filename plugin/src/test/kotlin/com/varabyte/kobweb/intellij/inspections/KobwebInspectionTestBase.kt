@@ -12,6 +12,8 @@ import com.intellij.openapi.progress.ProgressManager
 import com.varabyte.kobweb.intellij.test.fixtures.KobwebApplicationTestCase
 import com.varabyte.kobweb.intellij.test.util.checkResultAndHighlight
 import org.intellij.lang.annotations.Language
+import org.jetbrains.kotlin.analysis.api.permissions.KaAllowAnalysisOnEdt
+import org.jetbrains.kotlin.analysis.api.permissions.allowAnalysisOnEdt
 import kotlin.reflect.KClass
 
 abstract class KobwebInspectionTestBase : KobwebApplicationTestCase() {
@@ -57,6 +59,7 @@ abstract class KobwebInspectionTestBase : KobwebApplicationTestCase() {
         return thenFixWith(F::class, applyFix, newCode)
     }
 
+    @OptIn(KaAllowAnalysisOnEdt::class)
     protected fun <F: LocalQuickFix> thenFixWith(
         quickFixClass: KClass<F>,
         applyFix: F.(ProblemDescriptor) -> Unit,
@@ -64,11 +67,14 @@ abstract class KobwebInspectionTestBase : KobwebApplicationTestCase() {
     ): PostInspectionFix {
         return PostInspectionFix(
             {
-                // The fixture's quick fixes don't expose the problem they fix, so get it from the inspection directly
+                // The fixture's quick fixes don't expose the problem they fix, so get it from the inspection directly.
+                // This runs on the UI thread, where inspections that use Kotlin analysis need explicit permission.
                 val problems = ProgressManager.getInstance().runProcess<List<ProblemDescriptor>>(
                     {
-                        (produceInspection() as LocalInspectionTool)
-                            .processFile(myFixture.file, InspectionManager.getInstance(project))
+                        allowAnalysisOnEdt {
+                            (produceInspection() as LocalInspectionTool)
+                                .processFile(myFixture.file, InspectionManager.getInstance(project))
+                        }
                     },
                     EmptyProgressIndicator(),
                 )
