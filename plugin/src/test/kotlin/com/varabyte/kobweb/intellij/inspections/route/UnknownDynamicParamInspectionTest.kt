@@ -36,6 +36,9 @@ class UnknownDynamicParamInspectionTest : KobwebInspectionTestBase() {
                 ctx.route.dynamicParams.get("<warning>id</warning>")
                 ctx.route.dynamicParams.getOrElse("<warning>id</warning>") { "" }
                 ctx.route.dynamicParams.containsKey("<warning>id</warning>")
+                ctx.route.dynamicParams.contains("<warning>id</warning>")
+                "<warning>id</warning>" in ctx.route.dynamicParams
+                "<warning>id</warning>" !in ctx.route.dynamicParams
             }
             """.trimIndent(),
         )
@@ -162,6 +165,42 @@ class UnknownDynamicParamInspectionTest : KobwebInspectionTestBase() {
                 @Composable
                 fun PostPage(ctx: PageContext) {
                     ctx.route.dynamicParams.containsKey("post")
+                }
+                """.trimIndent()
+            )
+        )
+    }
+
+    fun testChoosingNameOnlyChangesKeyOfInCheck() {
+        doTest(
+            "Post.kt",
+            """
+            package $TEST_GROUP.pages.users
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+            import com.varabyte.kobweb.core.PageContext
+
+            @Page("{user}/posts/{post}")
+            @Composable
+            fun PostPage(ctx: PageContext) {
+                "<warning>pots</warning>" in ctx.route.dynamicParams
+            }
+            """.trimIndent(),
+            thenFixWith<ChooseDynamicParamQuickFix>({ problem ->
+                chooseName(problem, expectedChoices = listOf("post", "user"), choice = "post")
+            },
+                """
+                package $TEST_GROUP.pages.users
+
+                import androidx.compose.runtime.Composable
+                import com.varabyte.kobweb.core.Page
+                import com.varabyte.kobweb.core.PageContext
+
+                @Page("{user}/posts/{post}")
+                @Composable
+                fun PostPage(ctx: PageContext) {
+                    "post" in ctx.route.dynamicParams
                 }
                 """.trimIndent()
             )

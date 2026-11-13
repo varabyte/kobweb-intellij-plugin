@@ -28,6 +28,8 @@ class DynamicParamLookupInspectionTest : KobwebInspectionTestBase() {
                 ctx.route.dynamicParams<weak_warning>.getOrElse("post") { "" }</weak_warning>
                 ctx.route.dynamicParams.getValue("post")
                 ctx.route.dynamicParams.containsKey("post")
+                ctx.route.dynamicParams.contains("post")
+                "post" in ctx.route.dynamicParams
             }
             """.trimIndent(),
         )

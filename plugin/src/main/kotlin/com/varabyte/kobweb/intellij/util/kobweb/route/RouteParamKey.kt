@@ -4,11 +4,13 @@ import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaPropertySymbol
 import org.jetbrains.kotlin.idea.references.mainReference
+import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtArrayAccessExpression
+import org.jetbrains.kotlin.psi.KtBinaryExpression
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtContainerNode
 import org.jetbrains.kotlin.psi.KtExpression
@@ -31,7 +33,7 @@ private val ROUTE_PARAMS_PROPERTIES: Map<CallableId, RouteParamsScope> = buildMa
 }
 
 /** The `Map` functions whose first argument is a key, besides the `get` operator (e.g. `params["post"]`). */
-private val MAP_KEY_FUNCTIONS = setOf("get", "getValue", "getOrDefault", "getOrElse", "containsKey")
+private val MAP_KEY_FUNCTIONS = setOf("get", "getValue", "getOrDefault", "getOrElse", "containsKey", "contains")
 
 /** The `Map` functions that read the value of a key, which `getValue` can replace if the key is always present. */
 private val MAP_VALUE_FUNCTIONS = setOf("get", "getValue", "getOrDefault", "getOrElse")
@@ -44,8 +46,9 @@ private val MAP_VALUE_FUNCTIONS = setOf("get", "getValue", "getOrDefault", "getO
  * really a key into Kobweb's route params.
  *
  * @property expression The key itself.
- * @property access The map access the key is part of, e.g. `map["key"]` or `map.getValue("key")`.
- * @property functionName The `Map` function the key is passed to, e.g. "getValue", or null for `map["key"]`.
+ * @property access The map access the key is part of, e.g. `map["key"]`, `map.getValue("key")`, or `"key" in map`.
+ * @property functionName The `Map` function the key is passed to, e.g. "getValue". This is "contains" for
+ *   `"key" in map`, and null for `map["key"]`.
  * @property scopeFromName The [RouteParamsScope] that the map's name suggests. See also
  *   [RouteParamsScope.fromPropertyName]. Use [findScope] to resolve the real scope, which will either be this one or
  *   null (if the map turns out to be some other class's property that happens to have the same name). Therefore,
@@ -105,22 +108,44 @@ class RouteParamKey private constructor(
          * isn't named like one of Kobweb's route params (e.g. `params` or `dynamicParams`).
          */
         fun from(expression: KtStringTemplateExpression): RouteParamKey? {
-            val parent = expression.parent
-            val (access, map, functionName) = if (parent is KtContainerNode) {
-                val arrayAccess = parent.parent as? KtArrayAccessExpression ?: return null
-                if (arrayAccess.indexExpressions.singleOrNull() != expression) return null
-                Triple(arrayAccess, arrayAccess.arrayExpression, null)
-            } else {
-                val argument = parent as? KtValueArgument ?: return null
-                val call = argument.parent?.parent as? KtCallExpression ?: return null
-                if (call.valueArguments.firstOrNull() != argument) return null
-                val functionName = (call.calleeExpression as? KtNameReferenceExpression)?.getReferencedName()
-                if (functionName !in MAP_KEY_FUNCTIONS) return null
-                val qualified = call.parent as? KtQualifiedExpression ?: return null
-                if (qualified.selectorExpression != call) return null
-                Triple(qualified, qualified.receiverExpression, functionName)
-            }
+            when (val parent = expression.parent) {
+                // e.g. `map["key"]`
+                is KtContainerNode -> {
+                    val arrayAccess = parent.parent as? KtArrayAccessExpression ?: return null
+                    if (arrayAccess.indexExpressions.singleOrNull() != expression) return null
+                    return create(expression, arrayAccess, arrayAccess.arrayExpression, functionName = null)
+                }
 
+                // e.g. `"key" in map` or `"key" !in map`
+                is KtBinaryExpression -> {
+                    if (parent.operationToken != KtTokens.IN_KEYWORD && parent.operationToken != KtTokens.NOT_IN) {
+                        return null
+                    }
+                    if (parent.left != expression) return null
+                    return create(expression, parent, parent.right, functionName = "contains")
+                }
+
+                // e.g. `map.getValue("key")`
+                is KtValueArgument -> {
+                    val call = parent.parent?.parent as? KtCallExpression ?: return null
+                    if (call.valueArguments.firstOrNull() != parent) return null
+                    val functionName = (call.calleeExpression as? KtNameReferenceExpression)?.getReferencedName()
+                    if (functionName !in MAP_KEY_FUNCTIONS) return null
+                    val qualified = call.parent as? KtQualifiedExpression ?: return null
+                    if (qualified.selectorExpression != call) return null
+                    return create(expression, qualified, qualified.receiverExpression, functionName)
+                }
+
+                else -> return null
+            }
+        }
+
+        private fun create(
+            expression: KtStringTemplateExpression,
+            access: KtExpression,
+            map: KtExpression?,
+            functionName: String?,
+        ): RouteParamKey? {
             // e.g. `params` in `ctx.route.params`
             val mapName = ((map as? KtQualifiedExpression)?.selectorExpression ?: map) as? KtNameReferenceExpression
                 ?: return null

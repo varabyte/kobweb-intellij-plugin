@@ -145,6 +145,28 @@ class RouteParamCompletionTest : KobwebApplicationTestCase() {
         assertThat(suggestions!!).containsExactly("user", "post").inOrder()
     }
 
+    fun testInCheckIsSupported() {
+        val suggestions = complete(
+            "Post.kt",
+            // language=kotlin
+            """
+            package $TEST_GROUP.pages.users
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+            import com.varabyte.kobweb.core.PageContext
+
+            @Page("{user}/posts/{post}")
+            @Composable
+            fun PostPage(ctx: PageContext) {
+                "<caret>" in ctx.route.params
+            }
+            """.trimIndent()
+        )
+
+        assertThat(suggestions!!).containsExactly("user", "post").inOrder()
+    }
+
     fun testInitRouteUsesThePageInTheSameFile() {
         val suggestions = complete(
             "Post.kt",
