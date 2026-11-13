@@ -1,16 +1,16 @@
 <html lang="en">
 <body>
 Reports keys into <code>dynamicParams</code> that aren't the name of one of the route's dynamic segments, which can
-only ever be <code>null</code>.
+only ever be <code>null</code>. Reading one with <code>getValue</code> always throws, so that's reported as an error.
 <p>
 Keys into <code>params</code> aren't checked, as it can hold query parameters too.
 <pre><code>
 @Page("{user}/posts/{post}")
 @Composable
 fun PostPage(ctx: PageContext) {
-    ctx.route.dynamicParams["post"]  // OK
-    ctx.route.dynamicParams["pots"]  // This route has no dynamic segment named "pots"
-    ctx.route.params["sort"]         // OK, e.g. "?sort=new"
+    ctx.route.dynamicParams["post"]           // OK
+    ctx.route.dynamicParams["pots"]           // Warning: This route has no dynamic segment named "pots"
+    ctx.route.dynamicParams.getValue("pots")  // Error: This always throws
 }
 </code></pre>
 <!-- tooltip end -->

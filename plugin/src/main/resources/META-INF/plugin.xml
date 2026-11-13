@@ -214,7 +214,7 @@
                 groupKey="kobweb.name"
                 key="inspection.unknown.dynamic.param.display.name"
                 enabledByDefault="true"
-                level="WARNING"
+                level="ERROR"
                 implementationClass="com.varabyte.kobweb.intellij.inspections.route.UnknownDynamicParamInspection"/>
         <localInspection
                 language="kotlin"

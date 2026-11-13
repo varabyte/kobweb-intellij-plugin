@@ -32,7 +32,10 @@ class UnknownDynamicParamInspectionTest : KobwebInspectionTestBase() {
                 ctx.route.dynamicParams["user"]
                 ctx.route.dynamicParams["post"]
                 ctx.route.dynamicParams["<warning descr="This route (\"/users/{user}/posts/{post}\") has no dynamic segment named \"pots\".">pots</warning>"]
-                ctx.route.dynamicParams.getValue("<warning>id</warning>")
+                ctx.route.dynamicParams.getValue("<error descr="This route (\"/users/{user}/posts/{post}\") has no dynamic segment named \"id\".">id</error>")
+                ctx.route.dynamicParams.get("<warning>id</warning>")
+                ctx.route.dynamicParams.getOrElse("<warning>id</warning>") { "" }
+                ctx.route.dynamicParams.containsKey("<warning>id</warning>")
             }
             """.trimIndent(),
         )
