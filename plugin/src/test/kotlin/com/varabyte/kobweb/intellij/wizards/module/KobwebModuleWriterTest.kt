@@ -186,16 +186,92 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
             import com.varabyte.kobweb.compose.ui.modifiers.*
             import com.varabyte.kobweb.core.layout.Layout
             import org.jetbrains.compose.web.css.cssRem
+            import com.example.mysite.components.sections.Header
 
             @Layout
             @Composable
             fun PageLayout(content: @Composable () -> Unit) {
-                // TODO: Add the parts that all your pages share, like a header and a footer
-                Column(
-                    Modifier.fillMaxSize().padding(2.cssRem),
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                // TODO: Add any other parts that all your pages share, like a footer
+                Column(Modifier.fillMaxSize()) {
+                    Header()
+                    Column(
+                        Modifier.fillMaxWidth().padding(2.cssRem),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        content()
+                    }
+                }
+            }
+
+            """.trimIndent()
+        )
+        assertThat(textOf("site/src/jsMain/kotlin/com/example/mysite/components/sections/Header.kt")).isEqualTo(
+            """
+            package com.example.mysite.components.sections
+
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.foundation.layout.Box
+            import com.varabyte.kobweb.compose.ui.Alignment
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.core.AppGlobals
+            import com.varabyte.kobweb.core.title
+            import com.varabyte.kobweb.silk.components.text.SpanText
+            import com.varabyte.kobweb.silk.style.CssStyle
+            import com.varabyte.kobweb.silk.style.base
+            import com.varabyte.kobweb.silk.style.toModifier
+            import com.varabyte.kobweb.silk.theme.colors.palette.border
+            import com.varabyte.kobweb.silk.theme.colors.palette.toPalette
+            import org.jetbrains.compose.web.css.*
+            import com.example.mysite.components.widgets.ColorModeButton
+
+            val HeaderStyle = CssStyle.base {
+                Modifier
+                    .fillMaxWidth()
+                    .padding(topBottom = 0.5.cssRem, leftRight = 1.cssRem)
+                    .borderBottom(1.px, LineStyle.Solid, colorMode.toPalette().border)
+            }
+
+            @Composable
+            fun Header() {
+                Box(HeaderStyle.toModifier()) {
+                    SpanText(AppGlobals.title, Modifier.align(Alignment.Center).fontSize(1.25.cssRem))
+                    ColorModeButton(Modifier.align(Alignment.CenterEnd))
+                }
+            }
+
+            """.trimIndent()
+        )
+        assertThat(textOf("site/src/jsMain/kotlin/com/example/mysite/components/widgets/ColorModeButton.kt")).isEqualTo(
+            """
+            package com.example.mysite.components.widgets
+
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.silk.components.forms.Button
+            import com.varabyte.kobweb.silk.components.forms.ButtonSize
+            import com.varabyte.kobweb.silk.components.forms.ButtonStyle
+            import com.varabyte.kobweb.silk.components.icons.fa.FaMoon
+            import com.varabyte.kobweb.silk.components.icons.fa.FaSun
+            import com.varabyte.kobweb.silk.style.addVariantBase
+            import com.varabyte.kobweb.silk.theme.colors.ColorMode
+            import org.jetbrains.compose.web.css.*
+
+            val CircleButtonVariant = ButtonStyle.addVariantBase {
+                Modifier.padding(0.px).borderRadius(50.percent)
+            }
+
+            @Composable
+            fun ColorModeButton(modifier: Modifier = Modifier) {
+                var colorMode by ColorMode.currentState
+                Button(
+                    onClick = { colorMode = colorMode.opposite },
+                    modifier,
+                    variant = CircleButtonVariant,
+                    size = ButtonSize.SM,
                 ) {
-                    content()
+                    if (colorMode.isLight) FaMoon() else FaSun()
                 }
             }
 
@@ -312,26 +388,63 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
             import com.varabyte.kobweb.core.layout.Layout
             import org.jetbrains.compose.web.css.*
             import org.jetbrains.compose.web.dom.Div
+            import com.example.mysite.components.sections.Header
 
             @Layout
             @Composable
             fun PageLayout(content: @Composable () -> Unit) {
-                // TODO: Add the parts that all your pages share, like a header and a footer
+                // TODO: Add any other parts that all your pages share, like a footer
                 Div(attrs = {
                     style {
                         display(DisplayStyle.Flex)
                         flexDirection(FlexDirection.Column)
-                        alignItems(AlignItems.Center)
                         minHeight(100.vh)
-                        padding(2.cssRem)
                     }
                 }) {
-                    content()
+                    Header()
+                    Div(attrs = {
+                        style {
+                            display(DisplayStyle.Flex)
+                            flexDirection(FlexDirection.Column)
+                            alignItems(AlignItems.Center)
+                            padding(2.cssRem)
+                        }
+                    }) {
+                        content()
+                    }
                 }
             }
 
             """.trimIndent()
         )
+        assertThat(textOf("site/src/jsMain/kotlin/com/example/mysite/components/sections/Header.kt")).isEqualTo(
+            """
+            package com.example.mysite.components.sections
+
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.core.AppGlobals
+            import com.varabyte.kobweb.core.title
+            import org.jetbrains.compose.web.css.*
+            import org.jetbrains.compose.web.dom.Div
+            import org.jetbrains.compose.web.dom.Text
+
+            @Composable
+            fun Header() {
+                Div(attrs = {
+                    style {
+                        textAlign("center")
+                        fontSize(1.25.cssRem)
+                        padding(0.5.cssRem, 1.cssRem)
+                        property("border-bottom", "1px solid black")
+                    }
+                }) {
+                    Text(AppGlobals.title)
+                }
+            }
+
+            """.trimIndent()
+        )
+        assertThat(exists("site/src/jsMain/kotlin/com/example/mysite/components/widgets")).isFalse()
         assertThat(textOf("site/src/jsMain/kotlin/com/example/mysite/pages/Index.kt")).isEqualTo(
             """
             package com.example.mysite.pages
@@ -354,6 +467,196 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
 
             """.trimIndent()
         )
+    }
+
+    fun testAppColorModeButtonUsesMaterialSymbols() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+
+        writeApp(
+            rootDir,
+            "site",
+            KobwebAppOptions(
+                group = "com.example.mysite",
+                title = "My Site",
+                useSilk = true,
+                iconSet = SilkIconSet.MATERIAL_SYMBOLS,
+                useServer = false,
+                useMarkdown = false,
+                generateReadme = false,
+                addSampleCode = true,
+            ),
+        )
+
+        assertThat(textOf("site/src/jsMain/kotlin/com/example/mysite/components/widgets/ColorModeButton.kt")).isEqualTo(
+            """
+            package com.example.mysite.components.widgets
+
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.silk.components.forms.Button
+            import com.varabyte.kobweb.silk.components.forms.ButtonSize
+            import com.varabyte.kobweb.silk.components.forms.ButtonStyle
+            import com.varabyte.kobweb.silk.components.icons.ms.MsDarkMode
+            import com.varabyte.kobweb.silk.components.icons.ms.MsLightMode
+            import com.varabyte.kobweb.silk.style.addVariantBase
+            import com.varabyte.kobweb.silk.theme.colors.ColorMode
+            import org.jetbrains.compose.web.css.*
+
+            val CircleButtonVariant = ButtonStyle.addVariantBase {
+                Modifier.padding(0.px).borderRadius(50.percent)
+            }
+
+            @Composable
+            fun ColorModeButton(modifier: Modifier = Modifier) {
+                var colorMode by ColorMode.currentState
+                Button(
+                    onClick = { colorMode = colorMode.opposite },
+                    modifier,
+                    variant = CircleButtonVariant,
+                    size = ButtonSize.SM,
+                ) {
+                    if (colorMode.isLight) MsDarkMode() else MsLightMode()
+                }
+            }
+
+            """.trimIndent()
+        )
+    }
+
+    fun testAppColorModeButtonUsesLucide() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+
+        writeApp(
+            rootDir,
+            "site",
+            KobwebAppOptions(
+                group = "com.example.mysite",
+                title = "My Site",
+                useSilk = true,
+                iconSet = SilkIconSet.LUCIDE,
+                useServer = false,
+                useMarkdown = false,
+                generateReadme = false,
+                addSampleCode = true,
+            ),
+        )
+
+        assertThat(textOf("site/src/jsMain/kotlin/com/example/mysite/components/widgets/ColorModeButton.kt")).isEqualTo(
+            """
+            package com.example.mysite.components.widgets
+
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.silk.components.forms.Button
+            import com.varabyte.kobweb.silk.components.forms.ButtonSize
+            import com.varabyte.kobweb.silk.components.forms.ButtonStyle
+            import com.varabyte.kobweb.silk.components.icons.lucide.LucideMoon
+            import com.varabyte.kobweb.silk.components.icons.lucide.LucideSun
+            import com.varabyte.kobweb.silk.style.addVariantBase
+            import com.varabyte.kobweb.silk.theme.colors.ColorMode
+            import org.jetbrains.compose.web.css.*
+
+            val CircleButtonVariant = ButtonStyle.addVariantBase {
+                Modifier.padding(0.px).borderRadius(50.percent)
+            }
+
+            @Composable
+            fun ColorModeButton(modifier: Modifier = Modifier) {
+                var colorMode by ColorMode.currentState
+                Button(
+                    onClick = { colorMode = colorMode.opposite },
+                    modifier,
+                    variant = CircleButtonVariant,
+                    size = ButtonSize.SM,
+                ) {
+                    if (colorMode.isLight) LucideMoon() else LucideSun()
+                }
+            }
+
+            """.trimIndent()
+        )
+    }
+
+    fun testAppColorModeButtonWithoutIconSetUsesSilkIcons() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+
+        writeApp(
+            rootDir,
+            "site",
+            KobwebAppOptions(
+                group = "com.example.mysite",
+                title = "My Site",
+                useSilk = true,
+                iconSet = null,
+                useServer = false,
+                useMarkdown = false,
+                generateReadme = false,
+                addSampleCode = true,
+            ),
+        )
+
+        assertThat(textOf("site/src/jsMain/kotlin/com/example/mysite/components/widgets/ColorModeButton.kt")).isEqualTo(
+            """
+            package com.example.mysite.components.widgets
+
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.silk.components.forms.Button
+            import com.varabyte.kobweb.silk.components.forms.ButtonSize
+            import com.varabyte.kobweb.silk.components.forms.ButtonStyle
+            import com.varabyte.kobweb.silk.components.icons.MoonIcon
+            import com.varabyte.kobweb.silk.components.icons.SunIcon
+            import com.varabyte.kobweb.silk.style.addVariantBase
+            import com.varabyte.kobweb.silk.theme.colors.ColorMode
+            import org.jetbrains.compose.web.css.*
+
+            val CircleButtonVariant = ButtonStyle.addVariantBase {
+                Modifier.padding(0.px).borderRadius(50.percent)
+            }
+
+            @Composable
+            fun ColorModeButton(modifier: Modifier = Modifier) {
+                var colorMode by ColorMode.currentState
+                Button(
+                    onClick = { colorMode = colorMode.opposite },
+                    modifier,
+                    variant = CircleButtonVariant,
+                    size = ButtonSize.SM,
+                ) {
+                    if (colorMode.isLight) MoonIcon() else SunIcon()
+                }
+            }
+
+            """.trimIndent()
+        )
+    }
+
+    fun testAppTitleIsEscapedInConfYaml() {
+        val rootDir = myFixture.addFileToProject("settings.gradle.kts", "rootProject.name = \"mysite\"")
+            .virtualFile.parent
+
+        writeApp(
+            rootDir,
+            "site",
+            KobwebAppOptions(
+                group = "com.example.mysite",
+                title = """Say "Hi" to C:\Users""",
+                useSilk = true,
+                iconSet = null,
+                useServer = false,
+                useMarkdown = false,
+                generateReadme = false,
+                addSampleCode = false,
+            ),
+        )
+
+        assertThat(textOf("site/.kobweb/conf.yaml")).contains("""title: "Say \"Hi\" to C:\\Users"""")
     }
 
     fun testAppWithServerButWithoutSilkMarkdownOrSampleCode() {
@@ -766,8 +1069,34 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
 
             """.trimIndent()
         )
-        // The same layout as an app's sample code, which the app test checks in full
-        assertThat(exists("mylib/src/jsMain/kotlin/com/example/mylib/components/layouts/PageLayout.kt")).isTrue()
+        // Unlike an app's layout, a library's has no header
+        assertThat(textOf("mylib/src/jsMain/kotlin/com/example/mylib/components/layouts/PageLayout.kt")).isEqualTo(
+            """
+            package com.example.mylib.components.layouts
+
+            import androidx.compose.runtime.*
+            import com.varabyte.kobweb.compose.foundation.layout.Column
+            import com.varabyte.kobweb.compose.ui.Alignment
+            import com.varabyte.kobweb.compose.ui.Modifier
+            import com.varabyte.kobweb.compose.ui.modifiers.*
+            import com.varabyte.kobweb.core.layout.Layout
+            import org.jetbrains.compose.web.css.cssRem
+
+            @Layout
+            @Composable
+            fun PageLayout(content: @Composable () -> Unit) {
+                // TODO: Add the parts that all your pages share, like a header and a footer
+                Column(
+                    Modifier.fillMaxSize().padding(2.cssRem),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    content()
+                }
+            }
+
+            """.trimIndent()
+        )
+        assertThat(exists("mylib/src/jsMain/kotlin/com/example/mylib/components/sections")).isFalse()
     }
 
     fun testWorkerWithStrings() {

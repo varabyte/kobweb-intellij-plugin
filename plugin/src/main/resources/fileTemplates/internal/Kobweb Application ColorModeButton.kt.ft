@@ -1,0 +1,30 @@
+package ${PACKAGE}.components.widgets
+
+import androidx.compose.runtime.*
+import com.varabyte.kobweb.compose.ui.Modifier
+import com.varabyte.kobweb.compose.ui.modifiers.*
+import com.varabyte.kobweb.silk.components.forms.Button
+import com.varabyte.kobweb.silk.components.forms.ButtonSize
+import com.varabyte.kobweb.silk.components.forms.ButtonStyle
+import ${COLOR_MODE_ICONS_PACKAGE}.${MOON_ICON}
+import ${COLOR_MODE_ICONS_PACKAGE}.${SUN_ICON}
+import com.varabyte.kobweb.silk.style.addVariantBase
+import com.varabyte.kobweb.silk.theme.colors.ColorMode
+import org.jetbrains.compose.web.css.*
+
+val CircleButtonVariant = ButtonStyle.addVariantBase {
+    Modifier.padding(0.px).borderRadius(50.percent)
+}
+
+@Composable
+fun ColorModeButton(modifier: Modifier = Modifier) {
+    var colorMode by ColorMode.currentState
+    Button(
+        onClick = { colorMode = colorMode.opposite },
+        modifier,
+        variant = CircleButtonVariant,
+        size = ButtonSize.SM,
+    ) {
+        if (colorMode.isLight) ${MOON_ICON}() else ${SUN_ICON}()
+    }
+}

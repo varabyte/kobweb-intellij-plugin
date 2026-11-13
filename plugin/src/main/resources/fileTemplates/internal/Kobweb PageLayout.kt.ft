@@ -8,6 +8,24 @@ import com.varabyte.kobweb.compose.ui.Modifier
 import com.varabyte.kobweb.compose.ui.modifiers.*
 import com.varabyte.kobweb.core.layout.Layout
 import org.jetbrains.compose.web.css.cssRem
+#if ($ADD_HEADER)
+import ${PACKAGE}.components.sections.Header
+
+@Layout
+@Composable
+fun PageLayout(content: @Composable () -> Unit) {
+    // TODO: Add any other parts that all your pages share, like a footer
+    Column(Modifier.fillMaxSize()) {
+        Header()
+        Column(
+            Modifier.fillMaxWidth().padding(2.cssRem),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            content()
+        }
+    }
+}
+#else
 
 @Layout
 @Composable
@@ -20,11 +38,40 @@ fun PageLayout(content: @Composable () -> Unit) {
         content()
     }
 }
+#end
 #else
 import androidx.compose.runtime.*
 import com.varabyte.kobweb.core.layout.Layout
 import org.jetbrains.compose.web.css.*
 import org.jetbrains.compose.web.dom.Div
+#if ($ADD_HEADER)
+import ${PACKAGE}.components.sections.Header
+
+@Layout
+@Composable
+fun PageLayout(content: @Composable () -> Unit) {
+    // TODO: Add any other parts that all your pages share, like a footer
+    Div(attrs = {
+        style {
+            display(DisplayStyle.Flex)
+            flexDirection(FlexDirection.Column)
+            minHeight(100.vh)
+        }
+    }) {
+        Header()
+        Div(attrs = {
+            style {
+                display(DisplayStyle.Flex)
+                flexDirection(FlexDirection.Column)
+                alignItems(AlignItems.Center)
+                padding(2.cssRem)
+            }
+        }) {
+            content()
+        }
+    }
+}
+#else
 
 @Layout
 @Composable
@@ -42,4 +89,5 @@ fun PageLayout(content: @Composable () -> Unit) {
         content()
     }
 }
+#end
 #end

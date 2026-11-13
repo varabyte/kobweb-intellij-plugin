@@ -1,0 +1,55 @@
+package ${PACKAGE}.components.sections
+
+#if ($USE_SILK)
+import androidx.compose.runtime.*
+import com.varabyte.kobweb.compose.foundation.layout.Box
+import com.varabyte.kobweb.compose.ui.Alignment
+import com.varabyte.kobweb.compose.ui.Modifier
+import com.varabyte.kobweb.compose.ui.modifiers.*
+import com.varabyte.kobweb.core.AppGlobals
+import com.varabyte.kobweb.core.title
+import com.varabyte.kobweb.silk.components.text.SpanText
+import com.varabyte.kobweb.silk.style.CssStyle
+import com.varabyte.kobweb.silk.style.base
+import com.varabyte.kobweb.silk.style.toModifier
+import com.varabyte.kobweb.silk.theme.colors.palette.border
+import com.varabyte.kobweb.silk.theme.colors.palette.toPalette
+import org.jetbrains.compose.web.css.*
+import ${PACKAGE}.components.widgets.ColorModeButton
+
+val HeaderStyle = CssStyle.base {
+    Modifier
+        .fillMaxWidth()
+        .padding(topBottom = 0.5.cssRem, leftRight = 1.cssRem)
+        .borderBottom(1.px, LineStyle.Solid, colorMode.toPalette().border)
+}
+
+@Composable
+fun Header() {
+    Box(HeaderStyle.toModifier()) {
+        SpanText(AppGlobals.title, Modifier.align(Alignment.Center).fontSize(1.25.cssRem))
+        ColorModeButton(Modifier.align(Alignment.CenterEnd))
+    }
+}
+#else
+import androidx.compose.runtime.*
+import com.varabyte.kobweb.core.AppGlobals
+import com.varabyte.kobweb.core.title
+import org.jetbrains.compose.web.css.*
+import org.jetbrains.compose.web.dom.Div
+import org.jetbrains.compose.web.dom.Text
+
+@Composable
+fun Header() {
+    Div(attrs = {
+        style {
+            textAlign("center")
+            fontSize(1.25.cssRem)
+            padding(0.5.cssRem, 1.cssRem)
+            property("border-bottom", "1px solid black")
+        }
+    }) {
+        Text(AppGlobals.title)
+    }
+}
+#end

@@ -6,6 +6,7 @@ import com.android.tools.idea.gradle.dsl.api.ext.ReferenceTo
 import com.intellij.ide.fileTemplates.FileTemplateManager
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.varabyte.kobweb.intellij.util.gradle.catalog.VersionCatalog
@@ -110,11 +111,13 @@ class KobwebModuleWriter(
             // Names the site's JS and server files, which conf.yaml points at. Like `kobweb create`, this uses the last
             // part of the group.
             "APP_NAME" to options.group.substringAfterLast('.'),
-            "TITLE" to options.title,
+            // Goes inside a double-quoted YAML string, whose escapes match Java's
+            "TITLE" to StringUtil.escapeStringCharacters(options.title),
             "USE_SILK" to options.useSilk,
             "USE_SERVER" to options.useServer,
             "USE_MARKDOWN" to options.useMarkdown,
-        ) + addCatalogEntries(
+            "ADD_HEADER" to true,
+        ) + ColorModeIcons.of(options.iconSet).toTemplateProperties() + addCatalogEntries(
             libraries = APP_TEMPLATE_LIBRARIES.withIconSet(options.iconSet),
             plugins = APP_TEMPLATE_PLUGINS,
         )
@@ -134,6 +137,18 @@ class KobwebModuleWriter(
                 "Kobweb PageLayout.kt",
                 properties,
             )
+            moduleRoot.writeTemplate(
+                "$kotlinDir/components/sections/Header.kt",
+                "Kobweb Application Header.kt",
+                properties,
+            )
+            if (options.useSilk) {
+                moduleRoot.writeTemplate(
+                    "$kotlinDir/components/widgets/ColorModeButton.kt",
+                    "Kobweb Application ColorModeButton.kt",
+                    properties,
+                )
+            }
             moduleRoot.writeTemplate("$kotlinDir/pages/Index.kt", "Kobweb Application Index.kt", properties)
             if (options.useMarkdown) {
                 moduleRoot.writeTemplate(
@@ -176,6 +191,8 @@ class KobwebModuleWriter(
             "USE_SILK" to options.useSilk,
             "USE_SERVER" to options.useServer,
             "USE_MARKDOWN" to options.useMarkdown,
+            // A header is part of a site's look, which a library's sample pages shouldn't decide
+            "ADD_HEADER" to false,
         ) + addCatalogEntries(
             libraries = LIBRARY_TEMPLATE_LIBRARIES.withIconSet(options.iconSet),
             plugins = LIBRARY_TEMPLATE_PLUGINS,
@@ -522,6 +539,33 @@ class KobwebModuleWriter(
  */
 private fun Map<String, String>.withIconSet(iconSet: SilkIconSet?): Map<String, String> =
     if (iconSet != null) this + ("SILK_ICONS" to "silk-icons-${iconSet.id}") else this
+
+/**
+ * The icons of the new app's color mode button, from its icon set (or Silk's own icons, if it has none).
+ *
+ * @property moon The function for an icon that means "switch to dark mode".
+ * @property sun The function for an icon that means "switch to light mode".
+ */
+private class ColorModeIcons(val packageName: String, val moon: String, val sun: String) {
+    fun toTemplateProperties() = mapOf(
+        "COLOR_MODE_ICONS_PACKAGE" to packageName,
+        "MOON_ICON" to moon,
+        "SUN_ICON" to sun,
+    )
+
+    companion object {
+        fun of(iconSet: SilkIconSet?): ColorModeIcons {
+            val packageName = iconSet?.packageName?.asString() ?: "com.varabyte.kobweb.silk.components.icons"
+            return when (iconSet) {
+                null -> ColorModeIcons(packageName, "MoonIcon", "SunIcon")
+                SilkIconSet.FONT_AWESOME -> ColorModeIcons(packageName, "FaMoon", "FaSun")
+                SilkIconSet.MATERIAL_ICONS -> ColorModeIcons(packageName, "MdiDarkMode", "MdiLightMode")
+                SilkIconSet.MATERIAL_SYMBOLS -> ColorModeIcons(packageName, "MsDarkMode", "MsLightMode")
+                SilkIconSet.LUCIDE -> ColorModeIcons(packageName, "LucideMoon", "LucideSun")
+            }
+        }
+    }
+}
 
 /** The Gradle path of the module in this directory, e.g. `:libs:mylib` for `libs/mylib`. */
 private fun String.toGradlePath() = ":" + replace('/', ':')
