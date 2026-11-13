@@ -7,18 +7,15 @@ import com.intellij.psi.PsiElementVisitor
 import com.varabyte.kobweb.intellij.quickfixes.route.ReplaceWithDynamicParamGetValueQuickFix
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.route.DynamicRouteSegment
+import com.varabyte.kobweb.intellij.util.kobweb.route.RouteParamKey
 import com.varabyte.kobweb.intellij.util.kobweb.route.RouteParamsScope
-import com.varabyte.kobweb.intellij.util.kobweb.route.canSwitchToDynamicParams
 import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteParamsRoute
-import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteParamsScope
-import com.varabyte.kobweb.intellij.util.kobweb.route.findValueLookup
-import com.varabyte.kobweb.intellij.util.kobweb.route.mayBeRouteParamKey
+import com.varabyte.kobweb.intellij.util.kobweb.route.isReadWithGetValue
+import com.varabyte.kobweb.intellij.util.kobweb.route.isValueLookup
 import com.varabyte.kobweb.intellij.util.kobweb.route.segments
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.KtArrayAccessExpression
-import org.jetbrains.kotlin.psi.KtCallExpression
-import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
 import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.KtVisitorVoid
@@ -38,15 +35,11 @@ class DynamicParamLookupInspection : LocalInspectionTool() {
         return object : KtVisitorVoid() {
             override fun visitStringTemplateExpression(expression: KtStringTemplateExpression) {
                 super.visitStringTemplateExpression(expression)
-                if (!expression.mayBeRouteParamKey()) return
-                val lookup = expression.findValueLookup() ?: return
-                val call = (lookup as? KtQualifiedExpression)?.selectorExpression as? KtCallExpression
+                val paramKey = RouteParamKey.from(expression) ?: return
+                if (!paramKey.isValueLookup) return
                 // Already what we'd suggest
-                if (call?.calleeExpression?.text == "getValue"
-                    && expression.mayBeRouteParamKey(RouteParamsScope.DYNAMIC_ONLY)
-                ) return
-                if (expression.entries.any { entry -> entry !is KtLiteralStringTemplateEntry }) return
-                val key = expression.entries.joinToString("") { entry -> entry.text }
+                if (paramKey.isReadWithGetValue && paramKey.scopeFromName == RouteParamsScope.DYNAMIC_ONLY) return
+                val key = paramKey.value ?: return
 
                 val route = expression.findRouteParamsRoute() ?: return
                 val names = route.segments.mapNotNull { segment -> DynamicRouteSegment.tryCreate(segment)?.name }
@@ -54,12 +47,13 @@ class DynamicParamLookupInspection : LocalInspectionTool() {
 
                 // Checked last, as it's the most expensive check
                 val scope = analyze(expression) {
-                    expression.findRouteParamsScope()?.takeIf { scope ->
-                        scope == RouteParamsScope.DYNAMIC_ONLY || expression.canSwitchToDynamicParams()
+                    paramKey.findScope()?.takeIf { scope ->
+                        scope == RouteParamsScope.DYNAMIC_ONLY || paramKey.canSwitchToDynamicParams()
                     }
                 } ?: return
 
                 // Just the lookup part, e.g. `["post"]` or `.get("post")`
+                val lookup = paramKey.access
                 val lookupStart = when (lookup) {
                     is KtArrayAccessExpression -> lookup.indicesNode.textRange.startOffset
                     is KtQualifiedExpression -> lookup.operationTokenNode.startOffset

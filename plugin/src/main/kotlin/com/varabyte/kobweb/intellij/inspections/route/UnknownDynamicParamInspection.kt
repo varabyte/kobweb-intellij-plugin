@@ -7,15 +7,13 @@ import com.intellij.psi.PsiElementVisitor
 import com.varabyte.kobweb.intellij.quickfixes.route.ChooseDynamicParamQuickFix
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.route.DynamicRouteSegment
+import com.varabyte.kobweb.intellij.util.kobweb.route.RouteParamKey
 import com.varabyte.kobweb.intellij.util.kobweb.route.RouteParamsScope
 import com.varabyte.kobweb.intellij.util.kobweb.route.displayValue
-import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteParamsScope
 import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteParamsRoute
-import com.varabyte.kobweb.intellij.util.kobweb.route.mayBeRouteParamKey
 import com.varabyte.kobweb.intellij.util.kobweb.route.segments
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.KtVisitorVoid
 
@@ -32,17 +30,16 @@ class UnknownDynamicParamInspection : LocalInspectionTool() {
         return object : KtVisitorVoid() {
             override fun visitStringTemplateExpression(expression: KtStringTemplateExpression) {
                 super.visitStringTemplateExpression(expression)
-                if (!expression.mayBeRouteParamKey(RouteParamsScope.DYNAMIC_ONLY)) return
-                // Keys with template expressions or escapes could be anything
-                if (expression.entries.any { entry -> entry !is KtLiteralStringTemplateEntry }) return
-                val key = expression.entries.joinToString("") { entry -> entry.text }
+                val paramKey = RouteParamKey.from(expression) ?: return
+                if (paramKey.scopeFromName != RouteParamsScope.DYNAMIC_ONLY) return
+                val key = paramKey.value ?: return
 
                 val route = expression.findRouteParamsRoute() ?: return
                 val names = route.segments.mapNotNull { segment -> DynamicRouteSegment.tryCreate(segment)?.name }
                 if (key in names) return
 
                 // Checked last, as it's the most expensive check
-                if (analyze(expression) { expression.findRouteParamsScope() } != RouteParamsScope.DYNAMIC_ONLY) return
+                if (analyze(expression) { paramKey.findScope() } != RouteParamsScope.DYNAMIC_ONLY) return
 
                 holder.registerProblem(
                     expression,

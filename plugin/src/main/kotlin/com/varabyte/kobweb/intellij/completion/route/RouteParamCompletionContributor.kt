@@ -15,10 +15,9 @@ import com.intellij.psi.util.parentOfType
 import com.intellij.util.ProcessingContext
 import com.varabyte.kobweb.intellij.util.kobweb.isInWritableKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.route.DynamicRouteSegment
+import com.varabyte.kobweb.intellij.util.kobweb.route.RouteParamKey
 import com.varabyte.kobweb.intellij.util.kobweb.route.displayValue
 import com.varabyte.kobweb.intellij.util.kobweb.route.findRouteParamsRoute
-import com.varabyte.kobweb.intellij.util.kobweb.route.isRouteParamKey
-import com.varabyte.kobweb.intellij.util.kobweb.route.mayBeRouteParamKey
 import com.varabyte.kobweb.intellij.util.kobweb.route.segments
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
@@ -43,11 +42,11 @@ class RouteParamCompletionContributor : CompletionContributor() {
  * Returns the text of this string up to [offset] (a position in its file) if it could be the start of a route param
  * key that we'd complete, e.g. "p" for `ctx.route.params["p|"]`.
  *
- * Returns null if it can't be, e.g. if the string isn't used as a key into route params (see [mayBeRouteParamKey]) or
+ * Returns null if it can't be, e.g. if the string isn't used as a key into route params (see [RouteParamKey.from]) or
  * it has template expressions or escapes before [offset].
  */
 internal fun KtStringTemplateExpression.findRouteParamPrefix(offset: Int): String? {
-    if (!mayBeRouteParamKey()) return null
+    if (RouteParamKey.from(this) == null) return null
 
     val valueRange = ElementManipulators.getValueTextRange(this).shiftRight(textRange.startOffset)
     if (offset !in valueRange.startOffset..valueRange.endOffset) return null
@@ -71,7 +70,7 @@ private object RouteParamCompletionProvider : CompletionProvider<CompletionParam
         val originalStringExpr = CompletionUtil.getOriginalOrSelf(stringExpr)
         if (!originalStringExpr.isInWritableKobwebProject()) return
         val route = originalStringExpr.findRouteParamsRoute() ?: return
-        if (!analyze(originalStringExpr) { originalStringExpr.isRouteParamKey() }) return
+        if (analyze(originalStringExpr) { RouteParamKey.from(originalStringExpr)?.findScope() } == null) return
 
         val names = route.segments.mapNotNull { segment -> DynamicRouteSegment.tryCreate(segment)?.name }
         val nameResult = result.withPrefixMatcher(prefix)
