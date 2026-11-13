@@ -89,7 +89,79 @@ class UnknownDynamicParamInspectionTest : KobwebInspectionTestBase() {
                 @Page("{user}/posts/{post}")
                 @Composable
                 fun PostPage(ctx: PageContext) {
-                    ctx.route.dynamicParams["post"]
+                    ctx.route.dynamicParams.getValue("post")
+                }
+                """.trimIndent()
+            )
+        )
+    }
+
+    fun testChoosingNameReplacesFallbackWithGetValue() {
+        doTest(
+            "Post.kt",
+            """
+            package $TEST_GROUP.pages.users
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+            import com.varabyte.kobweb.core.PageContext
+
+            @Page("{user}/posts/{post}")
+            @Composable
+            fun PostPage(ctx: PageContext) {
+                val post: String = ctx.route.dynamicParams.getOrElse("<warning>pots</warning>") { "" }
+            }
+            """.trimIndent(),
+            thenFixWith<ChooseDynamicParamQuickFix>({ problem ->
+                chooseName(problem, expectedChoices = listOf("post", "user"), choice = "post")
+            },
+                """
+                package $TEST_GROUP.pages.users
+
+                import androidx.compose.runtime.Composable
+                import com.varabyte.kobweb.core.Page
+                import com.varabyte.kobweb.core.PageContext
+
+                @Page("{user}/posts/{post}")
+                @Composable
+                fun PostPage(ctx: PageContext) {
+                    val post: String = ctx.route.dynamicParams.getValue("post")
+                }
+                """.trimIndent()
+            )
+        )
+    }
+
+    fun testChoosingNameOnlyChangesKeyOfContainsKey() {
+        doTest(
+            "Post.kt",
+            """
+            package $TEST_GROUP.pages.users
+
+            import androidx.compose.runtime.Composable
+            import com.varabyte.kobweb.core.Page
+            import com.varabyte.kobweb.core.PageContext
+
+            @Page("{user}/posts/{post}")
+            @Composable
+            fun PostPage(ctx: PageContext) {
+                ctx.route.dynamicParams.containsKey("<warning>pots</warning>")
+            }
+            """.trimIndent(),
+            thenFixWith<ChooseDynamicParamQuickFix>({ problem ->
+                chooseName(problem, expectedChoices = listOf("post", "user"), choice = "post")
+            },
+                """
+                package $TEST_GROUP.pages.users
+
+                import androidx.compose.runtime.Composable
+                import com.varabyte.kobweb.core.Page
+                import com.varabyte.kobweb.core.PageContext
+
+                @Page("{user}/posts/{post}")
+                @Composable
+                fun PostPage(ctx: PageContext) {
+                    ctx.route.dynamicParams.containsKey("post")
                 }
                 """.trimIndent()
             )

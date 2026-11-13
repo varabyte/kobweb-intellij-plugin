@@ -10,6 +10,9 @@ import com.intellij.modcommand.PsiUpdateModCommandAction
 import com.intellij.openapi.project.Project
 import com.intellij.psi.ElementManipulators
 import com.intellij.util.text.EditDistance
+import com.varabyte.kobweb.intellij.util.kobweb.route.RouteParamKey
+import com.varabyte.kobweb.intellij.util.kobweb.route.isReadWithGetValue
+import com.varabyte.kobweb.intellij.util.kobweb.route.isValueLookup
 import com.varabyte.kobweb.intellij.util.ux.UxGlobals
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
@@ -18,6 +21,9 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
  * "post" for `ctx.route.dynamicParams["pots"]` in a page registered at "/blog/{post}".
  *
  * Names that best match the current key are listed first, so a typo'd key puts the intended name at the top.
+ *
+ * As the chosen name is always in the route's dynamic params, a lookup of its value is also changed to `getValue`, e.g.
+ * `dynamicParams["pots"]` into `dynamicParams.getValue("post")`.
  *
  * @param names The names of the route's dynamic segments.
  */
@@ -46,7 +52,10 @@ class ChooseDynamicParamQuickFix(private val names: List<String>) : ModCommandQu
             Presentation.of(name)
 
         override fun invoke(context: ActionContext, element: KtStringTemplateExpression, updater: ModPsiUpdater) {
-            ElementManipulators.handleContentChange(element, name)
+            val key = ElementManipulators.handleContentChange(element, name) ?: return
+            // The chosen name is always in the route's dynamic params, so its value can be read with getValue
+            val paramKey = RouteParamKey.from(key) ?: return
+            if (paramKey.isValueLookup && !paramKey.isReadWithGetValue) paramKey.replaceWithDynamicParamsGetValue()
         }
     }
 }
