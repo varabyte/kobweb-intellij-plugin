@@ -129,7 +129,8 @@ intellijPlatform {
             <p>
             This official plugin provides functionality relevant to users working on Kobweb projects, including:
             <ul>
-                <li>Completion, navigation, and checks for page routes, public files, and API endpoints</li>
+                <li>Wizards for creating Kobweb projects and adding application, library, and worker modules</li>
+                <li>Completion, navigation, and checks for page routes, route params, public files, and API endpoints</li>
                 <li>Inlay hints showing the route and layout of each page</li>
                 <li>Inspections and refactoring tools for CSS styles and Modifier chains</li>
                 <li>Previews of Kobweb colors and Silk icons in the gutter</li>

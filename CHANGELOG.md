@@ -1,5 +1,36 @@
 # Kobweb IntelliJ Plugin
 
+## [0.8.1]
+
+You can now create Kobweb projects and modules right from IntelliJ, and the plugin understands route params.
+
+### Added
+
+- **New project and module wizards.** Create a Kobweb project with
+  <span style="white-space: nowrap">`File > New > Project`</span>, or add a Kobweb application, library, or worker
+  module to an existing project using <span style="white-space: nowrap">`File > New > Module`</span>.<br>
+  ![New project wizard](https://github.com/varabyte/media/raw/main/kobweb-intellij-plugin/0.8.1/new-project-wizard.png)
+  - Pick an icon set (Font Awesome, Material Symbols, or Lucide) for a new Silk module, with sample icons shown right
+    in the dropdown, so you can choose the style that's best for your project.
+  - With sample code enabled, new applications get a header with a color mode button, giving examples of several
+    fundamental Kobweb concepts, like styling, code organization, and color mode support.
+  - When adding a new Kobweb library and/or worker, you can specify modules that should automatically be hooked up to
+    depend on them.
+- **Renaming Kobweb modules.** <span style="white-space: nowrap">`"Rename Module"`</span> on a Kobweb module's folder
+  now renames the module properly: its folder, its `include(...)` in the settings script, its name in all build scripts,
+  and the `.kobweb/conf.yaml` paths that use it.
+- **Route params.** Keys into a page's `ctx.route.params` or `ctx.route.dynamicParams` map properties now have
+  autocomplete support. For example:<br>
+  ![Route param completion](https://github.com/varabyte/media/raw/main/kobweb-intellij-plugin/0.8.1/route-param-completion.png)
+  - Invalid keys are now flagged when possible, useful for catching typos, e.g. `ctx.route.dynamicParams["pots"]` when
+    you meant `"post"`. A fix is also provided that lets you choose the right name straight from a popup.
+  - The same help is provided on the backend for `Request` objects, e.g.
+    <span style="white-space: nowrap">`ctx.req.params["<caret>"]`</span>.
+
+### Fixed
+
+- Icon previews no longer mix up icons with similar names, such as `LucideLetterS` and `LucideLetters`.
+
 ## [0.8.0]
 
 This is our biggest release yet. The plugin now understands how a Kobweb site fits together: its page routes, layouts,
