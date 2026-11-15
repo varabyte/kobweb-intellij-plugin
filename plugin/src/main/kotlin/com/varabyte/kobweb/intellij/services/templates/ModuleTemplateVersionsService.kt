@@ -8,6 +8,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.psi.PsiFileFactory
 import com.intellij.psi.util.childrenOfType
+import com.intellij.util.text.SemVer
 import com.varabyte.kobweb.intellij.util.github.GitHubRepo
 import com.varabyte.kobweb.intellij.util.kobweb.Kobweb
 import com.varabyte.kobweb.intellij.util.kobweb.VarabyteData
@@ -196,12 +197,8 @@ class ModuleTemplateVersionsService(private val coroutineScope: CoroutineScope) 
     /** The latest Kobweb version that's been verified to work with this plugin's module templates. */
     private fun fetchVerifiedVersion(): String? {
         val text = RemoteFile(VERIFIED_VERSION_URL).download()?.decodeToString() ?: return null
-        /**
-         * The Kobweb version in a verified version file's text, e.g. `"0.25.1"`, or null if it isn't an `X.Y.Z`
-         * version.
-         */
-        fun String.readVerifiedVersion(): String? =
-            trim().takeIf { Regex("""\d+\.\d+\.\d+""").matches(it) }
+        /** The Kobweb version in a verified version file's text, e.g. `"0.25.1"`, or null if it isn't a version. */
+        fun String.readVerifiedVersion(): String? = trim().takeIf { SemVer.parseFromText(it) != null }
         return text.readVerifiedVersion()
             .also { if (it == null) logger.warn("Unexpected version format in $VERIFIED_VERSION_URL: $text") }
     }
