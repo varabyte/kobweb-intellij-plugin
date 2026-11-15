@@ -48,8 +48,8 @@ import com.varabyte.kobweb.intellij.services.icons.IconPreviewService
 import com.varabyte.kobweb.intellij.services.icons.IconPreviewsListener
 import com.varabyte.kobweb.intellij.services.icons.startLoading
 import com.varabyte.kobweb.intellij.services.project.KobwebProjectScopeService
-import com.varabyte.kobweb.intellij.services.versions.KobwebReleaseVersions
-import com.varabyte.kobweb.intellij.services.versions.KobwebReleaseVersionsService
+import com.varabyte.kobweb.intellij.services.templates.KobwebReleaseVersions
+import com.varabyte.kobweb.intellij.services.templates.ModuleTemplateVersionsService
 import com.varabyte.kobweb.intellij.util.idea.wizard.DeferredSetupStep
 import com.varabyte.kobweb.intellij.util.kobweb.project.findKobwebProject
 import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconSet
@@ -144,7 +144,7 @@ class KobwebModuleStep(
         }
 
         // Fetched while users fill in the form, so it's usually ready by the time they click Create
-        KobwebReleaseVersionsService.instance.prefetch()
+        ModuleTemplateVersionsService.instance.prefetch()
 
         super.setupUI(builder)
         if (gradleRoot != null && gradleRoot.findFileByRelativePath("gradle/libs.versions.toml") == null) {
@@ -367,7 +367,7 @@ class KobwebModuleStep(
         // ever breaks, we can write our own solution instead.
         runAfterOpened(project) { openedProject ->
             openedProject.service<KobwebProjectScopeService>().launch("Kobweb new project setup") {
-                val versions = KobwebReleaseVersionsService.instance.awaitLatestVersions(LATEST_VERSIONS_TIMEOUT)
+                val versions = ModuleTemplateVersionsService.instance.awaitVersions(LATEST_VERSIONS_TIMEOUT)
                 val rootDir = withContext(Dispatchers.IO) {
                     createGradleWrapper(rootPath, versions?.gradleVersion ?: NEW_PROJECT_GRADLE_VERSION)
                 }
@@ -408,11 +408,11 @@ class KobwebModuleStep(
      * plugin.
      */
     private fun awaitLatestKobwebVersions(project: Project): Map<String, String> {
-        val service = KobwebReleaseVersionsService.instance
-        service.latestVersionsIfFetched()?.let { return it.toVersionOverrides() }
+        val service = ModuleTemplateVersionsService.instance
+        service.versionsIfFetched()?.let { return it.toVersionOverrides() }
         val title = UxGlobals.textBundle.message("wizard.kobweb.module.fetching.versions")
         return runWithModalProgressBlocking(project, title) {
-            service.awaitLatestVersions(LATEST_VERSIONS_TIMEOUT)
+            service.awaitVersions(LATEST_VERSIONS_TIMEOUT)
         }?.toVersionOverrides().orEmpty()
     }
 

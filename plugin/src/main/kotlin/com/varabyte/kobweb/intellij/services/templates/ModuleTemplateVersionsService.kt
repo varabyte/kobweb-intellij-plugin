@@ -1,4 +1,4 @@
-package com.varabyte.kobweb.intellij.services.versions
+package com.varabyte.kobweb.intellij.services.templates
 
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.components.Service
@@ -33,10 +33,13 @@ import kotlin.time.Duration
 private val VERIFIED_VERSION_URL =
     GitHubRepo.VarabyteData.rawFileUrl("kobweb-intellij-plugin/module-templates/verified-kobweb-version.txt")
 
+// The key of Kobweb's own version in Kobweb's version catalog
+private const val KOBWEB_CATALOG_VERSION_KEY = "kobweb-framework"
+
 /**
  * The versions that a Kobweb release was built with.
  *
- * @property kobwebVersion The release's own version, from its tag, e.g. `"0.25.1"` for `v0.25.1`.
+ * @property kobwebVersion The release's own version, e.g. `"0.25.1"`.
  * @property catalogVersions The `[versions]` table of Kobweb's version catalog, e.g. `"kotlin"` to `"2.4.10"`.
  * @property gradleVersion The Gradle version of Kobweb's wrapper, e.g. `"9.7.0"`, or null if it couldn't be read.
  */
@@ -46,17 +49,27 @@ data class KobwebReleaseVersions(
     val gradleVersion: String?,
 )
 
+/** Which Kobweb version [ModuleTemplateVersionsService] fetches the versions of. */
+private sealed interface KobwebVersionSource {
+    /** The latest release that's been verified to work with this plugin's module templates. */
+    data object Verified : KobwebVersionSource
+
+    /** Whatever version is on a branch of the Kobweb repo, e.g. `dev`, for trying out an unreleased version. */
+    data class Branch(val name: String) : KobwebVersionSource
+}
+
 /**
- * Fetches the versions that the latest (verified) Kobweb release uses (Kobweb itself, Kotlin, Compose, Gradle, etc.),
- * so new modules and projects get up-to-date versions even if this plugin hasn't been updated since that release.
+ * Fetches the versions that new modules from this plugin's module templates use (Kobweb itself, Kotlin, Compose,
+ * Gradle, etc.), so they get up-to-date versions even if this plugin hasn't been updated since the latest Kobweb
+ * release.
  *
  * The versions come from Kobweb's own version catalog and Gradle wrapper at the release's tag, so they always match the
  * versions Kobweb was built and tested with.
  */
 @Service(Service.Level.APP)
-class KobwebReleaseVersionsService(private val coroutineScope: CoroutineScope) {
+class ModuleTemplateVersionsService(private val coroutineScope: CoroutineScope) {
     companion object {
-        val instance get() = service<KobwebReleaseVersionsService>()
+        val instance get() = service<ModuleTemplateVersionsService>()
 
         /** The `[versions]` table of a version catalog, e.g. `"kobweb"` to `"0.25.1"`. */
         internal fun readVersions(project: Project, catalogText: String): Map<String, String> =
@@ -84,56 +97,68 @@ class KobwebReleaseVersionsService(private val coroutineScope: CoroutineScope) {
         }
     }
 
-    private val logger = logger<KobwebReleaseVersionsService>()
+    private val logger = logger<ModuleTemplateVersionsService>()
 
-    /** The latest release's versions, once a fetch succeeds. */
+    // Normally the latest verified release, but it can be set to a branch for checking the module templates against an
+    // unreleased Kobweb, e.g. `./gradlew :plugin:runIde -Pkobweb.moduleTemplates.fetchVersionFromBranch=dev`
+    private val source: KobwebVersionSource =
+        System.getProperty("kobweb.moduleTemplates.fetchVersionFromBranch")
+            ?.let { KobwebVersionSource.Branch(it) }
+            ?: KobwebVersionSource.Verified
+
+    /** The versions, once a fetch succeeds. */
     @Volatile
-    private var latestVersions: KobwebReleaseVersions? = null
+    private var fetchedVersions: KobwebReleaseVersions? = null
 
-    /** The current or last fetch. A failed one (which leaves [latestVersions] null) is retried by [startFetch]. */
+    /** The current or last fetch. A failed one (which leaves [fetchedVersions] null) is retried by [startFetch]. */
     @Volatile
     private var fetch: Deferred<KobwebReleaseVersions?>? = null
 
-    /** Starts fetching the latest release's versions in the background, unless they're fetched or being fetched. */
+    /** Starts fetching the versions in the background, unless they're fetched or being fetched. */
     fun prefetch() {
         @Suppress("DeferredResultUnused") // We are starting a fetch in the background to collect later
         startFetch()
     }
 
     /**
-     * The latest release's versions, if they've been fetched already.
+     * The versions, if they've been fetched already.
      *
-     * If this returns null, callers can wait for the fetch with [awaitLatestVersions], or use the versions bundled with
-     * this plugin.
+     * If this returns null, callers can wait for the fetch with [awaitVersions], or use the versions bundled with this
+     * plugin.
      */
-    fun latestVersionsIfFetched(): KobwebReleaseVersions? = latestVersions
+    fun versionsIfFetched(): KobwebReleaseVersions? = fetchedVersions
 
     /**
-     * The latest release's versions, waiting up to [timeout] for them to be fetched. Call [prefetch] earlier to wait
-     * less.
+     * The versions, waiting up to [timeout] for them to be fetched. Call [prefetch] earlier to wait less.
      *
      * @return null if the fetch failed or timed out.
      */
-    suspend fun awaitLatestVersions(timeout: Duration): KobwebReleaseVersions? {
-        val fetch = startFetch() ?: return latestVersions
+    suspend fun awaitVersions(timeout: Duration): KobwebReleaseVersions? {
+        val fetch = startFetch() ?: return fetchedVersions
         return withTimeoutOrNull(timeout) { fetch.await() }
     }
 
     /** Starts a fetch unless the versions are fetched or being fetched, returning the fetch in progress, if any. */
     private fun startFetch(): Deferred<KobwebReleaseVersions?>? {
         synchronized(this) {
-            if (latestVersions != null) return null
+            if (fetchedVersions != null) return null
             if (fetch?.isActive != true) {
-                fetch = coroutineScope.async(Dispatchers.IO) { fetchLatestVersions()?.also { latestVersions = it } }
+                fetch = coroutineScope.async(Dispatchers.IO) { fetchVersions()?.also { fetchedVersions = it } }
             }
             return fetch
         }
     }
 
-    private fun fetchLatestVersions(): KobwebReleaseVersions? {
-        val kobwebVersion = fetchVerifiedVersion() ?: return null
-        val tag = "v$kobwebVersion"
-        val catalogUrl = GitHubRepo.Kobweb.rawFileUrl("gradle/libs.versions.toml", ref = tag)
+    private fun fetchVersions(): KobwebReleaseVersions? {
+        // A branch's Kobweb version is only known once its catalog is read
+        val (ref, verifiedVersion) = when (source) {
+            KobwebVersionSource.Verified -> {
+                val version = fetchVerifiedVersion() ?: return null
+                "v$version" to version
+            }
+            is KobwebVersionSource.Branch -> source.name to null
+        }
+        val catalogUrl = GitHubRepo.Kobweb.rawFileUrl("gradle/libs.versions.toml", ref = ref)
         val catalogText = RemoteFile(catalogUrl).download()?.decodeToString() ?: return null
         val catalogVersions = readVersions(ProjectManager.getInstance().defaultProject, catalogText)
             .takeIf { it.isNotEmpty() }
@@ -141,22 +166,28 @@ class KobwebReleaseVersionsService(private val coroutineScope: CoroutineScope) {
                 logger.warn("Found no versions in $catalogUrl")
                 return null
             }
+        val kobwebVersion = verifiedVersion
+            ?: catalogVersions[KOBWEB_CATALOG_VERSION_KEY]
+            ?: run {
+                logger.warn("Found no $KOBWEB_CATALOG_VERSION_KEY version in $catalogUrl")
+                return null
+            }
         return KobwebReleaseVersions(
             kobwebVersion,
             catalogVersions,
-            gradleVersion = fetchGradleVersion(tag),
+            gradleVersion = fetchGradleVersion(ref),
         )
     }
 
     /**
-     * The Gradle version of the wrapper at [tag], or null if it can't be read.
+     * The Gradle version of the wrapper at [ref], or null if it can't be read.
      *
      * We use Kobweb's own Gradle version rather than Gradle's latest release, since Kobweb keeps it reasonably up to
      * date and its builds (including its playground project) are tested with it. Gradle's latest release, by contrast,
      * isn't always supported by the Kotlin Gradle plugin yet.
      */
-    private fun fetchGradleVersion(tag: String): String? {
-        val wrapperUrl = GitHubRepo.Kobweb.rawFileUrl("gradle/wrapper/gradle-wrapper.properties", ref = tag)
+    private fun fetchGradleVersion(ref: String): String? {
+        val wrapperUrl = GitHubRepo.Kobweb.rawFileUrl("gradle/wrapper/gradle-wrapper.properties", ref = ref)
         val wrapperText = RemoteFile(wrapperUrl).download()?.decodeToString() ?: return null
         return readGradleVersion(wrapperText)
             .also { if (it == null) logger.warn("Found no Gradle version in $wrapperUrl") }

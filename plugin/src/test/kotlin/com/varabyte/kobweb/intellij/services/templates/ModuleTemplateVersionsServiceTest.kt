@@ -1,13 +1,13 @@
 @file:Suppress("FunctionName")
 
-package com.varabyte.kobweb.intellij.services.versions
+package com.varabyte.kobweb.intellij.services.templates
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.varabyte.truthish.assertThat
 
-class KobwebReleaseVersionsServiceTest : BasePlatformTestCase() {
+class ModuleTemplateVersionsServiceTest : BasePlatformTestCase() {
     fun testVersionsAreReadFromCatalog() {
-        val versions = KobwebReleaseVersionsService.readVersions(
+        val versions = ModuleTemplateVersionsService.readVersions(
             project,
             """
             [versions]
@@ -32,7 +32,7 @@ class KobwebReleaseVersionsServiceTest : BasePlatformTestCase() {
     }
 
     fun testCatalogWithoutVersionsTableHasNoVersions() {
-        val versions = KobwebReleaseVersionsService.readVersions(
+        val versions = ModuleTemplateVersionsService.readVersions(
             project,
             """
             [libraries]
@@ -44,7 +44,7 @@ class KobwebReleaseVersionsServiceTest : BasePlatformTestCase() {
     }
 
     fun testGradleVersionIsReadFromWrapperProperties() {
-        val version = KobwebReleaseVersionsService.readGradleVersion(
+        val version = ModuleTemplateVersionsService.readGradleVersion(
             """
             distributionBase=GRADLE_USER_HOME
             distributionPath=wrapper/dists
@@ -60,7 +60,7 @@ class KobwebReleaseVersionsServiceTest : BasePlatformTestCase() {
     }
 
     fun testGradleVersionIsReadFromAllDistributionsAndPrereleases() {
-        val service = KobwebReleaseVersionsService
+        val service = ModuleTemplateVersionsService
         val distributionsUrl = "https\\://services.gradle.org/distributions"
 
         assertThat(service.readGradleVersion("distributionUrl=$distributionsUrl/gradle-9.7.0-all.zip"))
@@ -70,7 +70,7 @@ class KobwebReleaseVersionsServiceTest : BasePlatformTestCase() {
     }
 
     fun testWrapperPropertiesWithoutGradleVersionHaveNone() {
-        val service = KobwebReleaseVersionsService
+        val service = ModuleTemplateVersionsService
 
         assertThat(service.readGradleVersion("distributionBase=GRADLE_USER_HOME")).isNull()
         assertThat(service.readGradleVersion("distributionUrl=https\\://example.com/my-gradle.zip")).isNull()

@@ -263,6 +263,18 @@ if (providers.gradleProperty("localIconPreviews").isPresent) {
     }
 }
 
+// By default, new modules use the verified Kobweb version listed in the varabyte/data repo, along with the Kotlin,
+// Compose, and Gradle versions that release was built with. Pass
+// `-Pkobweb.moduleTemplates.fetchVersionFromBranch=<branch>` (e.g. `dev`) to use the versions on that branch of the
+// Kobweb repo instead, e.g. to check the module templates against an upcoming release before listing it.
+providers.gradleProperty("kobweb.moduleTemplates.fetchVersionFromBranch").orNull?.let { branch ->
+    tasks.withType<RunIdeTask>().configureEach {
+        jvmArgumentProviders.add(CommandLineArgumentProvider {
+            listOf("-Dkobweb.moduleTemplates.fetchVersionFromBranch=$branch")
+        })
+    }
+}
+
 // By default, import migrations are downloaded from the varabyte/data repo. Pass `-PlocalImportMigrations=<path>` to use
 // a local copy of the file instead, e.g. to check changes to it before publishing them.
 providers.gradleProperty("localImportMigrations").orNull?.let { importMigrationsPath ->
