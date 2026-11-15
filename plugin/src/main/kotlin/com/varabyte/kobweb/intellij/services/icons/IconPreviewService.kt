@@ -97,8 +97,7 @@ fun interface IconPreviewsListener {
 
 // The data lives in a folder per format version, so older versions of this plugin can keep using data in the format
 // they understand
-private val DATA_URL =
-    GitHubRepo.VarabyteData.rawFileUrl("kobweb-intellij-plugin/icon-previews/v${IconPreviewFormat.VERSION}")
+private const val DATA_PATH = "kobweb-intellij-plugin/icon-previews/v${IconPreviewFormat.VERSION}"
 
 /**
  * Provides outlines for Kobweb's silk icons, for previewing them in the editor.
@@ -220,7 +219,8 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
         return try {
             if (cachedFile.exists() && cachedFile.readBytes().sha256() == entry.sha256) return false
 
-            val bytes = RemoteFile("$DATA_URL/${entry.file}").downloadWithRetries { it.sha256() == entry.sha256 }
+            val dataUrl = GitHubRepo.VarabyteData.rawFileUrl("$DATA_PATH/${entry.file}")
+            val bytes = RemoteFile(dataUrl).downloadWithRetries { it.sha256() == entry.sha256 }
                 // The manifest is probably out of date, so keep using the cached copy (if any)
                 ?: return false
             cachedFile.writeBytesAtomically(bytes)
@@ -232,13 +232,14 @@ class IconPreviewService(private val coroutineScope: CoroutineScope) {
     }
 
     private suspend fun fetchManifest(): Map<String, ManifestEntry>? {
-        val manifestBytes = RemoteFile("$DATA_URL/manifest.json").downloadWithRetries()
+        val manifestUrl = GitHubRepo.VarabyteData.rawFileUrl("$DATA_PATH/manifest.json")
+        val manifestBytes = RemoteFile(manifestUrl).downloadWithRetries()
         return try {
             val root = ObjectMapper().readTree(manifestBytes)
             val formatVersion = root.path("formatVersion").asInt()
             if (formatVersion != IconPreviewFormat.VERSION) {
                 // This shouldn't happen unless we (the Kobweb maintainers) screwed up
-                logger.warn("Unexpected icon preview format version $formatVersion in $DATA_URL")
+                logger.warn("Unexpected icon preview format version $formatVersion in $manifestUrl")
                 return null
             }
             root.path("sets").properties().associate { (id, set: JsonNode) ->
