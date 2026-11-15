@@ -6,20 +6,6 @@ import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.varabyte.truthish.assertThat
 
 class KobwebReleaseVersionsServiceTest : BasePlatformTestCase() {
-    fun testReleaseTagIsFoundInReleaseUrl() {
-        val tag = KobwebReleaseVersionsService.findReleaseTag("https://github.com/varabyte/kobweb/releases/tag/v0.25.1")
-
-        assertThat(tag).isEqualTo("v0.25.1")
-    }
-
-    fun testUrlsWithoutReleaseTagAreRejected() {
-        val service = KobwebReleaseVersionsService
-
-        assertThat(service.findReleaseTag("https://github.com/varabyte/kobweb/releases")).isNull()
-        assertThat(service.findReleaseTag("https://github.com/varabyte/kobweb/releases/tag/0.25.1")).isNull()
-        assertThat(service.findReleaseTag("https://github.com/varabyte/kobweb/releases/tag/v0.26.0-rc1")).isNull()
-    }
-
     fun testVersionsAreReadFromCatalog() {
         val versions = KobwebReleaseVersionsService.readVersions(
             project,

@@ -403,8 +403,9 @@ class KobwebModuleStep(
     }
 
     /**
-     * The versions the latest Kobweb release uses, waiting briefly for them if they're still being fetched. If they
-     * can't be fetched (e.g. when offline), returns no versions, so the module uses the ones bundled with the plugin.
+     * The versions the latest (verified) Kobweb release uses, waiting briefly for them if they're still being fetched.
+     * If they can't be fetched (e.g. when offline), returns no versions, so the module uses the ones bundled with the
+     * plugin.
      */
     private fun awaitLatestKobwebVersions(project: Project): Map<String, String> {
         val service = KobwebReleaseVersionsService.instance
