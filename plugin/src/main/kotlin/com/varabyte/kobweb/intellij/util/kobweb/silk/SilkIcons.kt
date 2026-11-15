@@ -11,7 +11,8 @@ import com.varabyte.kobweb.icons.model.lucide.LucideIconSet
 import com.varabyte.kobweb.icons.model.material.MdiIconSet
 import com.varabyte.kobweb.icons.model.material.MsIconSet
 import com.varabyte.kobweb.intellij.iconpreviews.previewId
-import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_REPO_URL
+import com.varabyte.kobweb.intellij.util.github.GitHubRepo
+import com.varabyte.kobweb.intellij.util.kobweb.Kobweb
 import com.varabyte.kobweb.intellij.util.kobweb.readKobwebIconSetMetadata
 import com.varabyte.kobweb.intellij.util.psi.containingKlib
 import org.jetbrains.kotlin.analysis.api.KaSession
@@ -322,9 +323,10 @@ sealed interface SvgIconCall {
      */
     class SilkIcon(function: KtNamedFunction) : NamedIcon(function) {
         /** A link to the icon's source in the Kobweb repo, where each icon has its own file. */
-        val sourceUrl: String =
-            "$KOBWEB_REPO_URL/blob/main/frontend/silk-widgets/src/jsMain/kotlin/" +
-                "${SILK_SVG_ICONS_PACKAGE.asString().replace('.', '/')}/${function.containingFile.name}"
+        val sourceUrl: String = GitHubRepo.Kobweb.fileUrl(
+            "frontend/silk-widgets/src/jsMain/kotlin/" +
+                "${SILK_SVG_ICONS_PACKAGE.asString().replace('.', '/')}/${function.containingFile.name}",
+        )
     }
 
     /**

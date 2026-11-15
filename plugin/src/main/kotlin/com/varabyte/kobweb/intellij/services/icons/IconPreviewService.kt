@@ -16,7 +16,9 @@ import com.intellij.util.text.SemVer
 import com.varabyte.kobweb.intellij.iconpreviews.IconPreviewFormat
 import com.varabyte.kobweb.intellij.iconpreviews.IconShape
 import com.varabyte.kobweb.intellij.iconpreviews.PreviewIconSet
+import com.varabyte.kobweb.intellij.util.github.GitHubRepo
 import com.varabyte.kobweb.intellij.util.io.writeBytesAtomically
+import com.varabyte.kobweb.intellij.util.kobweb.VarabyteData
 import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconCall
 import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconSet
 import com.varabyte.kobweb.intellij.util.kobweb.silk.SilkIconStyle
@@ -95,8 +97,8 @@ fun interface IconPreviewsListener {
 
 // The data lives in a folder per format version, so older versions of this plugin can keep using data in the format
 // they understand
-private const val DATA_URL =
-    "https://raw.githubusercontent.com/varabyte/data/main/kobweb-intellij-plugin/icon-previews/v${IconPreviewFormat.VERSION}"
+private val DATA_URL =
+    GitHubRepo.VarabyteData.rawFileUrl("kobweb-intellij-plugin/icon-previews/v${IconPreviewFormat.VERSION}")
 
 /**
  * Provides outlines for Kobweb's silk icons, for previewing them in the editor.

@@ -8,7 +8,9 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.psi.PsiFileFactory
 import com.intellij.psi.util.childrenOfType
-import com.varabyte.kobweb.intellij.util.kobweb.KOBWEB_RAW_FILES_URL_BASE
+import com.varabyte.kobweb.intellij.util.github.GitHubRepo
+import com.varabyte.kobweb.intellij.util.kobweb.Kobweb
+import com.varabyte.kobweb.intellij.util.kobweb.VarabyteData
 import com.varabyte.kobweb.intellij.util.network.RemoteFile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -28,8 +30,8 @@ import kotlin.time.Duration
 // Which release to use is read from a file in the varabyte/data repo, which is updated only after a new release has
 // been checked against this plugin's module templates. That way, a Kobweb release can't break the templates of
 // already-installed plugins, and a bad update can be rolled back without a plugin release.
-private const val VERIFIED_VERSION_URL =
-    "https://raw.githubusercontent.com/varabyte/data/main/kobweb-intellij-plugin/module-templates/verified-kobweb-version.txt"
+private val VERIFIED_VERSION_URL =
+    GitHubRepo.VarabyteData.rawFileUrl("kobweb-intellij-plugin/module-templates/verified-kobweb-version.txt")
 
 /**
  * The versions that a Kobweb release was built with.
@@ -131,7 +133,7 @@ class KobwebReleaseVersionsService(private val coroutineScope: CoroutineScope) {
     private fun fetchLatestVersions(): KobwebReleaseVersions? {
         val kobwebVersion = fetchVerifiedVersion() ?: return null
         val tag = "v$kobwebVersion"
-        val catalogUrl = "$KOBWEB_RAW_FILES_URL_BASE/$tag/gradle/libs.versions.toml"
+        val catalogUrl = GitHubRepo.Kobweb.rawFileUrl("gradle/libs.versions.toml", ref = tag)
         val catalogText = RemoteFile(catalogUrl).download()?.decodeToString() ?: return null
         val catalogVersions = readVersions(ProjectManager.getInstance().defaultProject, catalogText)
             .takeIf { it.isNotEmpty() }
@@ -154,7 +156,7 @@ class KobwebReleaseVersionsService(private val coroutineScope: CoroutineScope) {
      * isn't always supported by the Kotlin Gradle plugin yet.
      */
     private fun fetchGradleVersion(tag: String): String? {
-        val wrapperUrl = "$KOBWEB_RAW_FILES_URL_BASE/$tag/gradle/wrapper/gradle-wrapper.properties"
+        val wrapperUrl = GitHubRepo.Kobweb.rawFileUrl("gradle/wrapper/gradle-wrapper.properties", ref = tag)
         val wrapperText = RemoteFile(wrapperUrl).download()?.decodeToString() ?: return null
         return readGradleVersion(wrapperText)
             .also { if (it == null) logger.warn("Found no Gradle version in $wrapperUrl") }
@@ -164,7 +166,8 @@ class KobwebReleaseVersionsService(private val coroutineScope: CoroutineScope) {
     private fun fetchVerifiedVersion(): String? {
         val text = RemoteFile(VERIFIED_VERSION_URL).download()?.decodeToString() ?: return null
         /**
-         * The Kobweb version in a verified version file's text, e.g. `"0.25.1"`, or null if it isn't an `X.Y.Z` version.
+         * The Kobweb version in a verified version file's text, e.g. `"0.25.1"`, or null if it isn't an `X.Y.Z`
+         * version.
          */
         fun String.readVerifiedVersion(): String? =
             trim().takeIf { Regex("""\d+\.\d+\.\d+""").matches(it) }

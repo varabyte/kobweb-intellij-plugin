@@ -8,7 +8,9 @@ import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.util.Disposer
+import com.varabyte.kobweb.intellij.util.github.GitHubRepo
 import com.varabyte.kobweb.intellij.util.io.writeBytesAtomically
+import com.varabyte.kobweb.intellij.util.kobweb.VarabyteData
 import com.varabyte.kobweb.intellij.util.kobweb.imports.ImportMigrations
 import com.varabyte.kobweb.intellij.util.network.RemoteFile
 import kotlinx.coroutines.CoroutineScope
@@ -24,8 +26,8 @@ import kotlin.io.path.readText
 // Bump this (and publish the file under a new version folder) if the format ever changes in a way that older versions
 // of this plugin can't handle, so that they can keep using the old file
 private const val FORMAT_VERSION = 1
-private const val DATA_URL =
-    "https://raw.githubusercontent.com/varabyte/data/main/kobweb-intellij-plugin/import-migrations/v$FORMAT_VERSION/migrations.txt"
+private val DATA_URL =
+    GitHubRepo.VarabyteData.rawFileUrl("kobweb-intellij-plugin/import-migrations/v$FORMAT_VERSION/migrations.txt")
 
 /**
  * Provides the list of declarations that have moved in Kobweb and related libraries, so that imports still using their
