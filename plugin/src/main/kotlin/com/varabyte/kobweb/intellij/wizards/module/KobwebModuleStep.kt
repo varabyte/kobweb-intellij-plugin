@@ -75,8 +75,9 @@ import kotlin.time.Duration.Companion.seconds
  * It also holds the options that all kinds share, so they keep their values when users switch between kinds. The
  * module's name and location come from the [NewProjectWizardBaseStep].
  *
- * When creating a new project, the base step names the project instead, and this step only offers an application,
- * which goes into the project's [NEW_PROJECT_MODULE_NAME] directory.
+ * When creating a new project, it is essentially the same flow as creating an application module, except the initial
+ * name applies to the root project, and the application module derives its name from the group
+ * (see [newProjectModuleName]).
  */
 class KobwebModuleStep(
     private val gitStep: DeferredSetupStep,
@@ -106,7 +107,7 @@ class KobwebModuleStep(
     }
 
     init {
-        // In a new project, the name field is the project's name, and the module is always [NEW_PROJECT_MODULE_NAME]
+        // In a new project, the name field is the project's name, and the module derives its name from the group
         if (!context.isCreatingNewProject) {
             // Follows the selected type until the user edits it, e.g. `site` for an application
             baseStep.nameProperty.dependsOn(stepProperty, ::suggestModuleName)
@@ -116,8 +117,10 @@ class KobwebModuleStep(
         groupProperty.dependsOn(baseStep.pathProperty, ::suggestGroup)
     }
 
+    private fun currentNewProjectModuleName() = newProjectModuleName(groupProperty.get(), baseStep.name)
+
     private val moduleDir: Path
-        get() = if (context.isCreatingNewProject) Path(baseStep.path, baseStep.name, NEW_PROJECT_MODULE_NAME)
+        get() = if (context.isCreatingNewProject) Path(baseStep.path, baseStep.name, currentNewProjectModuleName())
         else Path(baseStep.path, baseStep.name)
 
     override fun initSteps(): Map<String, NewProjectWizardStep> {
@@ -165,6 +168,15 @@ class KobwebModuleStep(
                 .columns(COLUMNS_MEDIUM)
                 .validationOnInput { field -> validateGroup(field.text, exampleGroup) }
                 .validationOnApply { field -> validateGroup(field.text, exampleGroup) }
+                .apply {
+                    if (context.isCreatingNewProject) {
+                        fun moduleComment() =
+                            bundle.message("wizard.kobweb.module.new.project.module", currentNewProjectModuleName())
+                        comment(moduleComment())
+                        groupProperty.afterChange { comment?.text = moduleComment() }
+                        baseStep.nameProperty.afterChange { comment?.text = moduleComment() }
+                    }
+                }
                 // The location field belongs to an earlier step, so check here that it's still inside the build
                 .validationOnApply {
                     if (context.isCreatingNewProject || context.project?.findGradleRoot(moduleDir) != null) null
@@ -360,6 +372,7 @@ class KobwebModuleStep(
     private fun writeNewProject(project: Project, write: KobwebModuleWriter.(moduleDir: String) -> VirtualFile) {
         val rootPath = Path(baseStep.path, baseStep.name)
         val projectName = baseStep.name
+        val moduleName = currentNewProjectModuleName()
         @Suppress("UnstableApiUsage") // `runAfterOpened` is what IJ wizards themselves use; should be fine. If this
         // ever breaks, we can write our own solution instead.
         runAfterOpened(project) { openedProject ->
@@ -374,7 +387,7 @@ class KobwebModuleStep(
                         .withName(UxGlobals.textBundle.message("wizard.kobweb.module.command"))
                         .compute<VirtualFile, Throwable> {
                             writer.writeProjectRoot(projectName)
-                            writer.write(NEW_PROJECT_MODULE_NAME)
+                            writer.write(moduleName)
                         }
                     OpenFileDescriptor(openedProject, buildFile).navigate(/* requestFocus = */ true)
                 }
@@ -443,9 +456,9 @@ class KobwebModuleStep(
      */
     private fun suggestModuleName(): String {
         val defaultName = when (steps[step]) {
-            is KobwebAppStep -> "site"
-            is KobwebLibraryStep -> "library"
-            is KobwebWorkerStep -> "worker"
+            is KobwebAppStep -> DefaultModuleNames.APP
+            is KobwebLibraryStep -> DefaultModuleNames.LIBRARY
+            is KobwebWorkerStep -> DefaultModuleNames.WORKER
             else -> baseStep.defaultName
         }
         // The base step suggests a new name from this one when the location changes
@@ -474,7 +487,7 @@ class KobwebModuleStep(
      */
     private fun suggestGroup(): String {
         if (context.isCreatingNewProject) {
-            return listOfNotNull(NEW_PROJECT_GROUP, baseStep.name.toPackageSegment(), NEW_PROJECT_MODULE_NAME)
+            return listOfNotNull(NEW_PROJECT_GROUP, baseStep.name.toPackageSegment(), DefaultModuleNames.APP)
                 .joinToString(".")
         }
         val project = context.project
@@ -526,31 +539,40 @@ class KobwebModuleStep(
      */
     private class WriteModuleResult(val buildFile: VirtualFile, val skippedDependentDirs: List<String>)
 
-    internal companion object {
-        /** The directory of a new project's application module, as `kobweb create app` names it. */
-        const val NEW_PROJECT_MODULE_NAME = "site"
+    private companion object {
+        object DefaultModuleNames {
+            const val APP = "site"
+            const val LIBRARY = "library"
+            const val WORKER = "worker"
+        }
+
+        fun newProjectModuleName(group: String, projectName: String): String {
+            val lastSegment = group.substringAfterLast('.')
+            val isProjectName = lastSegment.equals(projectName.toPackageSegment(), ignoreCase = true)
+            return if (lastSegment.isPackageSegment() && !isProjectName) lastSegment else DefaultModuleNames.APP
+        }
 
         /** The group that a new project's groups start with, followed by the project's name. */
-        private const val NEW_PROJECT_GROUP = "org.example"
+        const val NEW_PROJECT_GROUP = "org.example"
 
         /**
          * The Gradle version of a new project's wrapper if the latest Kobweb release's can't be fetched: the one
          * Kobweb's latest release (at the time this plugin was released) was built with.
          */
-        private const val NEW_PROJECT_GRADLE_VERSION = "9.7.0"
+        const val NEW_PROJECT_GRADLE_VERSION = "9.7.0"
 
         /** How long Create waits for the latest Kobweb versions, if they're still being fetched. */
-        private val LATEST_VERSIONS_TIMEOUT = 2.seconds
+        val LATEST_VERSIONS_TIMEOUT = 2.seconds
 
         /** The popup of dependents scrolls past this many. */
-        private const val MAX_VISIBLE_DEPENDENTS = 10
+        const val MAX_VISIBLE_DEPENDENTS = 10
 
         /** The dependents row names this many of the chosen dependents, then counts the rest. */
-        private const val MAX_SUMMARIZED_DEPENDENTS = 2
+        const val MAX_SUMMARIZED_DEPENDENTS = 2
 
         // These options are remembered across projects, as IntelliJ does for its own "Add sample code" option
-        private const val GENERATE_README_PROPERTY_NAME = "kobweb.wizard.module.generateReadme"
-        private const val ADD_SAMPLE_CODE_PROPERTY_NAME = "kobweb.wizard.module.addSampleCode"
+        const val GENERATE_README_PROPERTY_NAME = "kobweb.wizard.module.generateReadme"
+        const val ADD_SAMPLE_CODE_PROPERTY_NAME = "kobweb.wizard.module.addSampleCode"
     }
 }
 
