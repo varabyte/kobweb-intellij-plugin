@@ -98,14 +98,11 @@ class KobwebModuleStep(
     /**
      * Whether other existing application and/or library modules should depend on the new module.
      *
-     * A library is never selected by default, since chaining Kobweb libraries is fairly uncommon. Meanwhile, an
-     * application is selected only if it's the only one in the build. This way, users never have to uncheck more than
-     * a single box if they want to continue without any dependents.
+     * None are selected by default, since editing other modules' build scripts should be a deliberate choice, not
+     * something users agree to by clicking Create without reading the whole form.
      */
     private val dependentProperties: Map<DependentModule, GraphProperty<Boolean>> by lazy {
-        val dependents = findDependents()
-        val onlyApplication = dependents.singleOrNull { it.type == KobwebProjectType.Application }
-        dependents.associateWith { propertyGraph.property(it == onlyApplication) }
+        findDependents().associateWith { propertyGraph.property(false) }
     }
 
     init {
