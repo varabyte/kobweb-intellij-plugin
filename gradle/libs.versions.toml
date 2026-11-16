@@ -7,7 +7,7 @@ kobweb-ide-plugin="0.8.1-SNAPSHOT"
 #   tools/icon-previews-generator/build.gradle.kts)
 kobweb = "0.25.1"
 #--------------------------------------
-intellij-platform = "2.19.0"
+intellij-platform = "2.20.1"
 jetbrains-changelog = "2.5.0"
 kotlin = "2.4.21"
 kotlinx-serialization = "1.11.0"
