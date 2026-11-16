@@ -86,12 +86,20 @@ class KobwebModuleWriter(
      * modules are then added like those of any other build, e.g. with [writeApp].
      *
      * Must be called inside a write command.
+     *
+     * @param appModuleDir The directory of the project's application module, which the README's run instructions `cd`
+     *   into, since `kobweb run` only works from there.
+     * @param generateReadme Whether to write a README, which is what a repository host like GitHub shows for the
+     *   project. It covers just running the site, leaving the details to the application module's own README.
      */
-    fun writeProjectRoot(projectName: String) {
-        val properties = mapOf("PROJECT_NAME" to projectName)
+    fun writeProjectRoot(projectName: String, appModuleDir: String, generateReadme: Boolean) {
+        val properties = mapOf("PROJECT_NAME" to projectName, "APP_MODULE_DIR" to appModuleDir)
         rootDir.writeTemplate("settings.gradle.kts", "Kobweb Project settings.gradle.kts", properties)
         rootDir.writeTemplate("gradle.properties", "Kobweb Project gradle.properties", properties)
         rootDir.writeTemplate(".gitignore", "Kobweb Project gitignore", properties)
+        if (generateReadme) {
+            rootDir.writeTemplate("README.md", "Kobweb Project README.md", properties)
+        }
     }
 
     /**

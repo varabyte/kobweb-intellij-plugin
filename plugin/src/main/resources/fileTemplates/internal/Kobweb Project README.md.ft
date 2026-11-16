@@ -1,0 +1,15 @@
+# ${PROJECT_NAME}
+
+A [Kobweb](https://kobweb.varabyte.com) project, created with [IntelliJ IDEA](https://www.jetbrains.com/idea/) and the
+[Kobweb plugin](https://plugins.jetbrains.com/plugin/23883-kobweb). To run it, open a terminal in this folder and type
+
+```bash
+$ cd ${APP_MODULE_DIR}
+$ kobweb run
+```
+
+and then visit http://localhost:8080.
+
+#[[(See https://kobweb.varabyte.com/docs/getting-started/getting-kobweb for how to install the `kobweb` command.)]]#
+
+See [`${APP_MODULE_DIR}/README.md`](${APP_MODULE_DIR}/README.md) for where the site's code goes.

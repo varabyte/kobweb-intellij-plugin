@@ -1867,7 +1867,7 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
 
         WriteCommandAction.runWriteCommandAction(project) {
             val writer = KobwebModuleWriter(project, rootDir, versionOverrides = emptyMap())
-            writer.writeProjectRoot("myproject")
+            writer.writeProjectRoot("myproject", appModuleDir = "site", generateReadme = false)
             writer.writeApp(
                 "site",
                 KobwebAppOptions(
@@ -1959,6 +1959,51 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
         )
         assertThat(exists("gradle/libs.versions.toml")).isTrue()
         assertThat(exists("site/build.gradle.kts")).isTrue()
+        assertThat(exists("README.md")).isFalse()
+    }
+
+    fun testNewProjectReadme() {
+        val rootDir = myFixture.tempDirFixture.getFile("")!!
+
+        WriteCommandAction.runWriteCommandAction(project) {
+            val writer = KobwebModuleWriter(project, rootDir, versionOverrides = emptyMap())
+            writer.writeProjectRoot("myproject", appModuleDir = "site", generateReadme = true)
+            writer.writeApp(
+                "site",
+                KobwebAppOptions(
+                    group = "org.example.myproject.site",
+                    title = "My Project",
+                    useSilk = true,
+                    iconSet = null,
+                    useServer = false,
+                    useMarkdown = false,
+                    generateReadme = true,
+                    addSampleCode = false,
+                ),
+            )
+        }
+
+        assertThat(textOf("README.md")).isEqualTo(
+            """
+            # myproject
+
+            A [Kobweb](https://kobweb.varabyte.com) project, created with [IntelliJ IDEA](https://www.jetbrains.com/idea/) and the
+            [Kobweb plugin](https://plugins.jetbrains.com/plugin/23883-kobweb). To run it, open a terminal in this folder and type
+
+            ```bash
+            $ cd site
+            $ kobweb run
+            ```
+
+            and then visit http://localhost:8080.
+
+            (See https://kobweb.varabyte.com/docs/getting-started/getting-kobweb for how to install the `kobweb` command.)
+
+            See [`site/README.md`](site/README.md) for where the site's code goes.
+
+            """.trimIndent()
+        )
+        assertThat(exists("site/README.md")).isTrue()
     }
 
     fun testMissingCatalogIsCreatedFromTheTemplateCatalog() {

@@ -373,6 +373,7 @@ class KobwebModuleStep(
         val rootPath = Path(baseStep.path, baseStep.name)
         val projectName = baseStep.name
         val moduleName = currentNewProjectModuleName()
+        val generateReadme = generateReadmeProperty.get()
         @Suppress("UnstableApiUsage") // `runAfterOpened` is what IJ wizards themselves use; should be fine. If this
         // ever breaks, we can write our own solution instead.
         runAfterOpened(project) { openedProject ->
@@ -386,7 +387,7 @@ class KobwebModuleStep(
                     val buildFile = WriteCommandAction.writeCommandAction(openedProject)
                         .withName(UxGlobals.textBundle.message("wizard.kobweb.module.command"))
                         .compute<VirtualFile, Throwable> {
-                            writer.writeProjectRoot(projectName)
+                            writer.writeProjectRoot(projectName, moduleName, generateReadme)
                             writer.write(moduleName)
                         }
                     OpenFileDescriptor(openedProject, buildFile).navigate(/* requestFocus = */ true)
