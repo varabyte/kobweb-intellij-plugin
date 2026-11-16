@@ -328,14 +328,17 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
 
             Its code goes in these places:
 
-            * `src/jsMain/kotlin/com/example/mysite/AppEntry.kt`: the `@App` function that wraps every page
-            * `src/jsMain/kotlin/com/example/mysite/components`: layouts, sections, and widgets
-              (see https://kobweb.varabyte.com/docs/concepts/foundation/project-structure#components-and-pages)
-            * `src/jsMain/kotlin/com/example/mysite/pages`: pages
-              (see https://kobweb.varabyte.com/docs/concepts/foundation/routing#page)
-            * `src/jsMain/resources/public`: files served as is, like images and the favicon
-            * `src/jsMain/resources/markdown`: Markdown files, which get converted into pages
-              (see https://kobweb.varabyte.com/docs/concepts/foundation/markdown)
+            * `src/jsMain/`
+              * `kotlin/com/example/mysite/`
+                * `components/`: layouts, sections, and widgets
+                  (see https://kobweb.varabyte.com/docs/concepts/foundation/project-structure#components-and-pages)
+                * `pages/`: pages
+                  (see https://kobweb.varabyte.com/docs/concepts/foundation/routing#page)
+                * `AppEntry.kt`: the `@App` function that wraps every page
+              * `resources/`
+                * `public/`: files served as is, like images and the favicon
+                * `markdown/`: Markdown files, which get converted into pages
+                  (see https://kobweb.varabyte.com/docs/concepts/foundation/markdown)
             * `.kobweb/conf.yaml`: the site's title and server settings
 
             """.trimIndent()
@@ -886,12 +889,16 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
 
             A Kobweb library. Its code goes in these folders:
 
-            * `src/jsMain/kotlin/com/example/mysite/mylib/components`: layouts, sections, and widgets
-              (see https://kobweb.varabyte.com/docs/concepts/foundation/project-structure#components-and-pages)
-            * `src/jsMain/kotlin/com/example/mysite/mylib/pages`: pages
-              (see https://kobweb.varabyte.com/docs/concepts/foundation/routing#page)
-            * `src/jvmMain/kotlin/com/example/mysite/mylib/api`: API routes
-              (see https://kobweb.varabyte.com/docs/concepts/server/fullstack#define-api-routes)
+            * `src/jsMain/`
+              * `kotlin/com/example/mysite/mylib/`
+                * `components/`: layouts, sections, and widgets
+                  (see https://kobweb.varabyte.com/docs/concepts/foundation/project-structure#components-and-pages)
+                * `pages/`: pages
+                  (see https://kobweb.varabyte.com/docs/concepts/foundation/routing#page)
+            * `src/jvmMain/`
+              * `kotlin/com/example/mysite/mylib/`
+                * `api/`: API routes
+                  (see https://kobweb.varabyte.com/docs/concepts/server/fullstack#define-api-routes)
 
             """.trimIndent()
         )
@@ -956,12 +963,15 @@ class KobwebModuleWriterTest : BasePlatformTestCase() {
 
             A Kobweb library. Its code goes in these folders:
 
-            * `src/jsMain/kotlin/com/example/mylib/components`: layouts, sections, and widgets
-              (see https://kobweb.varabyte.com/docs/concepts/foundation/project-structure#components-and-pages)
-            * `src/jsMain/kotlin/com/example/mylib/pages`: pages
-              (see https://kobweb.varabyte.com/docs/concepts/foundation/routing#page)
-            * `src/jsMain/resources/markdown`: Markdown files, which get converted into pages
-              (see https://kobweb.varabyte.com/docs/concepts/foundation/markdown)
+            * `src/jsMain/`
+              * `kotlin/com/example/mylib/`
+                * `components/`: layouts, sections, and widgets
+                  (see https://kobweb.varabyte.com/docs/concepts/foundation/project-structure#components-and-pages)
+                * `pages/`: pages
+                  (see https://kobweb.varabyte.com/docs/concepts/foundation/routing#page)
+              * `resources/`
+                * `markdown/`: Markdown files, which get converted into pages
+                  (see https://kobweb.varabyte.com/docs/concepts/foundation/markdown)
 
             """.trimIndent()
         )
