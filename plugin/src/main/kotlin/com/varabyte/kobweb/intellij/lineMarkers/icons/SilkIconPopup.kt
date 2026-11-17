@@ -2,6 +2,7 @@ package com.varabyte.kobweb.intellij.lineMarkers.icons
 
 import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.application.ReadAction
+import com.intellij.openapi.application.WriteIntentReadAction
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogPanel
@@ -115,34 +116,43 @@ class SilkIconPopup(private val call: KtCallExpression, private val iconPreviews
     /** Set the call's `style` argument to [style], or remove it if `null` (so the function's default is used). */
     @VisibleForTesting
     internal fun setStyle(style: SilkIconStyle?) {
-        // All PSI access happens inside the write command, which also grants read access
-        WriteCommandAction.writeCommandAction(project, file)
-            .withName(message("popups.silk.icon.change.style.command"))
-            .run<RuntimeException> {
-                // The code may have changed since the popup opened
-                if (!call.isValid) return@run
+        // Our Swing listeners call this, without holding any IJ lock (even though we were on the EDT). This broke
+        // `writeCommandAction`'s pre-flight check on `file`, which reads PSI before taking the write lock.
+        // (Specifically, we got an exception report from the Kubernetes plugin's writability check asserting read
+        // access. Note that we expect this to be rare for most users in practice: the check is skipped for recently
+        // edited files, so an assert would only happen if a user set the style in an unedited file while also having a
+        // plugin installed that checks the thread state explicitly.) Proceeding inside a `WriteIntentReadAction` allows
+        // those reads to happen safely.
+        @Suppress("UnstableApiUsage") // Experimental API but it's what the exception advises!
+        WriteIntentReadAction.run {
+            WriteCommandAction.writeCommandAction(project, file)
+                .withName(message("popups.silk.icon.change.style.command"))
+                .run<RuntimeException> {
+                    // The code may have changed since the popup opened
+                    if (!call.isValid) return@run
 
-                val styleArgument = findStyleArgument()
-                if (style == null) {
-                    styleArgument?.let { removeArgument(it) }
-                    return@run
-                }
-                // We only offer style choices for functions with a `style` parameter, so this is always set by now
-                val styleEnum = iconCall.styleEnum ?: return@run
-                val entry = styleEnum.entryFor(style) ?: return@run
+                    val styleArgument = findStyleArgument()
+                    if (style == null) {
+                        styleArgument?.let { removeArgument(it) }
+                        return@run
+                    }
+                    // We only offer style choices for functions with a `style` parameter, so this is always set by now
+                    val styleEnum = iconCall.styleEnum ?: return@run
+                    val entry = styleEnum.entryFor(style) ?: return@run
 
-                // Write the style's fully qualified name, then let the IDE shorten it (adding an import if needed)
-                val factory = KtPsiFactory(project)
-                val styleExpression = factory.createExpression("${styleEnum.fqName}.$entry")
-                val added = if (styleArgument?.getArgumentExpression() != null) {
-                    styleArgument.getArgumentExpression()!!.replace(styleExpression)
-                } else {
-                    call.valueArgumentList?.addArgument(
-                        factory.createArgument(styleExpression, Name.identifier("style"))
-                    )
+                    // Write the style's fully qualified name, then let the IDE shorten it (adding an import if needed)
+                    val factory = KtPsiFactory(project)
+                    val styleExpression = factory.createExpression("${styleEnum.fqName}.$entry")
+                    val added = if (styleArgument?.getArgumentExpression() != null) {
+                        styleArgument.getArgumentExpression()!!.replace(styleExpression)
+                    } else {
+                        call.valueArgumentList?.addArgument(
+                            factory.createArgument(styleExpression, Name.identifier("style"))
+                        )
+                    }
+                    (added as? KtElement)?.let { ShortenReferencesFacility.getInstance().shorten(it) }
                 }
-                (added as? KtElement)?.let { ShortenReferencesFacility.getInstance().shorten(it) }
-            }
+        }
     }
 
     /**
