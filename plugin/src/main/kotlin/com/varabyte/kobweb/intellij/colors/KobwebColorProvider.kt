@@ -237,7 +237,8 @@ class KobwebColorProvider : ElementColorProvider {
         else -> traceColor(element.parent) // Leaf is just text. The parent is the actual object
     }
 
-    // TODO(#30): Support setting colors when possible
+    // TODO(#30): Support setting colors when possible, and make the color popup read-only for the rest once the platform
+    //  allows it (https://youtrack.jetbrains.com/issue/IJPL-261929)
     override fun setColorTo(element: PsiElement, color: Color) = Unit
 }
 
