@@ -100,3 +100,11 @@ Finally, publish the plugin using the `publishPlugin` task (or
 using [GitHub CI](https://github.com/varabyte/kobweb-intellij-plugin/actions/workflows/publish.yml)).
 
 When finished, verify https://plugins.jetbrains.com/plugin/23883-kobweb is up to date.
+
+## Post-release
+
+IntelliJ sends out a notification email when the plugin is published. At that point...
+
+* remember to resolve 
+any [exception reports](https://plugins.jetbrains.com/plugin/23883-kobweb/edit/exception-analyzer) believed fixed by
+this release.
